@@ -349,7 +349,7 @@
       if (periodWrap && periodDropdown && !periodWrap.contains(event.target)) periodDropdown.style.display = 'none';
     });
 
-    initApp();
+    initKchAuthentication();
   });
 
   function initApp() {
@@ -374,12 +374,12 @@
   function loadMetadata(callback) {
     if (appState.isLoadingMetadata) return;
     appState.isLoadingMetadata = true;
-    google.script.run
+    kchRun()
       .withSuccessHandler(function(res) {
         appState.isLoadingMetadata = false;
         if (!res || !res.success) {
           showToast(res && res.message ? res.message : 'Gagal memuat metadata aplikasi.', 'error');
-          setupMockPreviewData();
+          showKchAuthError(res.message || 'Gagal memuat data aplikasi.');
           return;
         }
 
@@ -401,6 +401,10 @@
         appState.workDays = res.workDays || null;
 
         updateDynamicGreeting();
+        if (res.sidebarLogoUrl) {
+          var logo = document.querySelector('.brand-logo-icon');
+          if (logo) { var img = document.createElement('img'); img.src = res.sidebarLogoUrl; img.alt = 'Logo'; img.style.cssText = 'width:24px;height:28px;object-fit:contain'; logo.replaceChildren(img); }
+        }
         populateAllSelects();
         renderInventoryTable();
         renderPriceMasterTable();
@@ -467,7 +471,7 @@
     var tbody = document.getElementById('monthlyReportProductsTbody');
     if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Memuat laporan bulanan...</td></tr>';
 
-    google.script.run
+    kchRun()
       .withSuccessHandler(function(res) {
         if (!res || !res.success) {
           showToast(res && res.message ? res.message : 'Laporan bulanan gagal dimuat.', 'error');
@@ -635,7 +639,7 @@
       attendanceDate: appState.attendanceDate || ''
     };
 
-    google.script.run
+    kchRun()
       .withSuccessHandler(function(res) {
         appState.isLoadingDashboard = false;
         if (!res || !res.success) {
@@ -1104,7 +1108,7 @@
       var container = document.getElementById(id);
       if (container) container.innerHTML = '<div class="text-muted text-center py-2">Memuat rencana kunjungan...</div>';
     });
-    google.script.run
+    kchRun()
       .withSuccessHandler(function(res) {
         if (!res || !res.success) {
           showToast(res && res.message ? res.message : 'Gagal memuat Today’s Plan.', 'error');
@@ -1199,7 +1203,7 @@
     };
     var button = document.getElementById('btnSaveTodayPlan');
     if (button) { button.disabled = true; button.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...'; }
-    google.script.run
+    kchRun()
       .withSuccessHandler(function(res) {
         if (button) button.disabled = false;
         if (!res || !res.success) {
@@ -1220,7 +1224,7 @@
 
   function archiveTodayPlan(planId) {
     if (!appState.canManageTodayPlan || !window.confirm('Arsipkan rencana kunjungan ini?')) return;
-    google.script.run
+    kchRun()
       .withSuccessHandler(function(res) {
         if (!res || !res.success) {
           showToast(res && res.message ? res.message : 'Rencana gagal diarsipkan.', 'error');
@@ -1241,7 +1245,7 @@
       var container = document.getElementById(id);
       if (container) container.innerHTML = '<div class="text-muted text-center py-2">Memuat hasil meeting...</div>';
     });
-    google.script.run
+    kchRun()
       .withSuccessHandler(function(res) {
         if (!res || !res.success) {
           showToast(res && res.message ? res.message : 'Gagal memuat hasil meeting mingguan.', 'error');
@@ -1342,7 +1346,7 @@
     };
     var button = document.getElementById('btnSaveWeeklyMeeting');
     if (button) { button.disabled = true; button.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...'; }
-    google.script.run
+    kchRun()
       .withSuccessHandler(function(res) {
         if (button) button.disabled = false;
         if (!res || !res.success) {
@@ -1363,7 +1367,7 @@
 
   function archiveWeeklyMeeting(meetingId) {
     if (!appState.canManageWeeklyMeetings || !window.confirm('Arsipkan hasil meeting ini?')) return;
-    google.script.run
+    kchRun()
       .withSuccessHandler(function(res) {
         if (!res || !res.success) {
           showToast(res && res.message ? res.message : 'Hasil meeting gagal diarsipkan.', 'error');
@@ -1517,7 +1521,7 @@
     };
     var button = document.getElementById('btnSaveKchNews');
     if (button) { button.disabled = true; button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...'; }
-    google.script.run
+    kchRun()
       .withSuccessHandler(function(res) {
         if (button) button.disabled = false;
         if (!res || !res.success) {
@@ -1556,7 +1560,7 @@
 
   function archiveKchNewsArticleUi(newsId) {
     if (!appState.canManageKchNews || !window.confirm('Arsipkan artikel ini? Artikel tidak akan tampil untuk pembaca.')) return;
-    google.script.run
+    kchRun()
       .withSuccessHandler(function(res) {
         if (!res || !res.success) { showToast(res && res.message ? res.message : 'Artikel gagal diarsipkan.', 'error'); return; }
         if (String(getValue('kchNewsEditorId')) === String(newsId)) resetKchNewsEditor();
@@ -1593,7 +1597,7 @@
   function loadKchNews() {
     var pageList = document.getElementById('kchNewsPageList');
     if (pageList) pageList.innerHTML = '<div class="chart-card text-muted">Memuat KCH News...</div>';
-    google.script.run
+    kchRun()
       .withSuccessHandler(function(res) {
         if (!res || !res.success) {
           showToast(res && res.message ? res.message : 'Gagal memuat KCH News.', 'error');
@@ -1645,7 +1649,7 @@
       if (container) container.innerHTML = '<div class="attendance-loading-placeholder"><i class="fa-solid fa-circle-notch fa-spin text-primary"></i><span>Memuat foto kunjungan...</span></div>';
     });
 
-    google.script.run
+    kchRun()
       .withSuccessHandler(function(res) {
         if (!res || !res.success) {
           showToast(res && res.message ? res.message : 'Gagal memuat foto kunjungan.', 'error');
@@ -1707,7 +1711,7 @@
       if (container) container.innerHTML = '<div class="attendance-loading-placeholder"><i class="fa-solid fa-circle-notch fa-spin text-primary"></i><span>Memuat foto absensi tim...</span></div>';
     });
 
-    google.script.run
+    kchRun()
       .withSuccessHandler(function(res) {
         if (!res || !res.success) {
           showToast(res && res.message ? res.message : 'Gagal memuat absensi.', 'error');
@@ -1825,7 +1829,7 @@
         return;
       }
       if (submitButton) submitButton.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...';
-      google.script.run
+      kchRun()
         .withSuccessHandler(function(res) {
           if (submitButton) {
             submitButton.disabled = false;
@@ -2293,7 +2297,7 @@
       username: appState.user && appState.user.username ? appState.user.username : 'ryan'
     };
 
-    google.script.run
+    kchRun()
       .withSuccessHandler(function(res) {
         appState.isSubmittingTransaction = false;
         if (btn) {
@@ -2350,7 +2354,7 @@
     var tbody = document.getElementById('transactionsTbody');
     if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Memuat data transaksi...</td></tr>';
 
-    google.script.run
+    kchRun()
       .withSuccessHandler(function(res) {
         if (!res || !res.success) {
           if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Gagal memuat transaksi.</td></tr>';
@@ -2424,7 +2428,7 @@
   }
 
   function openTransactionDetail(transactionId) {
-    google.script.run
+    kchRun()
       .withSuccessHandler(function(res) {
         if (!res || !res.success) {
           showToast(res && res.message ? res.message : 'Detail faktur tidak ditemukan.', 'error');
@@ -2693,7 +2697,7 @@ function renderDriveFiles() {
     var date = getValue('txFilterDate') || '';
     showToast('Menyiapkan file CSV...', 'info');
 
-    google.script.run
+    kchRun()
       .withSuccessHandler(function(res) {
         if (!res || !res.success) {
           showToast(res && res.message ? res.message : 'Export gagal.', 'error');
@@ -2731,7 +2735,7 @@ function renderDriveFiles() {
     var date = getValue('txFilterDate') || '';
     showToast('Menyiapkan laporan cetak...', 'info');
 
-    google.script.run
+    kchRun()
       .withSuccessHandler(function(res) {
         if (!res || !res.success) {
           showToast(res && res.message ? res.message : 'Laporan gagal dibuat.', 'error');
@@ -2764,7 +2768,7 @@ function renderDriveFiles() {
 
   function logClientActivity(action, targetRef, details) {
     try {
-      google.script.run.logClientActivity(action, targetRef, details, appState.user && appState.user.username ? appState.user.username : 'ryan');
+      kchRun().logClientActivity(action, targetRef, details, appState.user && appState.user.username ? appState.user.username : 'ryan');
     } catch (e) {}
   }
 

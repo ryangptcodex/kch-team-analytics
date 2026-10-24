@@ -1,0 +1,147 @@
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script>
+  var kchFirebaseAuth = null;
+  var kchAuthGeneration = 0;
+
+  function showKchAuthError(message) {
+    document.body.classList.add('kch-locked');
+    document.getElementById('kchAuthScreen').hidden = false;
+    document.getElementById('kchAuthMessage').textContent = String(message || 'Silakan masuk kembali.');
+  }
+
+  // Obtain a fresh Firebase ID token for every RPC. The server independently
+  // verifies it and rereads ACCESS_USERS; hiding controls is not authorization.
+  function kchRun() {
+    var success = function() {};
+    var failure = function(err) { showToast(err.message || 'Permintaan gagal.', 'error'); };
+    var generation = kchAuthGeneration;
+    var proxy;
+    proxy = new Proxy({}, { get: function(target, method) {
+      if (method === 'withSuccessHandler') return function(fn) { success = fn; return proxy; };
+      if (method === 'withFailureHandler') return function(fn) { failure = fn; return proxy; };
+      return function() {
+        var args = Array.prototype.slice.call(arguments);
+        var current = kchFirebaseAuth && kchFirebaseAuth.currentUser;
+        function fail(err) {
+          if (generation !== kchAuthGeneration) return;
+          var message = err && err.message ? err.message : 'Permintaan gagal.';
+          if (/AUTH_REQUIRED:|ACCESS_DENIED:/.test(message)) showKchAuthError(message);
+          failure(err || new Error(message));
+        }
+        if (!current) { fail(new Error('AUTH_REQUIRED: Silakan masuk dengan Google.')); return; }
+        current.getIdToken().then(function(token) {
+          if (generation !== kchAuthGeneration) return;
+          google.script.run.withSuccessHandler(function(result) {
+            if (generation === kchAuthGeneration) success(result);
+          }).withFailureHandler(fail).kchApi(token, String(method), args);
+        }).catch(fail);
+      };
+    } });
+    return proxy;
+  }
+
+  function initKchAuthentication() {
+    if (!window.firebase || !window.KCH_FIREBASE_CONFIG) {
+      showKchAuthError('Komponen login gagal dimuat. Periksa koneksi lalu muat ulang halaman.');
+      return;
+    }
+    firebase.initializeApp(window.KCH_FIREBASE_CONFIG);
+    kchFirebaseAuth = firebase.auth();
+    kchFirebaseAuth.languageCode = 'id';
+    // No Firebase refresh token is persisted to browser storage by this app.
+    kchFirebaseAuth.setPersistence(firebase.auth.Auth.Persistence.NONE).then(function() {
+      document.getElementById('kchGoogleLogin').disabled = false;
+      kchFirebaseAuth.onAuthStateChanged(function(user) {
+        kchAuthGeneration++;
+        if (!user) { showKchAuthError('Silakan masuk dengan Google.'); return; }
+        document.getElementById('kchAuthMessage').textContent = 'Memeriksa akses akun…';
+        kchRun().withSuccessHandler(function(result) {
+          appState.user = result.user;
+          document.body.classList.remove('kch-locked');
+          document.getElementById('kchAuthScreen').hidden = true;
+          installKchAccountActions(result.user);
+          initApp();
+        }).withFailureHandler(function(err) { showKchAuthError(err.message); }).getAuthProfile();
+      });
+    }).catch(function(err) { showKchAuthError('Login belum dapat disiapkan: ' + err.message); });
+  }
+
+  function signInKchGoogle() {
+    if (!kchFirebaseAuth) return;
+    var provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    document.getElementById('kchGoogleLogin').disabled = true;
+    // Open directly from the click gesture so browsers can allow the popup.
+    kchFirebaseAuth.signInWithPopup(provider).catch(function(err) {
+      var message = err.message || 'Login Google gagal.';
+      if (err.code === 'auth/unauthorized-domain') {
+        message = 'Domain aplikasi belum diizinkan di Firebase Authentication → Settings → Authorized domains. Tambahkan hostname: ' + window.location.hostname;
+      } else if (err.code === 'auth/popup-blocked') {
+        message = 'Izinkan popup untuk aplikasi ini lalu klik Masuk dengan Google lagi.';
+      }
+      showKchAuthError(message);
+    }).finally(function() { document.getElementById('kchGoogleLogin').disabled = false; });
+  }
+
+  function signOutKch() {
+    kchAuthGeneration++;
+    showKchAuthError('Keluar dari akun…');
+    if (!kchFirebaseAuth) { window.location.reload(); return; }
+    // Reload clears all previously fetched sales data, charts and forms.
+    kchFirebaseAuth.signOut().then(function() { window.location.reload(); }).catch(function() { window.location.reload(); });
+  }
+
+  function installKchAccountActions(user) {
+    var menu = document.getElementById('userDropdownMenu');
+    if (!menu || document.getElementById('kchLogoutAction')) return;
+    if (user.role === 'ADMIN') {
+      var access = document.createElement('button');
+      access.type = 'button'; access.className = 'dropdown-menu-item';
+      access.textContent = 'Kelola akses sales'; access.onclick = openKchAccessPanel;
+      menu.appendChild(access);
+    }
+    var logout = document.createElement('button');
+    logout.type = 'button'; logout.className = 'dropdown-menu-item'; logout.id = 'kchLogoutAction';
+    logout.textContent = 'Keluar akun'; logout.onclick = signOutKch; menu.appendChild(logout);
+  }
+
+  function openKchAccessPanel() {
+    var select = document.getElementById('kchAccessSales');
+    select.replaceChildren();
+    (appState.attendanceSales || []).forEach(function(sales) {
+      var option = document.createElement('option'); option.value = sales.sales_id;
+      option.textContent = sales.full_name + ' (' + sales.sales_id + ')'; select.appendChild(option);
+    });
+    document.getElementById('kchAccessPanel').hidden = false;
+    loadKchAccessUsers();
+  }
+
+  function loadKchAccessUsers() {
+    document.getElementById('kchAccessMessage').textContent = 'Memuat daftar akses…';
+    kchRun().withSuccessHandler(function(result) {
+      var body = document.getElementById('kchAccessRows'); body.replaceChildren();
+      result.users.forEach(function(user) {
+        var row = document.createElement('tr');
+        [user.email, user.salesId, user.role, user.status].forEach(function(value) {
+          var cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
+        });
+        body.appendChild(row);
+      });
+      document.getElementById('kchAccessMessage').textContent = '';
+    }).withFailureHandler(function(err) { document.getElementById('kchAccessMessage').textContent = err.message; }).listAccessUsers();
+  }
+
+  function saveKchAccess(event) {
+    event.preventDefault();
+    document.getElementById('kchSaveAccess').disabled = true;
+    kchRun().withSuccessHandler(function() {
+      document.getElementById('kchSaveAccess').disabled = false;
+      showToast('Akses sales disimpan.', 'success'); loadKchAccessUsers();
+    }).withFailureHandler(function(err) {
+      document.getElementById('kchSaveAccess').disabled = false;
+      document.getElementById('kchAccessMessage').textContent = err.message;
+    }).saveAccessUser({ email: document.getElementById('kchAccessEmail').value,
+      salesId: document.getElementById('kchAccessSales').value, status: document.getElementById('kchAccessStatus').value });
+  }
+</script>

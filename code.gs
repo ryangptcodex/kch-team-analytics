@@ -24,7 +24,7 @@ var STANDARD_TEAMS = [
 ];
 
 function isAttendanceOnlyTeam_(teamName) {
-  return normalizeKey(teamName) === 'SPR';
+  return normalizeKey_(teamName) === 'SPR';
 }
 
 function doGet(e) {
@@ -35,77 +35,29 @@ function doGet(e) {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-function include(filename) {
+function include_(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
-function getCurrentUserInfo() {
-  var activeEmail = '';
-  try {
-    activeEmail = Session.getActiveUser().getEmail();
-  } catch (e) {}
-
-  var user = {
-    username: 'ryan',
-    fullName: 'Ryan Pratama',
-    shortName: 'Ryan',
-    role: 'Sales Coordinator',
-    email: activeEmail || 'ryan.coordinator@kalbe.co.id'
-  };
-
-  try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var userSheet = ss.getSheetByName('USERS');
-    if (userSheet && userSheet.getLastRow() > 1) {
-      var uData = getSheetData('USERS').rows;
-      if (activeEmail) {
-        var foundByEmail = uData.find(function(u) {
-          return normalizeKey(u.username) === normalizeKey(activeEmail) || 
-                 (u.email && normalizeKey(u.email) === normalizeKey(activeEmail));
-        });
-        if (foundByEmail) {
-          var fullName = foundByEmail.full_name || foundByEmail.username;
-          var short = fullName.split(' ')[0];
-          user.username = foundByEmail.username;
-          user.fullName = fullName;
-          user.shortName = short.charAt(0).toUpperCase() + short.slice(1).toLowerCase();
-          user.role = foundByEmail.role || 'Sales Coordinator';
-          user.email = activeEmail;
-          return user;
-        }
-      }
-
-      var defaultRyan = uData.find(function(u) {
-        return normalizeKey(u.username) === 'RYAN';
-      });
-      if (defaultRyan) {
-        var rName = defaultRyan.full_name || 'Ryan Pratama';
-        var rShort = rName.split(' ')[0];
-        user.username = defaultRyan.username;
-        user.fullName = rName;
-        user.shortName = rShort.charAt(0).toUpperCase() + rShort.slice(1).toLowerCase();
-        user.role = defaultRyan.role || 'Sales Coordinator';
-      }
-    }
-  } catch (err) {}
-
-  return user;
+function getCurrentUserInfo_() {
+  if (!KCH_REQUEST_USER_) throw new Error('AUTH_REQUIRED: Silakan masuk terlebih dahulu.');
+  return KCH_REQUEST_USER_;
 }
 
-function getSidebarLogoUrl() {
+function getSidebarLogoUrl_() {
   try {
-    var settingsRows = getSheetData('SETTINGS').rows;
+    var settingsRows = getSheetData_('SETTINGS').rows;
     for (var i = 0; i < settingsRows.length; i++) {
-      if (normalizeKey(settingsRows[i].setting_key) === 'SIDEBAR_LOGO_URL') {
+      if (normalizeKey_(settingsRows[i].setting_key) === 'SIDEBAR_LOGO_URL') {
         var rawUrl = String(settingsRows[i].setting_value || '').trim();
-        return formatDrivePhotoUrl(rawUrl);
+        return formatDrivePhotoUrl_(rawUrl);
       }
     }
   } catch (err) {}
   return '';
 }
 
-function getIndividualDailyTargetRate(teamName) {
+function getIndividualDailyTargetRate_(teamName) {
   if (!teamName) return 0;
   var t = String(teamName).toUpperCase().trim();
   if (isAttendanceOnlyTeam_(t)) return 0;
@@ -120,8 +72,8 @@ function getIndividualDailyTargetRate(teamName) {
   return 0;
 }
 
-function getIndividualMonthlyTarget(teamName, manualTarget) {
-  var parsedManual = parseCleanNumber(manualTarget);
+function getIndividualMonthlyTarget_(teamName, manualTarget) {
+  var parsedManual = parseCleanNumber_(manualTarget);
   if (!teamName) return (parsedManual > 0) ? parsedManual : 0;
   
   var t = String(teamName).toUpperCase().trim();
@@ -142,12 +94,12 @@ function getIndividualMonthlyTarget(teamName, manualTarget) {
   return 0;
 }
 
-function normalizeKey(str) {
+function normalizeKey_(str) {
   if (str === null || str === undefined) return '';
   return String(str).trim().toUpperCase();
 }
 
-function parseCleanNumber(val) {
+function parseCleanNumber_(val) {
   if (val === null || val === undefined || val === '') return 0;
   if (typeof val === 'number') return val;
   var clean = String(val).replace(/Rp|\s/gi, '').trim();
@@ -165,7 +117,7 @@ function parseCleanNumber(val) {
   return isNaN(n) ? 0 : n;
 }
 
-function normalizeDateString(dateVal) {
+function normalizeDateString_(dateVal) {
   if (!dateVal) return '';
   if (Object.prototype.toString.call(dateVal) === '[object Date]') {
     return Utilities.formatDate(dateVal, TIMEZONE, 'yyyy-MM-dd');
@@ -196,7 +148,7 @@ function normalizeDateString(dateVal) {
   return str.slice(0, 10);
 }
 
-function extractDriveFileId(url) {
+function extractDriveFileId_(url) {
   if (!url) return '';
   url = String(url).trim();
   var matchFileD = url.match(/\/file\/d\/([a-zA-Z0-9_-]{20,})/i) || url.match(/\/d\/([a-zA-Z0-9_-]{20,})/i);
@@ -212,17 +164,17 @@ function extractDriveFileId(url) {
   return '';
 }
 
-function formatDrivePhotoUrl(url) {
+function formatDrivePhotoUrl_(url) {
   if (!url) return '';
   url = String(url).trim();
-  var fileId = extractDriveFileId(url);
+  var fileId = extractDriveFileId_(url);
   if (fileId) {
     return 'https://lh3.googleusercontent.com/d/' + fileId;
   }
   return url;
 }
 
-function formatVisitPhotoTime(value) {
+function formatVisitPhotoTime_(value) {
   if (!value) return '';
   if (Object.prototype.toString.call(value) === '[object Date]') {
     return Utilities.formatDate(value, TIMEZONE, 'HH:mm');
@@ -233,8 +185,8 @@ function formatVisitPhotoTime(value) {
   return timeText;
 }
 
-function getSheetData(sheetName) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function getSheetData_(sheetName) {
+  var ss = getKchSpreadsheet_();
   var sheet = ss.getSheetByName(sheetName);
   if (!sheet) return { headers: [], rows: [] };
   
@@ -268,11 +220,11 @@ function getSheetData(sheetName) {
     }
     if (hasContent) rows.push(rowObj);
   }
-  return { headers: headers, rows: rows };
+  return { headers: headers, rows: filterAuthorizedRows_(sheetName, rows) };
 }
 
-function getWorkDaysConfig() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function getWorkDaysConfig_() {
+  var ss = getKchSpreadsheet_();
   var now = new Date();
   var year = now.getFullYear();
   var month = now.getMonth(); // 0 = Jan, 9 = Oct
@@ -313,7 +265,7 @@ function getWorkDaysConfig() {
       var hVals = holidaySheet.getRange(2, 1, hLastR - 1, hLastC).getDisplayValues();
       for (var r = 0; r < hVals.length; r++) {
         var rawDate = hVals[r][colDateIdx];
-        var normDate = normalizeDateString(rawDate);
+        var normDate = normalizeDateString_(rawDate);
         if (normDate) {
           var desc = (colDescIdx !== -1 && hVals[r][colDescIdx]) ? String(hVals[r][colDescIdx]).trim() : 'Libur Nasional / Daerah';
           holidayMap[normDate] = desc;
@@ -327,9 +279,9 @@ function getWorkDaysConfig() {
   var settingsMap = {};
   if (settingSheet && settingSheet.getLastRow() > 1) {
     try {
-      var sData = getSheetData('SETTINGS').rows;
+      var sData = getSheetData_('SETTINGS').rows;
       sData.forEach(function(s) {
-        if (s.setting_key) settingsMap[normalizeKey(s.setting_key)] = s.setting_value;
+        if (s.setting_key) settingsMap[normalizeKey_(s.setting_key)] = s.setting_value;
       });
     } catch (err) {}
   }
@@ -376,8 +328,8 @@ function getWorkDaysConfig() {
   };
 }
 
-function getHolidayDateMap() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function getHolidayDateMap_() {
+  var ss = getKchSpreadsheet_();
   var holidayMap = {};
   var holidaySheetNames = ['HOLIDAYS', 'HARI_LIBUR', 'LIBUR'];
   var holidaySheet = null;
@@ -409,7 +361,7 @@ function getHolidayDateMap() {
 
     var values = holidaySheet.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues();
     for (var r = 0; r < values.length; r++) {
-      var dateStr = normalizeDateString(values[r][dateCol]);
+      var dateStr = normalizeDateString_(values[r][dateCol]);
       if (dateStr) holidayMap[dateStr] = true;
     }
   } catch (err) {}
@@ -417,7 +369,7 @@ function getHolidayDateMap() {
   return holidayMap;
 }
 
-function getWorkDateRangeInfo(startDate, endDate, holidayMap) {
+function getWorkDateRangeInfo_(startDate, endDate, holidayMap) {
   var startMatch = String(startDate || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
   var endMatch = String(endDate || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!startMatch || !endMatch) return { workDays: 0, dates: [] };
@@ -450,8 +402,8 @@ function getWorkDateRangeInfo(startDate, endDate, holidayMap) {
   return { workDays: workDays, dates: dates };
 }
 
-function generateSequentialId(prefix, sheetName, colIndex, isDaily) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function generateSequentialId_(prefix, sheetName, colIndex, isDaily) {
+  var ss = getKchSpreadsheet_();
   var sheet = ss.getSheetByName(sheetName);
   var lastRow = sheet ? sheet.getLastRow() : 1;
   var now = new Date();
@@ -489,42 +441,42 @@ function generateSequentialId(prefix, sheetName, colIndex, isDaily) {
   }
 }
 
-function logActivity(username, action, targetRef, details) {
+function logActivity_(username, action, targetRef, details) {
   try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var ss = getKchSpreadsheet_();
     var sheet = ss.getSheetByName('ACTIVITY_LOGS');
     if (!sheet) return;
     
-    var logId = generateSequentialId('LOG', 'ACTIVITY_LOGS', 1, false);
+    var logId = generateSequentialId_('LOG', 'ACTIVITY_LOGS', 1, false);
     var timestamp = Utilities.formatDate(new Date(), TIMEZONE, DATE_FORMAT);
-    sheet.appendRow([logId, timestamp, username || 'admin', action, targetRef, details]);
+    sheet.appendRow([logId, timestamp, KCH_REQUEST_USER_ ? KCH_REQUEST_USER_.email : (username || 'admin'), action, targetRef, details]);
     SpreadsheetApp.flush();
   } catch (err) {}
 }
 
-function logClientActivity(action, targetRef, details, username) {
+function logClientActivity_(action, targetRef, details, username) {
   try {
-    logActivity(username || 'ryan', action, targetRef, details);
+    logActivity_(username || 'ryan', action, targetRef, details);
     return { success: true };
   } catch (err) {
     return { success: false, message: err.message };
   }
 }
 
-function getInitialAppMetadata() {
+function getInitialAppMetadata_() {
   try {
     SpreadsheetApp.flush();
-    var products = getSheetData('PRODUCTS').rows;
-    var rawSales = getSheetData('SALES').rows;
-    var priceMaster = getSheetData('PRICE_MASTER').rows;
-    var inventory = getSheetData('INVENTORY').rows;
-    var rawVisitPhotos = getSheetData('VISIT_PHOTOS').rows;
-    var kchNews = getActiveKchNews();
+    var products = getSheetData_('PRODUCTS').rows;
+    var rawSales = getSheetData_('SALES').rows;
+    var priceMaster = getSheetData_('PRICE_MASTER').rows;
+    var inventory = getSheetData_('INVENTORY').rows;
+    var rawVisitPhotos = getSheetData_('VISIT_PHOTOS').rows;
+    var kchNews = getActiveKchNews_();
     var weeklyMeetings = getWeeklyMeetings_();
-    var workDays = getWorkDaysConfig();
-    var currentUser = getCurrentUserInfo();
+    var workDays = getWorkDaysConfig_();
+    var currentUser = getCurrentUserInfo_();
 
-    var rawDistributors = getSheetData('DISTRIBUTORS').rows;
+    var rawDistributors = getSheetData_('DISTRIBUTORS').rows;
     var distributors = [];
     if (rawDistributors && rawDistributors.length > 0) {
       rawDistributors.forEach(function(d) {
@@ -545,7 +497,7 @@ function getInitialAppMetadata() {
       ];
     }
 
-    var rawFiles = getSheetData('FILES').rows;
+    var rawFiles = getSheetData_('FILES').rows;
     var files = [];
     rawFiles.forEach(function(f) {
       var fName = f.file_name || f.name || '';
@@ -567,13 +519,13 @@ function getInitialAppMetadata() {
     }).map(function(photo) {
       return {
         visitId: photo.visit_id || '',
-        date: normalizeDateString(photo.visit_date || ''),
-        time: formatVisitPhotoTime(photo.visit_time),
+        date: normalizeDateString_(photo.visit_date || ''),
+        time: formatVisitPhotoTime_(photo.visit_time),
         salesId: photo.sales_id || '',
         salesName: photo.sales_name || '',
         teamName: photo.team_name || '',
         area: photo.area || '',
-        photoUrl: formatDrivePhotoUrl(photo.photo_url || ''),
+        photoUrl: formatDrivePhotoUrl_(photo.photo_url || ''),
         notes: photo.notes || ''
       };
     });
@@ -581,12 +533,12 @@ function getInitialAppMetadata() {
     var sales = [];
     var attendanceSales = [];
     var teamMonthlyTargetMap = {};
-    STANDARD_TEAMS.forEach(function(st) { teamMonthlyTargetMap[normalizeKey(st)] = 0; });
+    STANDARD_TEAMS.forEach(function(st) { teamMonthlyTargetMap[normalizeKey_(st)] = 0; });
 
     rawSales.forEach(function(s) {
       var sTeamRaw = s.team_name || s.team_id || 'Canvasser';
       var finalTeam = sTeamRaw;
-      var teamKey = normalizeKey(sTeamRaw);
+      var teamKey = normalizeKey_(sTeamRaw);
 
       if (teamKey === 'CANVASSER' || teamKey === 'TEAM-01') finalTeam = 'Canvasser';
       else if (teamKey === 'ASISTEN CANVASSER') finalTeam = 'Junior Canvasser';
@@ -595,10 +547,10 @@ function getInitialAppMetadata() {
       else if (teamKey === 'SPG' || teamKey === 'SPG KELONTONG' || teamKey === 'TEAM-04') finalTeam = 'SPG Kelontong';
 
       var rawTgt = s.target_monthly !== undefined ? s.target_monthly : s.target_amount;
-      var sOfficialMonthlyTarget = getIndividualMonthlyTarget(finalTeam, rawTgt);
-      var sDailyRate = getIndividualDailyTargetRate(finalTeam);
+      var sOfficialMonthlyTarget = getIndividualMonthlyTarget_(finalTeam, rawTgt);
+      var sDailyRate = getIndividualDailyTargetRate_(finalTeam);
 
-      var normTeamKey = normalizeKey(finalTeam);
+      var normTeamKey = normalizeKey_(finalTeam);
       if (!isAttendanceOnlyTeam_(finalTeam)) {
         if (teamMonthlyTargetMap[normTeamKey] === undefined) teamMonthlyTargetMap[normTeamKey] = 0;
         teamMonthlyTargetMap[normTeamKey] += sOfficialMonthlyTarget;
@@ -612,7 +564,7 @@ function getInitialAppMetadata() {
         daily_target: sDailyRate,
         target_amount: sOfficialMonthlyTarget,
         target_monthly: sOfficialMonthlyTarget,
-        photo_url: formatDrivePhotoUrl(s.photo_url),
+        photo_url: formatDrivePhotoUrl_(s.photo_url),
         phone: String(s.phone || '').trim(),
         email: String(s.email || '').trim(),
         status: s.status || 'ACTIVE'
@@ -623,7 +575,7 @@ function getInitialAppMetadata() {
 
     var teams = [];
     STANDARD_TEAMS.forEach(function(st) {
-      var norm = normalizeKey(st);
+      var norm = normalizeKey_(st);
       teams.push({
         team_id: st,
         team_name: st,
@@ -633,14 +585,14 @@ function getInitialAppMetadata() {
     });
 
     priceMaster.forEach(function(prc) {
-      prc.cost_price = parseCleanNumber(prc.cost_price);
-      prc.selling_price = parseCleanNumber(prc.selling_price);
-      prc.shj = parseCleanNumber(prc.shj);
+      prc.cost_price = parseCleanNumber_(prc.cost_price);
+      prc.selling_price = parseCleanNumber_(prc.selling_price);
+      prc.shj = parseCleanNumber_(prc.shj);
     });
 
     inventory.forEach(function(inv) {
-      inv['PT. Global Mitra Prima'] = parseCleanNumber(inv['PT. Global Mitra Prima']);
-      inv['AP. Geubrina Rizki'] = parseCleanNumber(inv['AP. Geubrina Rizki']);
+      inv['PT. Global Mitra Prima'] = parseCleanNumber_(inv['PT. Global Mitra Prima']);
+      inv['AP. Geubrina Rizki'] = parseCleanNumber_(inv['AP. Geubrina Rizki']);
     });
 
     return {
@@ -660,6 +612,7 @@ function getInitialAppMetadata() {
       canManageKchNews: isKchNewsManager_(),
       canManageTodayPlan: isKchNewsManager_(),
       canManageWeeklyMeetings: isWeeklyMeetingManager_(),
+      sidebarLogoUrl: getSidebarLogoUrl_(),
       workDays: workDays
     };
   } catch (err) {
@@ -667,14 +620,14 @@ function getInitialAppMetadata() {
   }
 }
 
-function getDashboardMetrics(filters) {
+function getDashboardMetrics_(filters) {
   try {
     SpreadsheetApp.flush();
     filters = filters || {};
-    var txData = getSheetData('SALES_TRANSACTIONS').rows;
-    var salesData = getSheetData('SALES').rows;
-    var workDays = getWorkDaysConfig();
-    var currentUser = getCurrentUserInfo();
+    var txData = getSheetData_('SALES_TRANSACTIONS').rows;
+    var salesData = getSheetData_('SALES').rows;
+    var workDays = getWorkDaysConfig_();
+    var currentUser = getCurrentUserInfo_();
 
     var period = (filters.period || 'TODAY').toUpperCase();
     var now = new Date();
@@ -702,7 +655,7 @@ function getDashboardMetrics(filters) {
 
     var chartStartDate = startDate || todayRealStr;
     var chartEndDate = endDate || chartStartDate;
-    var workDateRange = getWorkDateRangeInfo(chartStartDate, chartEndDate, getHolidayDateMap());
+    var workDateRange = getWorkDateRangeInfo_(chartStartDate, chartEndDate, getHolidayDateMap_());
 
     var legacyMap = {
       'TEAM-01': 'Canvasser',
@@ -719,7 +672,7 @@ function getDashboardMetrics(filters) {
     var teamsList = [];
 
     STANDARD_TEAMS.forEach(function(st) {
-      var normSt = normalizeKey(st);
+      var normSt = normalizeKey_(st);
       teamMonthlyTargetMap[normSt] = 0;
       teamSalesMap[normSt] = 0;
       teamNameMap[normSt] = st;
@@ -736,11 +689,11 @@ function getDashboardMetrics(filters) {
     salesData.forEach(function(s) {
       var sIdRaw = String(s.sales_id || '').trim();
       if (!sIdRaw) return;
-      var sIdNorm = normalizeKey(sIdRaw);
+      var sIdNorm = normalizeKey_(sIdRaw);
       salesNameMap[sIdNorm] = s.full_name;
 
       var sTeamRaw = s.team_name || 'Canvasser';
-      var sTeamNorm = normalizeKey(sTeamRaw);
+      var sTeamNorm = normalizeKey_(sTeamRaw);
       if (legacyMap[sTeamNorm]) sTeamNorm = legacyMap[sTeamNorm];
       var finalTeamName = teamNameMap[sTeamNorm] || sTeamRaw;
       salesTeamMap[sIdNorm] = finalTeamName;
@@ -750,13 +703,13 @@ function getDashboardMetrics(filters) {
 
       if (isAttendanceOnlyTeam_(finalTeamName)) return;
 
-      var sOfficialMonthlyTarget = parseCleanNumber(s.target_monthly);
-      var sDailyRate = getIndividualDailyTargetRate(finalTeamName);
+      var sOfficialMonthlyTarget = parseCleanNumber_(s.target_monthly);
+      var sDailyRate = getIndividualDailyTargetRate_(finalTeamName);
 
       branchOfficialMonthlyTargetTotal += sOfficialMonthlyTarget;
       branchDailyTargetTotal += sDailyRate;
 
-      var teamNormKey = normalizeKey(finalTeamName);
+      var teamNormKey = normalizeKey_(finalTeamName);
       if (teamMonthlyTargetMap[teamNormKey] !== undefined) {
         teamMonthlyTargetMap[teamNormKey] += sOfficialMonthlyTarget;
       }
@@ -800,11 +753,11 @@ function getDashboardMetrics(filters) {
     for (var i = 0; i < txData.length; i++) {
       var row = txData[i];
       var rawDate = row.transaction_date || '';
-      var normalizedTxDate = normalizeDateString(rawDate);
+      var normalizedTxDate = normalizeDateString_(rawDate);
 
-      var sVal = parseCleanNumber(row.subtotal_sales || row.total_sales);
-      var cVal = parseCleanNumber(row.subtotal_cost || row.total_cost);
-      var txSalesNorm = normalizeKey(row.sales_id);
+      var sVal = parseCleanNumber_(row.subtotal_sales || row.total_sales);
+      var cVal = parseCleanNumber_(row.subtotal_cost || row.total_cost);
+      var txSalesNorm = normalizeKey_(row.sales_id);
 
       if (normalizedTxDate === todayRealStr && salesAchievementMap[txSalesNorm]) {
         salesAchievementMap[txSalesNorm].todayAchieved = (salesAchievementMap[txSalesNorm].todayAchieved || 0) + sVal;
@@ -818,12 +771,12 @@ function getDashboardMetrics(filters) {
       }
 
       var rowTeamRaw = row.team_name || salesTeamMap[txSalesNorm] || '';
-      var rowTeamNorm = normalizeKey(rowTeamRaw);
+      var rowTeamNorm = normalizeKey_(rowTeamRaw);
       if (legacyMap[rowTeamNorm]) rowTeamNorm = legacyMap[rowTeamNorm];
       if (isAttendanceOnlyTeam_(rowTeamNorm)) continue;
 
       if (filters.teamId && filters.teamId !== 'ALL') {
-        var filterNorm = normalizeKey(filters.teamId);
+        var filterNorm = normalizeKey_(filters.teamId);
         if (legacyMap[filterNorm]) filterNorm = legacyMap[filterNorm];
         if (rowTeamNorm !== filterNorm) continue;
       }
@@ -927,7 +880,7 @@ function getDashboardMetrics(filters) {
       var tLower = t.teamName.toLowerCase();
       if (tLower.indexOf('junior') > -1) return;
 
-      var tNorm = normalizeKey(t.teamName);
+      var tNorm = normalizeKey_(t.teamName);
       var tAchieved = teamSalesMap[tNorm] || 0;
       var tTarget = teamMonthlyTargetMap[tNorm] || 0;
       var pct = tTarget > 0 ? Math.round((tAchieved / tTarget) * 100) : 0;
@@ -960,20 +913,20 @@ function getDashboardMetrics(filters) {
       });
     });
 
-    var attendanceSheetRows = getSheetData('ATTENDANCE').rows;
+    var attendanceSheetRows = getSheetData_('ATTENDANCE').rows;
     var todayAttendanceList = [];
-    var targetAttDate = filters.attendanceDate ? normalizeDateString(filters.attendanceDate) : todayRealStr;
+    var targetAttDate = filters.attendanceDate ? normalizeDateString_(filters.attendanceDate) : todayRealStr;
 
     for (var at = 0; at < attendanceSheetRows.length; at++) {
       var aRow = attendanceSheetRows[at];
       var rawAttDate = aRow.date || aRow.attendance_date || '';
-      var normAttDate = normalizeDateString(rawAttDate);
+      var normAttDate = normalizeDateString_(rawAttDate);
 
       if (normAttDate && normAttDate === targetAttDate) {
-        var sIdKey = normalizeKey(aRow.sales_id);
+        var sIdKey = normalizeKey_(aRow.sales_id);
         var sName = aRow.sales_name || salesNameMap[sIdKey] || aRow.sales_id || 'Sales Personil';
         var sTeam = aRow.team_name || salesTeamMap[sIdKey] || 'Canvasser';
-        if (normalizeKey(sTeam) === 'ASISTEN CANVASSER') sTeam = 'Junior Canvasser';
+        if (normalizeKey_(sTeam) === 'ASISTEN CANVASSER') sTeam = 'Junior Canvasser';
 
         todayAttendanceList.push({
           id: aRow.sales_id || ('SLS-' + (at + 1)),
@@ -981,8 +934,8 @@ function getDashboardMetrics(filters) {
           salesId: aRow.sales_id || '-',
           salesName: sName,
           teamName: sTeam,
-          time: formatVisitPhotoTime(aRow.time) || '-',
-          photoUrl: formatDrivePhotoUrl(aRow.photo_url),
+          time: formatVisitPhotoTime_(aRow.time) || '-',
+          photoUrl: formatDrivePhotoUrl_(aRow.photo_url),
           status: aRow.status || 'Hadir Tepat Waktu',
           location: aRow.location || 'Cabang Lhokseumawe',
           notes: aRow.notes || 'Dokumentasi Absensi Lapangan'
@@ -995,7 +948,7 @@ function getDashboardMetrics(filters) {
       recentTxList.push(recentInvoiceMap[recentInvoiceOrder[ro]]);
     }
 
-    var activityData = getSheetData('ACTIVITY_LOGS').rows;
+    var activityData = getSheetData_('ACTIVITY_LOGS').rows;
     var recentActivities = [];
     for (var aIdx = activityData.length - 1; aIdx >= 0 && recentActivities.length < 8; aIdx--) {
       var aRow = activityData[aIdx];
@@ -1047,19 +1000,19 @@ function getDashboardMetrics(filters) {
   }
 }
 
-function getAttendanceByDate(dateStr) {
+function getAttendanceByDate_(dateStr) {
   try {
     SpreadsheetApp.flush();
-    var targetDate = normalizeDateString(dateStr);
+    var targetDate = normalizeDateString_(dateStr);
     if (!targetDate) targetDate = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
 
-    var attendanceSheetRows = getSheetData('ATTENDANCE').rows;
-    var salesData = getSheetData('SALES').rows;
+    var attendanceSheetRows = getSheetData_('ATTENDANCE').rows;
+    var salesData = getSheetData_('SALES').rows;
     var salesNameMap = {};
     var salesTeamMap = {};
 
     salesData.forEach(function(s) {
-      var sIdNorm = normalizeKey(s.sales_id);
+      var sIdNorm = normalizeKey_(s.sales_id);
       salesNameMap[sIdNorm] = s.full_name;
       salesTeamMap[sIdNorm] = s.team_name || '';
     });
@@ -1068,13 +1021,13 @@ function getAttendanceByDate(dateStr) {
     for (var at = 0; at < attendanceSheetRows.length; at++) {
       var aRow = attendanceSheetRows[at];
       var rawAttDate = aRow.date || aRow.attendance_date || '';
-      var normAttDate = normalizeDateString(rawAttDate);
+      var normAttDate = normalizeDateString_(rawAttDate);
 
       if (normAttDate && normAttDate === targetDate) {
-        var sIdKey = normalizeKey(aRow.sales_id);
+        var sIdKey = normalizeKey_(aRow.sales_id);
         var sName = aRow.sales_name || salesNameMap[sIdKey] || aRow.sales_id || 'Sales Personil';
         var sTeam = aRow.team_name || salesTeamMap[sIdKey] || 'Canvasser';
-        if (normalizeKey(sTeam) === 'ASISTEN CANVASSER') sTeam = 'Junior Canvasser';
+        if (normalizeKey_(sTeam) === 'ASISTEN CANVASSER') sTeam = 'Junior Canvasser';
 
         attendanceList.push({
           id: aRow.sales_id || ('SLS-' + (at + 1)),
@@ -1082,8 +1035,8 @@ function getAttendanceByDate(dateStr) {
           salesId: aRow.sales_id || '-',
           salesName: sName,
           teamName: sTeam,
-          time: formatVisitPhotoTime(aRow.time) || '-',
-          photoUrl: formatDrivePhotoUrl(aRow.photo_url),
+          time: formatVisitPhotoTime_(aRow.time) || '-',
+          photoUrl: formatDrivePhotoUrl_(aRow.photo_url),
           status: aRow.status || 'Hadir Tepat Waktu',
           location: aRow.location || 'Cabang Lhokseumawe',
           notes: aRow.notes || 'Dokumentasi Absensi Lapangan'
@@ -1097,27 +1050,27 @@ function getAttendanceByDate(dateStr) {
   }
 }
 
-function getVisitPhotosByDate(dateStr) {
+function getVisitPhotosByDate_(dateStr) {
   try {
     SpreadsheetApp.flush();
-    var targetDate = normalizeDateString(dateStr);
+    var targetDate = normalizeDateString_(dateStr);
     if (!targetDate) targetDate = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
 
-    var rows = getSheetData('VISIT_PHOTOS').rows;
+    var rows = getSheetData_('VISIT_PHOTOS').rows;
     var visitPhotos = rows.filter(function(photo) {
-      var photoDate = normalizeDateString(photo.visit_date || '');
+      var photoDate = normalizeDateString_(photo.visit_date || '');
       var status = String(photo.status || 'ACTIVE').toUpperCase();
       return photoDate === targetDate && status !== 'INACTIVE';
     }).map(function(photo) {
       return {
         visitId: photo.visit_id || '',
-        date: normalizeDateString(photo.visit_date || ''),
-        time: formatVisitPhotoTime(photo.visit_time),
+        date: normalizeDateString_(photo.visit_date || ''),
+        time: formatVisitPhotoTime_(photo.visit_time),
         salesId: photo.sales_id || '',
         salesName: photo.sales_name || '',
         teamName: photo.team_name || '',
         area: photo.area || '',
-        photoUrl: formatDrivePhotoUrl(photo.photo_url || ''),
+        photoUrl: formatDrivePhotoUrl_(photo.photo_url || ''),
         notes: photo.notes || ''
       };
     });
@@ -1128,26 +1081,26 @@ function getVisitPhotosByDate(dateStr) {
   }
 }
 
-function getTodayPlans(dateStr) {
+function getTodayPlans_(dateStr) {
   try {
-    var targetDate = normalizeDateString(dateStr);
+    var targetDate = normalizeDateString_(dateStr);
     if (!targetDate) targetDate = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
-    var planSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('TODAY_PLAN');
-    if (!planSheet) setupTodayPlanSheet();
+    var planSheet = getKchSpreadsheet_().getSheetByName('TODAY_PLAN');
+    if (!planSheet) setupTodayPlanSheet_();
 
-    var rows = getSheetData('TODAY_PLAN').rows;
+    var rows = getSheetData_('TODAY_PLAN').rows;
     var plans = rows.filter(function(row) {
-      return normalizeDateString(row.plan_date) === targetDate && normalizeKey(row.status || 'ACTIVE') === 'ACTIVE';
+      return normalizeDateString_(row.plan_date) === targetDate && normalizeKey_(row.status || 'ACTIVE') === 'ACTIVE';
     }).map(function(row) {
       return {
         id: row.plan_id || '',
-        date: normalizeDateString(row.plan_date),
+        date: normalizeDateString_(row.plan_date),
         salesId: row.sales_id || '',
         salesName: row.sales_name || '',
         teamName: row.team_name || '',
         area: row.area || '',
         destination: row.destination || '',
-        plannedTime: formatVisitPhotoTime(row.planned_time) || '',
+        plannedTime: formatVisitPhotoTime_(row.planned_time) || '',
         notes: row.notes || ''
       };
     });
@@ -1162,11 +1115,11 @@ function getTodayPlans(dateStr) {
   }
 }
 
-function saveTodayPlan(payload) {
+function saveTodayPlan_(payload) {
   try {
     if (!isKchNewsManager_()) return { success: false, message: 'Akses input Today’s Plan hanya untuk admin/koordinator.' };
     payload = payload || {};
-    var planDate = normalizeDateString(payload.date || '');
+    var planDate = normalizeDateString_(payload.date || '');
     var salesId = String(payload.salesId || '').trim();
     var destination = String(payload.destination || '').trim();
     var plannedTime = String(payload.plannedTime || '').trim();
@@ -1177,20 +1130,20 @@ function saveTodayPlan(payload) {
     if (plannedTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(plannedTime)) return { success: false, message: 'Format jam rencana tidak valid.' };
     if (destination.length > 500 || notes.length > 2000) return { success: false, message: 'Tujuan maksimal 500 karakter dan keterangan maksimal 2.000 karakter.' };
 
-    var salesRows = getSheetData('SALES').rows;
+    var salesRows = getSheetData_('SALES').rows;
     var sales = null;
     salesRows.some(function(row) {
-      if (normalizeKey(row.sales_id) === normalizeKey(salesId)) { sales = row; return true; }
+      if (normalizeKey_(row.sales_id) === normalizeKey_(salesId)) { sales = row; return true; }
       return false;
     });
-    if (!sales || normalizeKey(sales.status || 'ACTIVE') === 'INACTIVE') {
+    if (!sales || normalizeKey_(sales.status || 'ACTIVE') === 'INACTIVE') {
       return { success: false, message: 'Sales tidak ditemukan atau statusnya tidak aktif.' };
     }
 
     var lock = LockService.getScriptLock();
     lock.waitLock(30000);
     try {
-      var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('TODAY_PLAN') || setupTodayPlanSheet();
+      var sheet = getKchSpreadsheet_().getSheetByName('TODAY_PLAN') || setupTodayPlanSheet_();
       var headerMap = {};
       TODAY_PLAN_HEADERS.forEach(function(header, i) { headerMap[header] = i; });
       var rowNumber = 0;
@@ -1219,7 +1172,7 @@ function saveTodayPlan(payload) {
         planned_time: plannedTime,
         notes: notes,
         status: 'ACTIVE',
-        created_by: rowNumber ? row[headerMap.created_by] : getCurrentUserInfo().username,
+        created_by: rowNumber ? row[headerMap.created_by] : getCurrentUserInfo_().username,
         created_at: rowNumber ? row[headerMap.created_at] : now,
         updated_at: now
       };
@@ -1230,7 +1183,7 @@ function saveTodayPlan(payload) {
       sheet.getRange(savedRow, headerMap.plan_date + 1).setNumberFormat('dd/MM/yyyy');
       sheet.getRange(savedRow, headerMap.created_at + 1, 1, 2).setNumberFormat('dd/MM/yyyy HH:mm:ss');
       SpreadsheetApp.flush();
-      logActivity(getCurrentUserInfo().username, rowNumber ? 'UPDATE_TODAY_PLAN' : 'CREATE_TODAY_PLAN', planId, sales.full_name + ' - ' + destination);
+      logActivity_(getCurrentUserInfo_().username, rowNumber ? 'UPDATE_TODAY_PLAN' : 'CREATE_TODAY_PLAN', planId, sales.full_name + ' - ' + destination);
       return { success: true, planId: planId, message: rowNumber ? 'Rencana berhasil diperbarui.' : 'Rencana berhasil disimpan.' };
     } finally {
       lock.releaseLock();
@@ -1240,7 +1193,7 @@ function saveTodayPlan(payload) {
   }
 }
 
-function archiveTodayPlan(planId) {
+function archiveTodayPlan_(planId) {
   try {
     if (!isKchNewsManager_()) return { success: false, message: 'Akses kelola Today’s Plan hanya untuk admin/koordinator.' };
     planId = String(planId || '').trim();
@@ -1248,7 +1201,7 @@ function archiveTodayPlan(planId) {
     var lock = LockService.getScriptLock();
     lock.waitLock(30000);
     try {
-      var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('TODAY_PLAN') || setupTodayPlanSheet();
+      var sheet = getKchSpreadsheet_().getSheetByName('TODAY_PLAN') || setupTodayPlanSheet_();
       if (sheet.getLastRow() < 2) return { success: false, message: 'Rencana tidak ditemukan.' };
       var ids = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getDisplayValues();
       for (var i = 0; i < ids.length; i++) {
@@ -1256,7 +1209,7 @@ function archiveTodayPlan(planId) {
           sheet.getRange(i + 2, 10).setValue('ARCHIVED');
           sheet.getRange(i + 2, 13).setValue(new Date()).setNumberFormat('dd/MM/yyyy HH:mm:ss');
           SpreadsheetApp.flush();
-          logActivity(getCurrentUserInfo().username, 'ARCHIVE_TODAY_PLAN', planId, 'Rencana diarsipkan');
+          logActivity_(getCurrentUserInfo_().username, 'ARCHIVE_TODAY_PLAN', planId, 'Rencana diarsipkan');
           return { success: true, message: 'Rencana berhasil diarsipkan.' };
         }
       }
@@ -1270,19 +1223,19 @@ function archiveTodayPlan(planId) {
 }
 
 function isWeeklyMeetingManager_() {
-  var role = normalizeKey(getCurrentUserInfo().role).replace(/[ -]+/g, '_');
+  var role = normalizeKey_(getCurrentUserInfo_().role).replace(/[ -]+/g, '_');
   return ['ADMIN', 'SUPER_ADMIN', 'SUPERADMIN', 'OWNER', 'SALES_COORDINATOR'].indexOf(role) > -1;
 }
 
 function getWeeklyMeetings_() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('WEEKLY_MEETINGS');
+  var sheet = getKchSpreadsheet_().getSheetByName('WEEKLY_MEETINGS');
   if (!sheet) return [];
-  return getSheetData('WEEKLY_MEETINGS').rows.filter(function(row) {
-    return normalizeKey(row.status || 'ACTIVE') === 'ACTIVE' && String(row.title || '').trim();
+  return getSheetData_('WEEKLY_MEETINGS').rows.filter(function(row) {
+    return normalizeKey_(row.status || 'ACTIVE') === 'ACTIVE' && String(row.title || '').trim();
   }).map(function(row) {
     return {
       id: row.meeting_id || '',
-      date: normalizeDateString(row.meeting_date || ''),
+      date: normalizeDateString_(row.meeting_date || ''),
       title: String(row.title || '').trim(),
       summary: String(row.summary || '').trim(),
       decisions: String(row.decisions || '').trim(),
@@ -1294,7 +1247,7 @@ function getWeeklyMeetings_() {
   }).slice(0, 100);
 }
 
-function getWeeklyMeetings() {
+function getWeeklyMeetingsResponse_() {
   try {
     SpreadsheetApp.flush();
     return { success: true, meetings: getWeeklyMeetings_(), canManage: isWeeklyMeetingManager_() };
@@ -1303,12 +1256,12 @@ function getWeeklyMeetings() {
   }
 }
 
-function saveWeeklyMeeting(payload) {
+function saveWeeklyMeeting_(payload) {
   try {
     if (!isWeeklyMeetingManager_()) return { success: false, message: 'Akses kelola hasil meeting hanya untuk admin/koordinator.' };
     payload = payload || {};
     var meetingId = String(payload.meetingId || '').trim();
-    var date = normalizeDateString(payload.date || '');
+    var date = normalizeDateString_(payload.date || '');
     var title = String(payload.title || '').trim();
     var summary = String(payload.summary || '').trim();
     var decisions = String(payload.decisions || '').trim();
@@ -1322,7 +1275,7 @@ function saveWeeklyMeeting(payload) {
     var lock = LockService.getScriptLock();
     lock.waitLock(30000);
     try {
-      var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('WEEKLY_MEETINGS') || setupWeeklyMeetingsSheet();
+      var sheet = getKchSpreadsheet_().getSheetByName('WEEKLY_MEETINGS') || setupWeeklyMeetingsSheet_();
       var headerMap = {};
       WEEKLY_MEETING_HEADERS.forEach(function(header, i) { headerMap[header] = i; });
       var rowNumber = 0;
@@ -1348,7 +1301,7 @@ function saveWeeklyMeeting(payload) {
         decisions: decisions,
         follow_up: followUp,
         status: 'ACTIVE',
-        created_by: rowNumber ? row[headerMap.created_by] : getCurrentUserInfo().username,
+        created_by: rowNumber ? row[headerMap.created_by] : getCurrentUserInfo_().username,
         created_at: rowNumber ? row[headerMap.created_at] : now,
         updated_at: now
       };
@@ -1359,7 +1312,7 @@ function saveWeeklyMeeting(payload) {
       sheet.getRange(savedRow, headerMap.meeting_date + 1).setNumberFormat('dd/MM/yyyy');
       sheet.getRange(savedRow, headerMap.created_at + 1, 1, 2).setNumberFormat('dd/MM/yyyy HH:mm:ss');
       SpreadsheetApp.flush();
-      logActivity(getCurrentUserInfo().username, rowNumber ? 'UPDATE_WEEKLY_MEETING' : 'CREATE_WEEKLY_MEETING', meetingId, title);
+      logActivity_(getCurrentUserInfo_().username, rowNumber ? 'UPDATE_WEEKLY_MEETING' : 'CREATE_WEEKLY_MEETING', meetingId, title);
       return { success: true, meetingId: meetingId, message: rowNumber ? 'Hasil meeting berhasil diperbarui.' : 'Hasil meeting berhasil disimpan.' };
     } finally {
       lock.releaseLock();
@@ -1369,7 +1322,7 @@ function saveWeeklyMeeting(payload) {
   }
 }
 
-function archiveWeeklyMeeting(meetingId) {
+function archiveWeeklyMeeting_(meetingId) {
   try {
     if (!isWeeklyMeetingManager_()) return { success: false, message: 'Akses kelola hasil meeting hanya untuk admin/koordinator.' };
     meetingId = String(meetingId || '').trim();
@@ -1377,7 +1330,7 @@ function archiveWeeklyMeeting(meetingId) {
     var lock = LockService.getScriptLock();
     lock.waitLock(30000);
     try {
-      var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('WEEKLY_MEETINGS');
+      var sheet = getKchSpreadsheet_().getSheetByName('WEEKLY_MEETINGS');
       if (!sheet || sheet.getLastRow() < 2) return { success: false, message: 'Hasil meeting tidak ditemukan.' };
       var ids = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getDisplayValues();
       for (var i = 0; i < ids.length; i++) {
@@ -1385,7 +1338,7 @@ function archiveWeeklyMeeting(meetingId) {
           sheet.getRange(i + 2, 7).setValue('ARCHIVED');
           sheet.getRange(i + 2, 10).setValue(new Date()).setNumberFormat('dd/MM/yyyy HH:mm:ss');
           SpreadsheetApp.flush();
-          logActivity(getCurrentUserInfo().username, 'ARCHIVE_WEEKLY_MEETING', meetingId, 'Hasil meeting diarsipkan');
+          logActivity_(getCurrentUserInfo_().username, 'ARCHIVE_WEEKLY_MEETING', meetingId, 'Hasil meeting diarsipkan');
           return { success: true, message: 'Hasil meeting berhasil diarsipkan.' };
         }
       }
@@ -1398,21 +1351,21 @@ function archiveWeeklyMeeting(meetingId) {
   }
 }
 
-function getActiveKchNews() {
-  var rows = getSheetData('KCH_NEWS').rows;
+function getActiveKchNews_() {
+  var rows = getSheetData_('KCH_NEWS').rows;
   return rows.filter(function(row) {
     return String(row.status || 'ACTIVE').trim().toUpperCase() === 'ACTIVE' &&
       String(row.title || '').trim() !== '';
   }).map(function(row) {
     return {
       newsId: row.news_id || '',
-      date: normalizeDateString(row.publish_date || ''),
+      date: normalizeDateString_(row.publish_date || ''),
       title: String(row.title || '').trim(),
       summary: String(row.summary || '').trim(),
       bannerText: String(row.banner_text || '').trim(),
       bannerKicker: String(row.banner_kicker || '').trim(),
       bannerSubtitle: String(row.banner_subtitle || '').trim(),
-      imageUrl: formatDrivePhotoUrl(row.image_url || ''),
+      imageUrl: formatDrivePhotoUrl_(row.image_url || ''),
       newsUrl: String(row.news_url || '').trim(),
       content: String(row.article_content || row.content || '').trim(),
       status: String(row.status || 'ACTIVE').trim().toUpperCase()
@@ -1422,17 +1375,17 @@ function getActiveKchNews() {
   }).slice(0, 50);
 }
 
-function getKchNews() {
+function getKchNews_() {
   try {
     SpreadsheetApp.flush();
-    return { success: true, news: getActiveKchNews(), canManage: isKchNewsManager_() };
+    return { success: true, news: getActiveKchNews_(), canManage: isKchNewsManager_() };
   } catch (err) {
     return { success: false, message: err.message || 'Gagal memuat KCH News.' };
   }
 }
 
 function isKchNewsManager_() {
-  var role = normalizeKey(getCurrentUserInfo().role).replace(/[ -]+/g, '_');
+  var role = normalizeKey_(getCurrentUserInfo_().role).replace(/[ -]+/g, '_');
   return ['ADMIN', 'SUPER_ADMIN', 'SUPERADMIN', 'OWNER', 'SALES_COORDINATOR'].indexOf(role) > -1;
 }
 
@@ -1444,9 +1397,9 @@ function ensureKchNewsArticleColumn_(sheet) {
   }
   var headers = sheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
   var headerMap = {};
-  headers.forEach(function(value, index) { headerMap[normalizeKey(value)] = index; });
+  headers.forEach(function(value, index) { headerMap[normalizeKey_(value)] = index; });
   ['banner_kicker', 'banner_subtitle', 'article_content'].forEach(function(header) {
-    var key = normalizeKey(header);
+    var key = normalizeKey_(header);
     if (headerMap[key] === undefined) {
       headers.push(header);
       sheet.getRange(1, headers.length).setValue(header);
@@ -1456,7 +1409,7 @@ function ensureKchNewsArticleColumn_(sheet) {
   return { headers: headers, map: headerMap };
 }
 
-function saveKchNewsArticle(payload) {
+function saveKchNewsArticle_(payload) {
   try {
     if (!isKchNewsManager_()) return { success: false, message: 'Akses hanya untuk admin/pengelola KCH News.' };
     payload = payload || {};
@@ -1477,7 +1430,7 @@ function saveKchNewsArticle(payload) {
     if (imageUrl && !/^https?:\/\//i.test(imageUrl)) return { success: false, message: 'URL gambar harus diawali http:// atau https://.' };
     if (newsUrl && !/^https?:\/\//i.test(newsUrl)) return { success: false, message: 'Link selengkapnya harus diawali http:// atau https://.' };
 
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var ss = getKchSpreadsheet_();
     var sheet = ss.getSheetByName('KCH_NEWS');
     if (!sheet) sheet = ss.insertSheet('KCH_NEWS');
     var schema = ensureKchNewsArticleColumn_(sheet);
@@ -1523,19 +1476,19 @@ function saveKchNewsArticle(payload) {
       sheet.getRange(rowNumber || sheet.getLastRow(), schema.map.PUBLISH_DATE + 1).setNumberFormat('dd/MM/yyyy');
     }
     SpreadsheetApp.flush();
-    logActivity(getCurrentUserInfo().username, rowNumber ? 'UPDATE_KCH_NEWS' : 'CREATE_KCH_NEWS', newsId, title);
+    logActivity_(getCurrentUserInfo_().username, rowNumber ? 'UPDATE_KCH_NEWS' : 'CREATE_KCH_NEWS', newsId, title);
     return { success: true, newsId: newsId, message: rowNumber ? 'Artikel berhasil diperbarui.' : 'Artikel berhasil diterbitkan.' };
   } catch (err) {
     return { success: false, message: err.message || 'Gagal menyimpan artikel.' };
   }
 }
 
-function archiveKchNewsArticle(newsId) {
+function archiveKchNewsArticle_(newsId) {
   try {
     if (!isKchNewsManager_()) return { success: false, message: 'Akses hanya untuk admin/pengelola KCH News.' };
     newsId = String(newsId || '').trim();
     if (!newsId) return { success: false, message: 'ID artikel tidak valid.' };
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('KCH_NEWS');
+    var sheet = getKchSpreadsheet_().getSheetByName('KCH_NEWS');
     if (!sheet || sheet.getLastRow() < 2) return { success: false, message: 'Artikel tidak ditemukan.' };
     var schema = ensureKchNewsArticleColumn_(sheet);
     var idCol = schema.map.NEWS_ID;
@@ -1546,7 +1499,7 @@ function archiveKchNewsArticle(newsId) {
       if (String(ids[i][0]).trim() === newsId) {
         sheet.getRange(i + 2, statusCol + 1).setValue('ARCHIVED');
         SpreadsheetApp.flush();
-        logActivity(getCurrentUserInfo().username, 'ARCHIVE_KCH_NEWS', newsId, 'Artikel diarsipkan');
+        logActivity_(getCurrentUserInfo_().username, 'ARCHIVE_KCH_NEWS', newsId, 'Artikel diarsipkan');
         return { success: true, message: 'Artikel berhasil diarsipkan.' };
       }
     }
@@ -1590,7 +1543,7 @@ function createUploadedPhotoFile_(payload, kind, salesId, dateStr) {
   return file;
 }
 
-function saveSalesPhotoUpload(payload, photoType) {
+function saveSalesPhotoUpload_(payload, photoType) {
   var lock = LockService.getScriptLock();
   try {
     lock.waitLock(10000);
@@ -1605,23 +1558,23 @@ function saveSalesPhotoUpload(payload, photoType) {
     if (type !== 'attendance' && type !== 'visit') throw new Error('Jenis foto tidak dikenali.');
 
     var salesId = String(payload.salesId || '').trim();
-    var dateStr = normalizeDateString(payload.date || '');
+    var dateStr = normalizeDateString_(payload.date || '');
     var notes = String(payload.notes || '').trim();
     if (!salesId || !dateStr || !notes || !payload.imageDataUrl) {
       throw new Error('Sales ID, tanggal, keterangan, dan foto wajib diisi.');
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) throw new Error('Tanggal tidak valid.');
 
-    var salesRows = getSheetData('SALES').rows;
+    var salesRows = getSheetData_('SALES').rows;
     var selectedSales = null;
     for (var i = 0; i < salesRows.length; i++) {
-      if (normalizeKey(salesRows[i].sales_id) === normalizeKey(salesId)) {
+      if (normalizeKey_(salesRows[i].sales_id) === normalizeKey_(salesId)) {
         selectedSales = salesRows[i];
         break;
       }
     }
     if (!selectedSales) throw new Error('Sales ID tidak ditemukan di sheet SALES.');
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var ss = getKchSpreadsheet_();
     var sheetName = type === 'attendance' ? 'ATTENDANCE' : 'VISIT_PHOTOS';
     var sheet = ss.getSheetByName(sheetName);
     if (!sheet) throw new Error('Sheet ' + sheetName + ' tidak ditemukan. Jalankan setup sheet terlebih dahulu.');
@@ -1672,7 +1625,7 @@ function saveSalesPhotoUpload(payload, photoType) {
       success: true,
       type: type,
       date: dateStr,
-      photoUrl: formatDrivePhotoUrl(uploadedFile.getUrl()),
+      photoUrl: formatDrivePhotoUrl_(uploadedFile.getUrl()),
       message: type === 'attendance' ? 'Foto absensi berhasil disimpan.' : 'Foto kunjungan berhasil disimpan.'
     };
   } catch (err) {
@@ -1685,7 +1638,7 @@ function saveSalesPhotoUpload(payload, photoType) {
   }
 }
 
-function saveSalesTransaction(payload) {
+function saveSalesTransaction_(payload) {
   var lock = LockService.getScriptLock();
   try {
     lock.waitLock(10000);
@@ -1694,7 +1647,7 @@ function saveSalesTransaction(payload) {
   }
 
   try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var ss = getKchSpreadsheet_();
     var txSheet = ss.getSheetByName('SALES_TRANSACTIONS');
     var invSheet = ss.getSheetByName('INVENTORY');
     var movSheet = ss.getSheetByName('INVENTORY_MOVEMENTS');
@@ -1710,15 +1663,15 @@ function saveSalesTransaction(payload) {
     var salesId = String(payload.salesId || '').trim();
     var distributor = payload.distributor || 'PT. Global Mitra Prima (Subdist)';
     var items = payload.items;
-    var currentUser = getCurrentUserInfo();
-    var username = payload.username || currentUser.username || 'ryan';
+    var currentUser = getCurrentUserInfo_();
+    var username = currentUser.email;
 
     if (!items || items.length === 0) {
       return { success: false, message: 'Pilih minimal satu item produk!' };
     }
 
-    var selectedSalesForTx = getSheetData('SALES').rows.filter(function(s) {
-      return normalizeKey(s.sales_id) === normalizeKey(salesId);
+    var selectedSalesForTx = getSheetData_('SALES').rows.filter(function(s) {
+      return normalizeKey_(s.sales_id) === normalizeKey_(salesId);
     })[0];
     if (selectedSalesForTx && isAttendanceOnlyTeam_(selectedSalesForTx.team_name)) {
       return { success: false, message: 'Kategori SPR hanya digunakan untuk absensi.' };
@@ -1732,7 +1685,7 @@ function saveSalesTransaction(payload) {
       if (sidCol !== -1 && snameCol !== -1) {
         var sVals = salesSheet.getRange(2, 1, salesSheet.getLastRow() - 1, sH.length).getDisplayValues();
         for (var s = 0; s < sVals.length; s++) {
-          if (normalizeKey(sVals[s][sidCol]) === normalizeKey(salesId)) {
+          if (normalizeKey_(sVals[s][sidCol]) === normalizeKey_(salesId)) {
             salesName = sVals[s][snameCol] || salesId;
             break;
           }
@@ -1748,7 +1701,7 @@ function saveSalesTransaction(payload) {
       if (pidCol !== -1 && pnameCol !== -1) {
         var pVals = prodSheet.getRange(2, 1, prodSheet.getLastRow() - 1, pH.length).getDisplayValues();
         for (var p = 0; p < pVals.length; p++) {
-          prodNameMap[normalizeKey(pVals[p][pidCol])] = pVals[p][pnameCol];
+          prodNameMap[normalizeKey_(pVals[p][pidCol])] = pVals[p][pnameCol];
         }
       }
     }
@@ -1764,7 +1717,7 @@ function saveSalesTransaction(payload) {
 
       var invData = invSheet.getRange(2, 1, invLastR - 1, invHeaders.length).getValues();
       for (var i = 0; i < invData.length; i++) {
-        var rowProd = normalizeKey(invData[i][hProdIdx !== -1 ? hProdIdx : 0]);
+        var rowProd = normalizeKey_(invData[i][hProdIdx !== -1 ? hProdIdx : 0]);
         var globalStock = hGlobalStockIdx !== -1 ? (parseInt(invData[i][hGlobalStockIdx], 10) || 0) : 0;
         var geubrinaStock = hGeubrinaStockIdx !== -1 ? (parseInt(invData[i][hGeubrinaStockIdx], 10) || 0) : 0;
         stockMap[rowProd] = {
@@ -1780,7 +1733,7 @@ function saveSalesTransaction(payload) {
 
     for (var k = 0; k < items.length; k++) {
       var item = items[k];
-      var key = normalizeKey(item.productId);
+      var key = normalizeKey_(item.productId);
       var invInfo = stockMap[key];
       var reqQty = parseInt(item.qty, 10);
 
@@ -1796,7 +1749,7 @@ function saveSalesTransaction(payload) {
       }
     }
 
-    var txId = generateSequentialId('TRX', 'SALES_TRANSACTIONS', 1, true);
+    var txId = generateSequentialId_('TRX', 'SALES_TRANSACTIONS', 1, true);
     var nowTimestamp = Utilities.formatDate(new Date(), TIMEZONE, DATE_FORMAT);
 
     var totalSales = 0;
@@ -1807,8 +1760,8 @@ function saveSalesTransaction(payload) {
     for (var m = 0; m < items.length; m++) {
       var itm = items[m];
       var qty = parseInt(itm.qty, 10) || 0;
-      var cPrice = parseCleanNumber(itm.costPrice);
-      var sPrice = parseCleanNumber(itm.sellingPrice);
+      var cPrice = parseCleanNumber_(itm.costPrice);
+      var sPrice = parseCleanNumber_(itm.sellingPrice);
       var shjVal = sPrice - cPrice;
 
       var subSales = sPrice * qty;
@@ -1818,7 +1771,7 @@ function saveSalesTransaction(payload) {
       totalSales += subSales;
       totalCost += subCost;
 
-      var productName = prodNameMap[normalizeKey(itm.productId)] || itm.productId;
+      var productName = prodNameMap[normalizeKey_(itm.productId)] || itm.productId;
 
       txRowsToAppend.push([
         txId,
@@ -1841,7 +1794,7 @@ function saveSalesTransaction(payload) {
         nowTimestamp
       ]);
 
-      var targetInfo = stockMap[normalizeKey(itm.productId)];
+      var targetInfo = stockMap[normalizeKey_(itm.productId)];
       var supplierStock = isGeubrinaDistributor ? targetInfo.geubrinaStock : targetInfo.globalStock;
       var supplierStockAfter = supplierStock - qty;
       if (isGeubrinaDistributor) {
@@ -1875,7 +1828,7 @@ function saveSalesTransaction(payload) {
 
     SpreadsheetApp.flush();
     var formattedSalesAmt = 'Rp ' + Math.round(totalSales).toLocaleString('id-ID');
-    logActivity(username, 'CREATE_TRANSACTION', txId, 'Penjualan ' + formattedSalesAmt + ' oleh ' + salesName + ' (' + distributor + ')');
+    logActivity_(username, 'CREATE_TRANSACTION', txId, 'Penjualan ' + formattedSalesAmt + ' oleh ' + salesName + ' (' + distributor + ')');
 
     return {
       success: true,
@@ -1890,7 +1843,7 @@ function saveSalesTransaction(payload) {
   }
 }
 
-function getTransactionsPaginated(page, limit, searchKeyword, teamFilter, distFilter, dateFilter) {
+function getTransactionsPaginated_(page, limit, searchKeyword, teamFilter, distFilter, dateFilter) {
   try {
     SpreadsheetApp.flush();
     page = parseInt(page, 10) || 1;
@@ -1909,7 +1862,7 @@ function getTransactionsPaginated(page, limit, searchKeyword, teamFilter, distFi
       'ASISTEN CANVASSER': 'Junior Canvasser'
     };
 
-    var txData = getSheetData('SALES_TRANSACTIONS').rows;
+    var txData = getSheetData_('SALES_TRANSACTIONS').rows;
     var invoiceMap = {};
     var invoiceOrder = [];
 
@@ -1919,22 +1872,22 @@ function getTransactionsPaginated(page, limit, searchKeyword, teamFilter, distFi
       if (!txId) continue;
 
       var teamName = row.team_name || 'Canvasser';
-      var rowTeamNorm = normalizeKey(teamName);
+      var rowTeamNorm = normalizeKey_(teamName);
       if (legacyMap[rowTeamNorm]) rowTeamNorm = legacyMap[rowTeamNorm];
 
       var distributor = row.distributor || 'PT. Global Mitra Prima (Subdist)';
       var salesName = row.sales_name || row.sales_id;
-      var subSales = parseCleanNumber(row.subtotal_sales || row.total_sales);
-      var subCost = parseCleanNumber(row.subtotal_cost || row.total_cost);
-      var subShj = (row.subtotal_shj !== undefined && row.subtotal_shj !== '') ? parseCleanNumber(row.subtotal_shj) : (subSales - subCost);
+      var subSales = parseCleanNumber_(row.subtotal_sales || row.total_sales);
+      var subCost = parseCleanNumber_(row.subtotal_cost || row.total_cost);
+      var subShj = (row.subtotal_shj !== undefined && row.subtotal_shj !== '') ? parseCleanNumber_(row.subtotal_shj) : (subSales - subCost);
 
       if (teamFilter !== 'ALL') {
-        var filterNorm = normalizeKey(teamFilter);
+        var filterNorm = normalizeKey_(teamFilter);
         if (legacyMap[filterNorm]) filterNorm = legacyMap[filterNorm];
         if (rowTeamNorm !== filterNorm) continue;
       }
       if (distFilter !== 'ALL') {
-        if (normalizeKey(distributor) !== normalizeKey(distFilter)) continue;
+        if (normalizeKey_(distributor) !== normalizeKey_(distFilter)) continue;
       }
       if (dateFilter && row.transaction_date !== dateFilter) continue;
 
@@ -1996,10 +1949,10 @@ function getTransactionsPaginated(page, limit, searchKeyword, teamFilter, distFi
   }
 }
 
-function getAllTransactionsForExport(searchKeyword, teamFilter, distFilter, dateFilter) {
+function getAllTransactionsForExport_(searchKeyword, teamFilter, distFilter, dateFilter) {
   try {
     SpreadsheetApp.flush();
-    var res = getTransactionsPaginated(1, 999999, searchKeyword, teamFilter, distFilter, dateFilter);
+    var res = getTransactionsPaginated_(1, 999999, searchKeyword, teamFilter, distFilter, dateFilter);
     return {
       success: true,
       data: res.data || [],
@@ -2014,10 +1967,10 @@ function getAllTransactionsForExport(searchKeyword, teamFilter, distFilter, date
   }
 }
 
-function getTransactionDetail(transactionId) {
+function getTransactionDetail_(transactionId) {
   try {
     SpreadsheetApp.flush();
-    var txData = getSheetData('SALES_TRANSACTIONS').rows;
+    var txData = getSheetData_('SALES_TRANSACTIONS').rows;
     var matchingRows = txData.filter(function(r) {
       return String(r.transaction_id || '').trim() === String(transactionId).trim();
     });
@@ -2034,13 +1987,13 @@ function getTransactionDetail(transactionId) {
 
     matchingRows.forEach(function(m) {
       var qty = parseInt(m.quantity, 10) || 1;
-      var cPrice = parseCleanNumber(m.cost_price);
-      var sPrice = parseCleanNumber(m.selling_price);
-      var shjVal = (m.shj !== undefined && m.shj !== '') ? parseCleanNumber(m.shj) : (sPrice - cPrice);
+      var cPrice = parseCleanNumber_(m.cost_price);
+      var sPrice = parseCleanNumber_(m.selling_price);
+      var shjVal = (m.shj !== undefined && m.shj !== '') ? parseCleanNumber_(m.shj) : (sPrice - cPrice);
 
-      var subSales = parseCleanNumber(m.subtotal_sales) || (sPrice * qty);
-      var subCost = parseCleanNumber(m.subtotal_cost) || (cPrice * qty);
-      var subShj = parseCleanNumber(m.subtotal_shj) || (shjVal * qty);
+      var subSales = parseCleanNumber_(m.subtotal_sales) || (sPrice * qty);
+      var subCost = parseCleanNumber_(m.subtotal_cost) || (cPrice * qty);
+      var subShj = parseCleanNumber_(m.subtotal_shj) || (shjVal * qty);
 
       totalSales += subSales;
       totalCost += subCost;
@@ -2083,7 +2036,7 @@ function getTransactionDetail(transactionId) {
   }
 }
 
-function getMonthlyTeamReport(reportMonth, salesId) {
+function getMonthlyTeamReport_(reportMonth, salesId) {
   try {
     reportMonth = String(reportMonth || '').trim();
     salesId = String(salesId || '').trim();
@@ -2092,10 +2045,10 @@ function getMonthlyTeamReport(reportMonth, salesId) {
     }
     if (!salesId) return { success: false, message: 'Pilih sales terlebih dahulu.' };
 
-    var salesRows = getSheetData('SALES').rows;
+    var salesRows = getSheetData_('SALES').rows;
     var selectedSales = null;
     for (var s = 0; s < salesRows.length; s++) {
-      if (normalizeKey(salesRows[s].sales_id) === normalizeKey(salesId)) {
+      if (normalizeKey_(salesRows[s].sales_id) === normalizeKey_(salesId)) {
         selectedSales = salesRows[s];
         break;
       }
@@ -2104,25 +2057,25 @@ function getMonthlyTeamReport(reportMonth, salesId) {
     var totals = { sales: 0, shj: 0 };
     var workDates = {};
     var productMap = {};
-    var txRows = getSheetData('SALES_TRANSACTIONS').rows;
+    var txRows = getSheetData_('SALES_TRANSACTIONS').rows;
 
     txRows.forEach(function(row) {
-      if (normalizeKey(row.sales_id) !== normalizeKey(salesId)) return;
-      var date = normalizeDateString(row.transaction_date);
+      if (normalizeKey_(row.sales_id) !== normalizeKey_(salesId)) return;
+      var date = normalizeDateString_(row.transaction_date);
       if (!date || date.slice(0, 7) !== reportMonth) return;
 
       workDates[date] = true;
       var qty = parseInt(row.quantity, 10) || 0;
-      var unitCost = parseCleanNumber(row.cost_price);
-      var unitSales = parseCleanNumber(row.selling_price);
+      var unitCost = parseCleanNumber_(row.cost_price);
+      var unitSales = parseCleanNumber_(row.selling_price);
       var unitShj = (row.shj !== undefined && row.shj !== '')
-        ? parseCleanNumber(row.shj)
+        ? parseCleanNumber_(row.shj)
         : unitSales - unitCost;
       var salesAmount = (row.subtotal_sales !== undefined && row.subtotal_sales !== '')
-        ? parseCleanNumber(row.subtotal_sales)
+        ? parseCleanNumber_(row.subtotal_sales)
         : unitSales * qty;
       var shjAmount = (row.subtotal_shj !== undefined && row.subtotal_shj !== '')
-        ? parseCleanNumber(row.subtotal_shj)
+        ? parseCleanNumber_(row.subtotal_shj)
         : unitShj * qty;
 
       totals.sales += salesAmount;
@@ -2130,7 +2083,7 @@ function getMonthlyTeamReport(reportMonth, salesId) {
 
       var productId = String(row.product_id || '').trim();
       var productName = String(row.product_name || productId || 'Produk tanpa nama').trim();
-      var key = normalizeKey(productId || productName);
+      var key = normalizeKey_(productId || productName);
       if (!productMap[key]) {
         productMap[key] = {
           productId: productId || '-',
@@ -2145,9 +2098,9 @@ function getMonthlyTeamReport(reportMonth, salesId) {
       productMap[key].totalShj += shjAmount;
     });
 
-    getSheetData('ATTENDANCE').rows.forEach(function(row) {
-      if (normalizeKey(row.sales_id) !== normalizeKey(salesId)) return;
-      var date = normalizeDateString(row.date || row.attendance_date || '');
+    getSheetData_('ATTENDANCE').rows.forEach(function(row) {
+      if (normalizeKey_(row.sales_id) !== normalizeKey_(salesId)) return;
+      var date = normalizeDateString_(row.date || row.attendance_date || '');
       if (date && date.slice(0, 7) === reportMonth) workDates[date] = true;
     });
 
@@ -2160,7 +2113,7 @@ function getMonthlyTeamReport(reportMonth, salesId) {
 
     var teamName = selectedSales ? (selectedSales.team_name || '') : '';
     var rawTarget = selectedSales ? (selectedSales.target_monthly || selectedSales.target_amount || 0) : 0;
-    var targetMonthly = getIndividualMonthlyTarget(teamName, rawTarget);
+    var targetMonthly = getIndividualMonthlyTarget_(teamName, rawTarget);
     var reportRows = products.length ? products : [{
       productId: '', productName: 'Belum ada transaksi produk', quantity: 0, totalSales: 0, totalShj: 0
     }];
@@ -2168,7 +2121,7 @@ function getMonthlyTeamReport(reportMonth, salesId) {
       return [
         reportMonth,
         salesId,
-        selectedSales ? selectedSales.full_name : (txRows.find(function(row) { return normalizeKey(row.sales_id) === normalizeKey(salesId); }) || {}).sales_name || salesId,
+        selectedSales ? selectedSales.full_name : (txRows.find(function(row) { return normalizeKey_(row.sales_id) === normalizeKey_(salesId); }) || {}).sales_name || salesId,
         teamName,
         selectedSales ? (selectedSales.area || '') : '',
         totals.sales,
@@ -2186,14 +2139,14 @@ function getMonthlyTeamReport(reportMonth, salesId) {
     var lock = LockService.getScriptLock();
     lock.waitLock(30000);
     try {
-      var reportSheet = setupMonthlyTeamReportSheet();
-      var existing = getSheetData('MONTHLY_TEAM_REPORT').rows;
+      var reportSheet = setupMonthlyTeamReportSheet_();
+      var existing = getSheetData_('MONTHLY_TEAM_REPORT').rows;
       var retainedRows = existing.filter(function(row) {
-        return !(String(row.report_month || '').trim() === reportMonth && normalizeKey(row.sales_id) === normalizeKey(salesId));
+        return !(String(row.report_month || '').trim() === reportMonth && normalizeKey_(row.sales_id) === normalizeKey_(salesId));
       }).map(function(row) {
         return MONTHLY_TEAM_REPORT_HEADERS.map(function(header) {
           if (['total_sales', 'total_shj', 'total_hk', 'product_rank', 'quantity_sold', 'product_sales', 'product_shj'].indexOf(header) > -1) {
-            return parseCleanNumber(row[header]);
+            return parseCleanNumber_(row[header]);
           }
           return row[header] === undefined ? '' : row[header];
         });
@@ -2241,7 +2194,7 @@ function getMonthlyTeamReport(reportMonth, salesId) {
  * Jalankan fungsi ini sekali dari editor Apps Script untuk meminta izin Drive
  * sebelum memakai fitur unggah foto dari webapp.
  */
-function authorizePhotoUploadDrive() {
+function authorizePhotoUploadDrive_() {
   getPhotoUploadFolder_();
   return 'Akses Google Drive sudah diotorisasi dan folder unggahan siap digunakan.';
 }

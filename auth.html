@@ -1,0 +1,32 @@
+<style>
+  body.kch-locked > :not(#kchAuthScreen):not(script):not(style) { display: none !important; }
+  .kch-auth-card { max-width:440px; margin:12vh auto; padding:28px; background:white; border:1px solid #e2e8f0; border-radius:16px; }
+  .kch-auth-card h1 { margin-bottom:12px; font-size:22px; }
+  .kch-auth-card p { margin:12px 0; }
+  #kchAuthMessage { white-space:pre-wrap; overflow-wrap:anywhere; }
+  #kchAccessPanel { position:fixed; inset:20px; z-index:2000; overflow:auto; padding:24px; background:white; border:1px solid #cbd5e1; border-radius:12px; }
+  #kchAccessPanel form { display:flex; flex-wrap:wrap; gap:12px; margin:16px 0; }
+  #kchAccessPanel input, #kchAccessPanel select { padding:8px; max-width:100%; }
+  #kchAccessPanel td, #kchAccessPanel th { padding:8px; text-align:left; }
+</style>
+<script>document.body.classList.add('kch-locked');</script>
+<section id="kchAuthScreen" class="kch-auth-card" aria-labelledby="kchLoginTitle">
+  <h1 id="kchLoginTitle">KCH Team Analytics</h1>
+  <p>Masuk dengan akun Google yang sudah didaftarkan oleh admin.</p>
+  <button type="button" class="btn btn-primary" id="kchGoogleLogin" onclick="signInKchGoogle()" disabled>Masuk dengan Google</button>
+  <button type="button" class="btn btn-secondary" onclick="signOutKch()">Ganti akun</button>
+  <p id="kchAuthMessage" role="status" aria-live="polite">Menyiapkan login…</p>
+</section>
+<section id="kchAccessPanel" hidden aria-labelledby="kchAccessTitle">
+  <button type="button" class="btn btn-secondary" onclick="document.getElementById('kchAccessPanel').hidden=true">Tutup</button>
+  <h2 id="kchAccessTitle">Akses akun sales</h2>
+  <p>Hubungkan satu Gmail dengan satu profil sales. Untuk memperbarui akun, isi kembali email yang sama.</p>
+  <form onsubmit="saveKchAccess(event)">
+    <input id="kchAccessEmail" type="email" placeholder="Gmail sales" aria-label="Gmail sales" required>
+    <select id="kchAccessSales" aria-label="Profil sales" required></select>
+    <select id="kchAccessStatus" aria-label="Status akses"><option value="ACTIVE">Aktif</option><option value="INACTIVE">Nonaktif</option></select>
+    <button type="submit" class="btn btn-primary" id="kchSaveAccess">Simpan akses</button>
+  </form>
+  <p id="kchAccessMessage" role="status"></p>
+  <div style="overflow-x:auto"><table><thead><tr><th>Gmail</th><th>ID sales</th><th>Peran</th><th>Status</th></tr></thead><tbody id="kchAccessRows"></tbody></table></div>
+</section>

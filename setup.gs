@@ -120,33 +120,33 @@ function onOpen() {
   try {
     var ui = SpreadsheetApp.getUi();
     ui.createMenu('⚡ KCH Lhokseumawe')
-      .addItem('📅 Siapkan Sheet HOLIDAYS (Libur Nasional/Aceh)', 'setupHolidaysSheet')
-      .addItem('📑 Satukan Transaksi & Item (All-in-One)', 'setupSalesTransactionsUnifiedSheet')
-      .addItem('📊 Siapkan Sheet MONTHLY_TEAM_REPORT', 'setupMonthlyTeamReportSheet')
-      .addItem('🗺 Siapkan Sheet TODAY_PLAN', 'setupTodayPlanSheet')
-      .addItem('📝 Siapkan Sheet WEEKLY_MEETINGS', 'setupWeeklyMeetingsSheet')
-      .addItem('🗑 Hapus Sheet SALES PROFILES', 'deleteSalesProfilesSheet')
-      .addItem('⚡ Gabungkan & Selaraskan Sheet SALES (All-in-One)', 'consolidateSalesSheetStructure')
-      .addItem('📁 Rapikan & Sinkronkan Sheet FILES (4 Kolom)', 'setupFilesSheet')
-      .addItem('📰 Siapkan Sheet KCH_NEWS', 'setupKchNewsSheet')
-      .addItem('💲 Format & Kunci Harga di PRICE_MASTER (Anti-Reset)', 'setupPriceMasterSheetStructure')
-      .addItem('🏢 Siapkan & Sinkronkan Sheet DISTRIBUTORS', 'setupDistributorsSheet')
-      .addItem('📦 Format & Sinkronkan INVENTORY', 'setupInventorySheetStructure')
-      .addItem('📋 Format & Siapkan Sheet ATTENDANCE', 'setupAttendanceSheetForManualInput')
-      .addItem('📷 Siapkan Sheet VISIT_PHOTOS', 'setupVisitPhotosSheet')
-      .addItem('🔄 Sinkronkan Nama & Tim di Sheet ATTENDANCE', 'syncAttendanceSalesDetails')
-      .addItem('🖼 Buka Akses & Konversi Foto GDrive di ATTENDANCE', 'convertAndAuthorizeDrivePhotosInAttendance')
-      .addItem('🛠 Perbarui & Rapikan Seluruh Database Spreadsheet', 'repairAndOptimizeSpreadsheet')
-      .addItem('🗑 Hapus Sheet Usang & Kolom Duplikat', 'purgeObsoleteColumnsAndSheets')
-      .addItem('📦 Sinkronkan Produk ke INVENTORY', 'syncProductsToInventory')
-      .addItem('💲 Sinkronkan Produk ke PRICE_MASTER', 'syncProductsToPriceMaster')
-      .addItem('🧹 Hapus Semua Dropdown di Seluruh Sheet', 'removeAllSheetDropdowns')
+      .addItem('📅 Siapkan Sheet HOLIDAYS (Libur Nasional/Aceh)', 'setupHolidaysSheet_')
+      .addItem('📑 Satukan Transaksi & Item (All-in-One)', 'setupSalesTransactionsUnifiedSheet_')
+      .addItem('📊 Siapkan Sheet MONTHLY_TEAM_REPORT', 'setupMonthlyTeamReportSheet_')
+      .addItem('🗺 Siapkan Sheet TODAY_PLAN', 'setupTodayPlanSheet_')
+      .addItem('📝 Siapkan Sheet WEEKLY_MEETINGS', 'setupWeeklyMeetingsSheet_')
+      .addItem('🗑 Hapus Sheet SALES PROFILES', 'deleteSalesProfilesSheet_')
+      .addItem('⚡ Gabungkan & Selaraskan Sheet SALES (All-in-One)', 'consolidateSalesSheetStructure_')
+      .addItem('📁 Rapikan & Sinkronkan Sheet FILES (4 Kolom)', 'setupFilesSheet_')
+      .addItem('📰 Siapkan Sheet KCH_NEWS', 'setupKchNewsSheet_')
+      .addItem('💲 Format & Kunci Harga di PRICE_MASTER (Anti-Reset)', 'setupPriceMasterSheetStructure_')
+      .addItem('🏢 Siapkan & Sinkronkan Sheet DISTRIBUTORS', 'setupDistributorsSheet_')
+      .addItem('📦 Format & Sinkronkan INVENTORY', 'setupInventorySheetStructure_')
+      .addItem('📋 Format & Siapkan Sheet ATTENDANCE', 'setupAttendanceSheetForManualInput_')
+      .addItem('📷 Siapkan Sheet VISIT_PHOTOS', 'setupVisitPhotosSheet_')
+      .addItem('🔄 Sinkronkan Nama & Tim di Sheet ATTENDANCE', 'syncAttendanceSalesDetails_')
+      .addItem('🖼 Buka Akses & Konversi Foto GDrive di ATTENDANCE', 'convertAndAuthorizeDrivePhotosInAttendance_')
+      .addItem('🛠 Perbarui & Rapikan Seluruh Database Spreadsheet', 'repairAndOptimizeSpreadsheet_')
+      .addItem('🗑 Hapus Sheet Usang & Kolom Duplikat', 'purgeObsoleteColumnsAndSheets_')
+      .addItem('📦 Sinkronkan Produk ke INVENTORY', 'syncProductsToInventory_')
+      .addItem('💲 Sinkronkan Produk ke PRICE_MASTER', 'syncProductsToPriceMaster_')
+      .addItem('🧹 Hapus Semua Dropdown di Seluruh Sheet', 'removeAllSheetDropdowns_')
       .addToUi();
   } catch (e) {}
 }
 
-function setupMonthlyTeamReportSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function setupMonthlyTeamReportSheet_() {
+  var ss = getKchSpreadsheet_();
   var sheet = ss.getSheetByName('MONTHLY_TEAM_REPORT');
   if (!sheet) sheet = ss.insertSheet('MONTHLY_TEAM_REPORT');
 
@@ -187,8 +187,8 @@ function setupMonthlyTeamReportSheet() {
   return sheet;
 }
 
-function setupTodayPlanSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function setupTodayPlanSheet_() {
+  var ss = getKchSpreadsheet_();
   var sheet = ss.getSheetByName('TODAY_PLAN');
   if (!sheet) sheet = ss.insertSheet('TODAY_PLAN');
 
@@ -217,8 +217,8 @@ function setupTodayPlanSheet() {
   return sheet;
 }
 
-function setupWeeklyMeetingsSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function setupWeeklyMeetingsSheet_() {
+  var ss = getKchSpreadsheet_();
   var sheet = ss.getSheetByName('WEEKLY_MEETINGS');
   if (!sheet) sheet = ss.insertSheet('WEEKLY_MEETINGS');
 
@@ -247,8 +247,8 @@ function setupWeeklyMeetingsSheet() {
   return sheet;
 }
 
-function setupHolidaysSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function setupHolidaysSheet_() {
+  var ss = getKchSpreadsheet_();
   var sheet = ss.getSheetByName('HOLIDAYS');
   var expectedHeaders = TABLE_SCHEMAS.HOLIDAYS;
 
@@ -263,7 +263,7 @@ function setupHolidaysSheet() {
 
   var lastRow = sheet.getLastRow();
   if (lastRow <= 1) {
-    clearSheetValidations(sheet);
+    clearSheetValidations_(sheet);
     sheet.clear();
     sheet.getRange(1, 1, 1, expectedHeaders.length)
       .setValues([expectedHeaders])
@@ -288,8 +288,8 @@ function setupHolidaysSheet() {
   } catch (e) {}
 }
 
-function deleteSalesProfilesSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function deleteSalesProfilesSheet_() {
+  var ss = getKchSpreadsheet_();
   var allSheets = ss.getSheets();
   var deletedCount = 0;
 
@@ -316,8 +316,8 @@ function deleteSalesProfilesSheet() {
   } catch (e) {}
 }
 
-function setupSalesTransactionsUnifiedSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function setupSalesTransactionsUnifiedSheet_() {
+  var ss = getKchSpreadsheet_();
   var txSheet = ss.getSheetByName('SALES_TRANSACTIONS');
   var itemsSheet = ss.getSheetByName('SALES_TRANSACTION_ITEMS');
   var salesSheet = ss.getSheetByName('SALES');
@@ -386,18 +386,18 @@ function setupSalesTransactionsUnifiedSheet() {
         createdAtVal = Utilities.formatDate(new Date(), KCH_CONFIG.TIMEZONE, KCH_CONFIG.DATE_FORMAT);
       }
 
-      var totSales = colMap['total_sales'] !== undefined ? cleanRawNumber(row[colMap['total_sales']]) : 0;
-      var totCost = colMap['total_cost'] !== undefined ? cleanRawNumber(row[colMap['total_cost']]) : 0;
+      var totSales = colMap['total_sales'] !== undefined ? cleanRawNumber_(row[colMap['total_sales']]) : 0;
+      var totCost = colMap['total_cost'] !== undefined ? cleanRawNumber_(row[colMap['total_cost']]) : 0;
 
       var pIdVal = colMap['product_id'] !== undefined ? String(row[colMap['product_id']] || '').trim() : '';
       var pNameVal = colMap['product_name'] !== undefined ? String(row[colMap['product_name']] || '').trim() : '';
-      var qtyVal = colMap['quantity'] !== undefined ? cleanRawNumber(row[colMap['quantity']]) : 1;
-      var cPriceVal = colMap['cost_price'] !== undefined ? cleanRawNumber(row[colMap['cost_price']]) : totCost;
-      var sPriceVal = colMap['selling_price'] !== undefined ? cleanRawNumber(row[colMap['selling_price']]) : totSales;
-      var shjVal = colMap['shj'] !== undefined ? cleanRawNumber(row[colMap['shj']]) : (sPriceVal - cPriceVal);
-      var subSalesVal = colMap['subtotal_sales'] !== undefined ? cleanRawNumber(row[colMap['subtotal_sales']]) : totSales;
-      var subCostVal = colMap['subtotal_cost'] !== undefined ? cleanRawNumber(row[colMap['subtotal_cost']]) : totCost;
-      var subShjVal = colMap['subtotal_shj'] !== undefined ? cleanRawNumber(row[colMap['subtotal_shj']]) : (shjVal * qtyVal);
+      var qtyVal = colMap['quantity'] !== undefined ? cleanRawNumber_(row[colMap['quantity']]) : 1;
+      var cPriceVal = colMap['cost_price'] !== undefined ? cleanRawNumber_(row[colMap['cost_price']]) : totCost;
+      var sPriceVal = colMap['selling_price'] !== undefined ? cleanRawNumber_(row[colMap['selling_price']]) : totSales;
+      var shjVal = colMap['shj'] !== undefined ? cleanRawNumber_(row[colMap['shj']]) : (sPriceVal - cPriceVal);
+      var subSalesVal = colMap['subtotal_sales'] !== undefined ? cleanRawNumber_(row[colMap['subtotal_sales']]) : totSales;
+      var subCostVal = colMap['subtotal_cost'] !== undefined ? cleanRawNumber_(row[colMap['subtotal_cost']]) : totCost;
+      var subShjVal = colMap['subtotal_shj'] !== undefined ? cleanRawNumber_(row[colMap['subtotal_shj']]) : (shjVal * qtyVal);
 
       if (!txHeaderMap[txId]) {
         txHeaderMap[txId] = {
@@ -446,11 +446,11 @@ function setupSalesTransactionsUnifiedSheet() {
       var itmPId = iMap['product_id'] !== undefined ? String(iRow[iMap['product_id']] || '').trim() : '';
       if (!itmTxId || !itmPId) continue;
 
-      var itmQty = iMap['quantity'] !== undefined ? cleanRawNumber(iRow[iMap['quantity']]) : 1;
-      var itmCost = iMap['cost_price'] !== undefined ? cleanRawNumber(iRow[iMap['cost_price']]) : 0;
-      var itmSell = iMap['selling_price'] !== undefined ? cleanRawNumber(iRow[iMap['selling_price']]) : 0;
-      var itmSubSales = iMap['subtotal_sales'] !== undefined ? cleanRawNumber(iRow[iMap['subtotal_sales']]) : (itmSell * itmQty);
-      var itmSubCost = iMap['subtotal_cost'] !== undefined ? cleanRawNumber(iRow[iMap['subtotal_cost']]) : (itmCost * itmQty);
+      var itmQty = iMap['quantity'] !== undefined ? cleanRawNumber_(iRow[iMap['quantity']]) : 1;
+      var itmCost = iMap['cost_price'] !== undefined ? cleanRawNumber_(iRow[iMap['cost_price']]) : 0;
+      var itmSell = iMap['selling_price'] !== undefined ? cleanRawNumber_(iRow[iMap['selling_price']]) : 0;
+      var itmSubSales = iMap['subtotal_sales'] !== undefined ? cleanRawNumber_(iRow[iMap['subtotal_sales']]) : (itmSell * itmQty);
+      var itmSubCost = iMap['subtotal_cost'] !== undefined ? cleanRawNumber_(iRow[iMap['subtotal_cost']]) : (itmCost * itmQty);
       var itmShj = itmSell - itmCost;
       var itmSubShj = itmShj * itmQty;
       var itmPName = prodNameMap[itmPId.toUpperCase()] || itmPId;
@@ -521,7 +521,7 @@ function setupSalesTransactionsUnifiedSheet() {
     }
   }
 
-  clearSheetValidations(txSheet);
+  clearSheetValidations_(txSheet);
   txSheet.clear();
 
   txSheet.getRange(1, 1, 1, expectedHeaders.length)
@@ -540,13 +540,13 @@ function setupSalesTransactionsUnifiedSheet() {
     txSheet.getRange(2, 7, consolidatedRows.length, 2).setHorizontalAlignment('left');
     txSheet.getRange(2, 9, consolidatedRows.length, 1).setHorizontalAlignment('center');
     
-    safeSetNumberFormat(txSheet.getRange(2, 9, consolidatedRows.length, 1), '0');
-    safeSetNumberFormat(txSheet.getRange(2, 10, consolidatedRows.length, 6), '0');
+    safeSetNumberFormat_(txSheet.getRange(2, 9, consolidatedRows.length, 1), '0');
+    safeSetNumberFormat_(txSheet.getRange(2, 10, consolidatedRows.length, 6), '0');
     txSheet.getRange(2, 10, consolidatedRows.length, 6).setHorizontalAlignment('right');
 
     txSheet.getRange(2, 16, consolidatedRows.length, 2).setHorizontalAlignment('left');
     txSheet.getRange(2, 18, consolidatedRows.length, 1).setHorizontalAlignment('center');
-    safeSetNumberFormat(txSheet.getRange(2, 18, consolidatedRows.length, 1), 'dd/MM/yyyy HH:mm:ss');
+    safeSetNumberFormat_(txSheet.getRange(2, 18, consolidatedRows.length, 1), 'dd/MM/yyyy HH:mm:ss');
   }
 
   txSheet.setColumnWidth(1, 175);
@@ -579,8 +579,8 @@ function setupSalesTransactionsUnifiedSheet() {
   SpreadsheetApp.flush();
 }
 
-function consolidateSalesSheetStructure() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function consolidateSalesSheetStructure_() {
+  var ss = getKchSpreadsheet_();
   var sheet = ss.getSheetByName('SALES');
   var expectedHeaders = TABLE_SCHEMAS.SALES;
 
@@ -610,7 +610,7 @@ function consolidateSalesSheetStructure() {
       var teamName = LEGACY_TEAM_MAP[rawTeam.toUpperCase()] || rawTeam || 'Canvasser';
 
       var areaVal = colMap['area'] !== undefined ? String(row[colMap['area']] || '').trim() : 'Lhokseumawe';
-      var tgtVal = colMap['target_monthly'] !== undefined ? cleanRawNumber(row[colMap['target_monthly']]) : 0;
+      var tgtVal = colMap['target_monthly'] !== undefined ? cleanRawNumber_(row[colMap['target_monthly']]) : 0;
       var phoneVal = colMap['phone'] !== undefined ? String(row[colMap['phone']] || '').trim() : '';
       var emailVal = colMap['email'] !== undefined ? String(row[colMap['email']] || '').trim() : '';
       var photoVal = colMap['photo_url'] !== undefined ? String(row[colMap['photo_url']] || '').trim() : '';
@@ -641,7 +641,7 @@ function consolidateSalesSheetStructure() {
   });
   if (!sprAlreadyExists) existingRows.push(sprAttendanceOnly);
 
-  clearSheetValidations(sheet);
+  clearSheetValidations_(sheet);
   sheet.clear();
 
   sheet.getRange(1, 1, 1, expectedHeaders.length)
@@ -654,7 +654,7 @@ function consolidateSalesSheetStructure() {
 
   if (existingRows.length > 0) {
     sheet.getRange(2, 1, existingRows.length, expectedHeaders.length).setValues(existingRows);
-    safeSetNumberFormat(sheet.getRange(2, 5, existingRows.length, 1), '0');
+    safeSetNumberFormat_(sheet.getRange(2, 5, existingRows.length, 1), '0');
   }
 
   sheet.setColumnWidth(1, 230);
@@ -670,8 +670,8 @@ function consolidateSalesSheetStructure() {
   SpreadsheetApp.flush();
 }
 
-function setupInventorySheetStructure() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function setupInventorySheetStructure_() {
+  var ss = getKchSpreadsheet_();
   var sheet = ss.getSheetByName('INVENTORY');
   var expectedHeaders = TABLE_SCHEMAS.INVENTORY;
   var globalHeader = 'PT. Global Mitra Prima';
@@ -748,7 +748,7 @@ function setupInventorySheetStructure() {
     ]);
   });
 
-  clearSheetValidations(sheet);
+  clearSheetValidations_(sheet);
   if (lastRow > 0) {
     sheet.getRange(1, 1, lastRow, expectedHeaders.length).clearContent();
   }
@@ -762,7 +762,7 @@ function setupInventorySheetStructure() {
 
   if (existingRows.length > 0) {
     sheet.getRange(2, 1, existingRows.length, expectedHeaders.length).setValues(existingRows);
-    safeSetNumberFormat(sheet.getRange(2, 3, existingRows.length, 2), '#,##0');
+    safeSetNumberFormat_(sheet.getRange(2, 3, existingRows.length, 2), '#,##0');
   }
 
   removeLegacyInventoryColumns_(sheet);
@@ -793,22 +793,22 @@ function normalizeDistributorStock_(value) {
   var text = String(value === null || value === undefined ? '' : value).trim();
   var numericText = text.replace(/[.,\s]/g, '');
   if (numericText === '' || !/^-?\d+$/.test(numericText)) return 500;
-  return cleanRawNumber(text);
+  return cleanRawNumber_(text);
 }
 
 function distributorStockOrNull_(value) {
   var text = String(value === null || value === undefined ? '' : value).trim();
   var numericText = text.replace(/[.,\s]/g, '');
   if (numericText === '' || !/^-?\d+$/.test(numericText)) return null;
-  return cleanRawNumber(text);
+  return cleanRawNumber_(text);
 }
 
-function setupPriceMasterSheetStructure() {
-  return syncProductsToPriceMaster();
+function setupPriceMasterSheetStructure_() {
+  return syncProductsToPriceMaster_();
 }
 
-function setupAttendanceSheetForManualInput() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function setupAttendanceSheetForManualInput_() {
+  var ss = getKchSpreadsheet_();
   var sheet = ss.getSheetByName('ATTENDANCE');
   var expectedHeaders = TABLE_SCHEMAS.ATTENDANCE;
 
@@ -842,8 +842,8 @@ function setupAttendanceSheetForManualInput() {
   SpreadsheetApp.flush();
 }
 
-function setupVisitPhotosSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function setupVisitPhotosSheet_() {
+  var ss = getKchSpreadsheet_();
   var sheet = ss.getSheetByName('VISIT_PHOTOS');
   var expectedHeaders = TABLE_SCHEMAS.VISIT_PHOTOS;
 
@@ -879,8 +879,8 @@ function setupVisitPhotosSheet() {
   } catch (e) {}
 }
 
-function setupDistributorsSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function setupDistributorsSheet_() {
+  var ss = getKchSpreadsheet_();
   var sheet = ss.getSheetByName('DISTRIBUTORS');
   var expectedHeaders = TABLE_SCHEMAS.DISTRIBUTORS;
 
@@ -895,7 +895,7 @@ function setupDistributorsSheet() {
 
   var lastRow = sheet.getLastRow();
   if (lastRow <= 1) {
-    clearSheetValidations(sheet);
+    clearSheetValidations_(sheet);
     sheet.clear();
     sheet.getRange(1, 1, 1, expectedHeaders.length)
       .setValues([expectedHeaders])
@@ -918,8 +918,8 @@ function setupDistributorsSheet() {
   SpreadsheetApp.flush();
 }
 
-function setupFilesSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function setupFilesSheet_() {
+  var ss = getKchSpreadsheet_();
   var sheet = ss.getSheetByName('FILES');
   var expectedHeaders = TABLE_SCHEMAS.FILES;
 
@@ -961,7 +961,7 @@ function setupFilesSheet() {
     ];
   }
 
-  clearSheetValidations(sheet);
+  clearSheetValidations_(sheet);
   sheet.clear();
 
   sheet.getRange(1, 1, 1, expectedHeaders.length)
@@ -981,8 +981,8 @@ function setupFilesSheet() {
   SpreadsheetApp.flush();
 }
 
-function setupKchNewsSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function setupKchNewsSheet_() {
+  var ss = getKchSpreadsheet_();
   var sheet = ss.getSheetByName('KCH_NEWS');
   if (!sheet) sheet = ss.insertSheet('KCH_NEWS');
 
@@ -1044,8 +1044,8 @@ function setupKchNewsSheet() {
   return { status: 'success', message: 'Sheet KCH_NEWS siap digunakan.' };
 }
 
-function syncAttendanceSalesDetails() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function syncAttendanceSalesDetails_() {
+  var ss = getKchSpreadsheet_();
   var attSheet = ss.getSheetByName('ATTENDANCE');
   var salesSheet = ss.getSheetByName('SALES');
 
@@ -1096,8 +1096,8 @@ function syncAttendanceSalesDetails() {
   SpreadsheetApp.flush();
 }
 
-function convertAndAuthorizeDrivePhotosInAttendance() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function convertAndAuthorizeDrivePhotosInAttendance_() {
+  var ss = getKchSpreadsheet_();
   var sheet = ss.getSheetByName('ATTENDANCE');
   if (!sheet || sheet.getLastRow() <= 1) return;
 
@@ -1113,7 +1113,7 @@ function convertAndAuthorizeDrivePhotosInAttendance() {
     var rawUrl = String(values[i][0] || '').trim();
     if (!rawUrl) continue;
 
-    var fileId = extractDriveFileId(rawUrl);
+    var fileId = extractDriveFileId_(rawUrl);
     if (fileId) {
       try {
         var file = DriveApp.getFileById(fileId);
@@ -1125,8 +1125,8 @@ function convertAndAuthorizeDrivePhotosInAttendance() {
   SpreadsheetApp.flush();
 }
 
-function purgeObsoleteColumnsAndSheets() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function purgeObsoleteColumnsAndSheets_() {
+  var ss = getKchSpreadsheet_();
   var allSheets = ss.getSheets();
   
   allSheets.forEach(function(sh) {
@@ -1152,45 +1152,45 @@ function purgeObsoleteColumnsAndSheets() {
   SpreadsheetApp.flush();
 }
 
-function deduplicateSheetColumns(sheet, expectedHeaders) {
+function deduplicateSheetColumns_(sheet, expectedHeaders) {
   if (!sheet) return;
 
   if (sheet.getName() === 'PRODUCTS') {
-    setupInventorySheetStructure();
+    setupInventorySheetStructure_();
     removeProductDistributorColumns_(sheet);
     return;
   }
 
   if (sheet.getName() === 'HOLIDAYS') {
-    setupHolidaysSheet();
+    setupHolidaysSheet_();
     return;
   }
   if (sheet.getName() === 'SALES_TRANSACTIONS') {
-    setupSalesTransactionsUnifiedSheet();
+    setupSalesTransactionsUnifiedSheet_();
     return;
   }
   if (sheet.getName() === 'SALES') {
-    consolidateSalesSheetStructure();
+    consolidateSalesSheetStructure_();
     return;
   }
   if (sheet.getName() === 'DISTRIBUTORS') {
-    setupDistributorsSheet();
+    setupDistributorsSheet_();
     return;
   }
   if (sheet.getName() === 'INVENTORY') {
-    setupInventorySheetStructure();
+    setupInventorySheetStructure_();
     return;
   }
   if (sheet.getName() === 'ATTENDANCE') {
-    setupAttendanceSheetForManualInput();
+    setupAttendanceSheetForManualInput_();
     return;
   }
   if (sheet.getName() === 'PRICE_MASTER') {
-    syncProductsToPriceMaster();
+    syncProductsToPriceMaster_();
     return;
   }
   if (sheet.getName() === 'FILES') {
-    setupFilesSheet();
+    setupFilesSheet_();
     return;
   }
 
@@ -1246,42 +1246,42 @@ function removeProductDistributorColumns_(sheet) {
   });
 }
 
-function deduplicateAllSheets() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function deduplicateAllSheets_() {
+  var ss = getKchSpreadsheet_();
   for (var sheetName in TABLE_SCHEMAS) {
     var sheet = ss.getSheetByName(sheetName);
     if (sheet) {
-      deduplicateSheetColumns(sheet, TABLE_SCHEMAS[sheetName]);
+      deduplicateSheetColumns_(sheet, TABLE_SCHEMAS[sheetName]);
     }
   }
   SpreadsheetApp.flush();
 }
 
-function repairAndOptimizeSpreadsheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function repairAndOptimizeSpreadsheet_() {
+  var ss = getKchSpreadsheet_();
   var timestamp = Utilities.formatDate(new Date(), KCH_CONFIG.TIMEZONE, KCH_CONFIG.DATE_FORMAT);
   
-  setupHolidaysSheet();
-  deleteSalesProfilesSheet();
-  setupDistributorsSheet();
-  setupSalesTransactionsUnifiedSheet();
-  setupMonthlyTeamReportSheet();
-  setupTodayPlanSheet();
-  setupWeeklyMeetingsSheet();
-  consolidateSalesSheetStructure();
-  setupAttendanceSheetForManualInput();
-  setupVisitPhotosSheet();
-  setupKchNewsSheet();
-  setupInventorySheetStructure();
-  setupFilesSheet();
-  purgeObsoleteColumnsAndSheets();
-  deduplicateAllSheets();
-  convertAndAuthorizeDrivePhotosInAttendance();
-  syncProductsToPriceMaster();
-  syncProductsToInventory();
-  ensureSettingsConfigured();
-  removeAllSheetDropdowns();
-  formatAndCompactSheets();
+  setupHolidaysSheet_();
+  deleteSalesProfilesSheet_();
+  setupDistributorsSheet_();
+  setupSalesTransactionsUnifiedSheet_();
+  setupMonthlyTeamReportSheet_();
+  setupTodayPlanSheet_();
+  setupWeeklyMeetingsSheet_();
+  consolidateSalesSheetStructure_();
+  setupAttendanceSheetForManualInput_();
+  setupVisitPhotosSheet_();
+  setupKchNewsSheet_();
+  setupInventorySheetStructure_();
+  setupFilesSheet_();
+  purgeObsoleteColumnsAndSheets_();
+  deduplicateAllSheets_();
+  convertAndAuthorizeDrivePhotosInAttendance_();
+  syncProductsToPriceMaster_();
+  syncProductsToInventory_();
+  ensureSettingsConfigured_();
+  removeAllSheetDropdowns_();
+  formatAndCompactSheets_();
 
   SpreadsheetApp.flush();
   try {
@@ -1295,8 +1295,8 @@ function repairAndOptimizeSpreadsheet() {
   };
 }
 
-function syncProductsToPriceMaster() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function syncProductsToPriceMaster_() {
+  var ss = getKchSpreadsheet_();
   var prodSheet = ss.getSheetByName('PRODUCTS');
   var salesSheet = ss.getSheetByName('SALES');
   var priceSheet = ss.getSheetByName('PRICE_MASTER');
@@ -1326,7 +1326,7 @@ function syncProductsToPriceMaster() {
   for (var p = 0; p < prodValues.length; p++) {
     var pId = String(prodValues[p][0] || '').trim();
     var pName = String(prodValues[p][1] || '').trim();
-    var pUnit = normalizeUnit(String(prodValues[p][3] || '').trim() || 'Box');
+    var pUnit = normalizeUnit_(String(prodValues[p][3] || '').trim() || 'Box');
     if (pId) {
       realProducts.push({ id: pId, name: pName || pId, unit: pUnit });
     }
@@ -1373,9 +1373,9 @@ function syncProductsToPriceMaster() {
         var rawSell = colMap['selling_price'] !== undefined ? rawVals[r][colMap['selling_price']] : null;
         var rawShj = colMap['shj'] !== undefined ? rawVals[r][colMap['shj']] : null;
 
-        var costNum = (typeof rawCost === 'number' && !isNaN(rawCost)) ? Math.round(rawCost) : cleanRawNumber(dispVals[r][colMap['cost_price']]);
-        var sellNum = (typeof rawSell === 'number' && !isNaN(rawSell)) ? Math.round(rawSell) : cleanRawNumber(dispVals[r][colMap['selling_price']]);
-        var shjNum = (typeof rawShj === 'number' && !isNaN(rawShj)) ? Math.round(rawShj) : cleanRawNumber(dispVals[r][colMap['shj']]);
+        var costNum = (typeof rawCost === 'number' && !isNaN(rawCost)) ? Math.round(rawCost) : cleanRawNumber_(dispVals[r][colMap['cost_price']]);
+        var sellNum = (typeof rawSell === 'number' && !isNaN(rawSell)) ? Math.round(rawSell) : cleanRawNumber_(dispVals[r][colMap['selling_price']]);
+        var shjNum = (typeof rawShj === 'number' && !isNaN(rawShj)) ? Math.round(rawShj) : cleanRawNumber_(dispVals[r][colMap['shj']]);
 
         if (shjNum === 0 && sellNum > 0 && costNum > 0) {
           shjNum = sellNum - costNum;
@@ -1383,7 +1383,7 @@ function syncProductsToPriceMaster() {
 
         var key = rowPId + '____' + rowTName;
         existingPriceData[key] = {
-          unit: colMap['unit'] !== undefined ? normalizeUnit(dispVals[r][colMap['unit']]) : '',
+          unit: colMap['unit'] !== undefined ? normalizeUnit_(dispVals[r][colMap['unit']]) : '',
           cost: costNum,
           sell: sellNum,
           shj: shjNum,
@@ -1410,7 +1410,7 @@ function syncProductsToPriceMaster() {
       newRows.push([
         prod.id,
         prod.name,
-        normalizeUnit(unitVal),
+        normalizeUnit_(unitVal),
         tm.teamName,
         costFinal,
         sellFinal,
@@ -1420,7 +1420,7 @@ function syncProductsToPriceMaster() {
     }
   }
 
-  clearSheetValidations(priceSheet);
+  clearSheetValidations_(priceSheet);
   priceSheet.clear();
   priceSheet.getRange(1, 1, 1, expectedHeaders.length)
     .setValues([expectedHeaders])
@@ -1432,21 +1432,21 @@ function syncProductsToPriceMaster() {
 
   if (newRows.length > 0) {
     priceSheet.getRange(2, 1, newRows.length, expectedHeaders.length).setValues(newRows);
-    safeSetNumberFormat(priceSheet.getRange(2, 5, newRows.length, 3), '0');
+    safeSetNumberFormat_(priceSheet.getRange(2, 5, newRows.length, 3), '0');
   }
 
   SpreadsheetApp.flush();
 }
 
-function syncProductsToInventory() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function syncProductsToInventory_() {
+  var ss = getKchSpreadsheet_();
   var prodSheet = ss.getSheetByName('PRODUCTS');
   var invSheet = ss.getSheetByName('INVENTORY');
 
   if (!prodSheet || !invSheet) return;
 
   var expectedHeaders = TABLE_SCHEMAS.INVENTORY;
-  deduplicateSheetColumns(invSheet, expectedHeaders);
+  deduplicateSheetColumns_(invSheet, expectedHeaders);
 
   var prodLastRow = prodSheet.getLastRow();
   var invLastRow = invSheet.getLastRow();
@@ -1459,7 +1459,7 @@ function syncProductsToInventory() {
   for (var p = 0; p < prodValues.length; p++) {
     var pId = String(prodValues[p][0] || '').trim();
     var pName = String(prodValues[p][1] || '').trim();
-    var pMin = cleanRawNumber(prodValues[p][5]) || 50;
+    var pMin = cleanRawNumber_(prodValues[p][5]) || 50;
 
     if (pId) {
       realProducts.push({ id: pId, name: pName || pId, minStock: pMin });
@@ -1505,7 +1505,7 @@ function syncProductsToInventory() {
     ]);
   }
 
-  clearSheetValidations(invSheet);
+  clearSheetValidations_(invSheet);
   if (invLastRow > 1) {
     try {
       invSheet.getRange(2, 1, invLastRow - 1, expectedHeaders.length).clearContent();
@@ -1514,12 +1514,12 @@ function syncProductsToInventory() {
 
   if (newInvRows.length > 0) {
     invSheet.getRange(2, 1, newInvRows.length, expectedHeaders.length).setValues(newInvRows);
-    safeSetNumberFormat(invSheet.getRange(2, 3, newInvRows.length, 2), '#,##0');
+    safeSetNumberFormat_(invSheet.getRange(2, 3, newInvRows.length, 2), '#,##0');
   }
 }
 
-function ensureSettingsConfigured() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function ensureSettingsConfigured_() {
+  var ss = getKchSpreadsheet_();
   var settingSheet = ss.getSheetByName('SETTINGS');
 
   if (!settingSheet) {
@@ -1558,8 +1558,8 @@ function ensureSettingsConfigured() {
   });
 }
 
-function formatAndCompactSheets() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function formatAndCompactSheets_() {
+  var ss = getKchSpreadsheet_();
   var sheets = ss.getSheets();
 
   sheets.forEach(function(sh) {
@@ -1580,7 +1580,7 @@ function formatAndCompactSheets() {
   });
 }
 
-function clearSheetValidations(sheet) {
+function clearSheetValidations_(sheet) {
   if (!sheet) return;
   try {
     var maxR = sheet.getMaxRows();
@@ -1591,8 +1591,8 @@ function clearSheetValidations(sheet) {
   } catch (err) {}
 }
 
-function removeAllSheetDropdowns() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function removeAllSheetDropdowns_() {
+  var ss = getKchSpreadsheet_();
   var sheets = ss.getSheets();
   var cleared = 0;
 
@@ -1618,7 +1618,7 @@ function removeAllSheetDropdowns() {
   };
 }
 
-function cleanRawNumber(val) {
+function cleanRawNumber_(val) {
   if (val === null || val === undefined || val === '') return 0;
   if (typeof val === 'number') return Math.round(val);
   var clean = String(val).replace(/Rp|\s/gi, '').trim();
@@ -1636,7 +1636,7 @@ function cleanRawNumber(val) {
   return isNaN(n) ? 0 : Math.round(n);
 }
 
-function normalizeUnit(val) {
+function normalizeUnit_(val) {
   if (!val) return 'Box';
   var str = String(val).trim();
   var upper = str.toUpperCase();
@@ -1651,28 +1651,10 @@ function normalizeUnit(val) {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 
-function safeSetNumberFormat(range, formatStr) {
+function safeSetNumberFormat_(range, formatStr) {
   try {
     if (range) {
       range.setNumberFormat(formatStr || '0');
     }
   } catch (err) {}
-}
-
-function extractDriveFileId(url) {
-  if (!url) return '';
-  url = String(url).trim();
-  var matchFileD = url.match(/\/file\/d\/([a-zA-Z0-9_-]{20,})/i) || url.match(/\/d\/([a-zA-Z0-9_-]{20,})/i);
-  if (matchFileD && matchFileD[1]) return matchFileD[1];
-
-  var matchIdParam = url.match(/[?&]id=([a-zA-Z0-9_-]{20,})/i);
-  if (matchIdParam && matchIdParam[1]) return matchIdParam[1];
-
-  var matchLh3 = url.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]{20,})/i);
-  if (matchLh3 && matchLh3[1]) return matchLh3[1];
-
-  if (/^[a-zA-Z0-9_-]{25,50}$/.test(url)) {
-    return url;
-  }
-  return '';
 }

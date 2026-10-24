@@ -13,13 +13,14 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <?!= include('css'); ?>
+  <?!= include_('css'); ?>
 </head>
 <body>
+  <?!= include_('auth'); ?>
   <div class="app-layout">
     
     <aside class="sidebar" id="sidebar">
-      <? var sidebarLogoUrl = getSidebarLogoUrl(); ?>
+      <? var sidebarLogoUrl = ''; ?>
       <div class="sidebar-header">
         <div class="sidebar-brand">
           <div class="brand-logo-icon">
@@ -1392,7 +1393,9 @@
 
   <div class="toast-box" id="toastBox"></div>
 
-  <?!= include('js'); ?>
+  <?!= include_('js'); ?>
+  <script>window.KCH_FIREBASE_CONFIG = <?!= JSON.stringify(getFirebaseWebConfig_()); ?>;</script>
+  <?!= include_('auth-client'); ?>
 
 </body>
 </html>
