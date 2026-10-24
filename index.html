@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Kalbe Consumer Health - Cabang Lhokseumawe</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome 6 & Chart.js -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <?!= include('css'); ?>
+</head>
+<body>
+  <div class="app-layout">
+    
+    <aside class="sidebar" id="sidebar">
+      <? var sidebarLogoUrl = getSidebarLogoUrl(); ?>
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <div class="brand-logo-icon">
+            <? if (sidebarLogoUrl) { ?>
+              <img src="<?= sidebarLogoUrl ?>" alt="Logo" class="sidebar-custom-logo" style="width:24px;height:28px;object-fit:contain;display:block;" onerror="this.style.display='none';">
+            <? } ?>
+          </div>
+          <div>
+            <span class="brand-title">KALBE</span>
+            <span class="brand-subtitle">Consumer Health</span>
+          </div>
+        </div>
+        <button type="button" class="btn-sidebar-close" onclick="toggleSidebarMobile()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">MONITORING UTAMA</div>
+        <a href="javascript:void(0)" class="nav-item active" id="nav-dashboard" onclick="switchView('dashboard')">
+          <i class="fa-solid fa-chart-pie nav-icon"></i>
+          <span>Dashboard Sales</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" id="nav-input-tx" onclick="switchView('input-tx')">
+          <i class="fa-solid fa-file-invoice nav-icon"></i>
+          <span>Input Penjualan</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" id="nav-riwayat" onclick="switchView('riwayat')">
+          <i class="fa-solid fa-receipt nav-icon"></i>
+          <span>Riwayat Transaksi</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" id="nav-laporan-bulanan" onclick="switchView('laporan-bulanan')">
+          <i class="fa-solid fa-chart-column nav-icon"></i>
+          <span>Laporan Bulanan Tim</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" id="nav-absensi" onclick="switchView('absensi')">
+          <i class="fa-solid fa-user-check nav-icon"></i>
+          <span>Absensi</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" id="nav-foto-kunjungan" onclick="switchView('foto-kunjungan')">
+          <i class="fa-solid fa-camera nav-icon"></i>
+          <span>Foto Kunjungan</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" id="nav-today-plan" onclick="switchView('today-plan')">
+          <i class="fa-solid fa-route nav-icon"></i>
+          <span>Today’s Plan</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" id="nav-weekly-meeting" onclick="switchView('weekly-meeting')">
+          <i class="fa-solid fa-people-group nav-icon"></i>
+          <span>Hasil Meeting Mingguan</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" id="nav-kch-news" onclick="switchView('kch-news')">
+          <i class="fa-regular fa-newspaper nav-icon"></i>
+          <span>KCH News</span>
+        </a>
+
+        <div class="nav-section-label">MASTER & STOK</div>
+        <a href="javascript:void(0)" class="nav-item" id="nav-stok" onclick="switchView('stok')">
+          <i class="fa-solid fa-boxes-stacked nav-icon"></i>
+          <span>Monitoring Stok</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" id="nav-harga" onclick="switchView('harga')">
+          <i class="fa-solid fa-tags nav-icon"></i>
+          <span>Master Harga</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" id="nav-tim" onclick="switchView('tim')">
+          <i class="fa-solid fa-id-card-clip nav-icon"></i>
+          <span>Profil Sales</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" id="nav-dokumen" onclick="switchView('dokumen')">
+          <i class="fa-solid fa-folder-closed nav-icon"></i>
+          <span>Arsip Dokumen</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="quote-card">
+          <i class="fa-solid fa-quote-left quote-icon"></i>
+          <div class="quote-text-wrap">
+            <div class="quote-text">"Pemenang tidak pernah menyerah, dan mereka yang menyerah tidak pernah menang."</div>
+          </div>
+        </div>
+        <div class="version-tag">Copyright © 2026 KCH Cabang Lhokseumawe. All Rights Reserved.</div>
+      </div>
+    </aside>
+
+    <div class="main-wrapper">
+      
+      <header class="topbar">
+        <div class="topbar-left">
+          <button type="button" class="btn-sidebar-toggle" onclick="toggleSidebarMobile()">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <button type="button" class="btn-sidebar-toggle btn-sidebar-toggle-desktop" id="desktopSidebarToggle" onclick="toggleSidebarDesktop()" aria-label="Tutup sidebar" aria-expanded="true" title="Tutup sidebar">
+            <i class="fa-solid fa-arrow-left" id="desktopSidebarToggleIcon"></i>
+          </button>
+          <div>
+            <h1 class="header-greeting" id="headerGreetingText">Good Morning, Ryan <span class="wave-emoji">👋</span></h1>
+            <div class="header-subtitle-wrap">
+              <span class="header-subtitle" id="headerSubtitleText">Dashboard Sales Monitoring</span>
+              <span class="live-badge"><span class="live-dot"></span> Live Sync</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <div class="period-control-group">
+            <button type="button" class="btn-cal-standalone" id="btnStandaloneCalendar" onclick="toggleCustomPeriodDropdown()" title="Pilih Tanggal Custom">
+              <i class="fa-regular fa-calendar-days"></i>
+            </button>
+
+            <div class="segmented-control-modern">
+              <button type="button" class="seg-btn-modern active" id="segBtn-today" onclick="setDashboardPeriod('today')">Hari Ini</button>
+              <button type="button" class="seg-btn-modern" id="segBtn-week" onclick="setDashboardPeriod('week')">Minggu Ini</button>
+              <button type="button" class="seg-btn-modern" id="segBtn-month" onclick="setDashboardPeriod('month')">Bulan Ini</button>
+              <button type="button" class="seg-btn-modern seg-btn-custom" id="segBtn-custom" onclick="toggleCustomPeriodDropdown()">
+                <span>Custom</span>
+                <i class="fa-solid fa-chevron-down seg-custom-chevron"></i>
+              </button>
+            </div>
+
+            <div class="date-badge-wrapper">
+              <div class="date-display-card" id="periodDateDisplayCard" onclick="toggleCustomPeriodDropdown()">
+                <i class="fa-solid fa-calendar-check date-card-icon"></i>
+                <span class="date-card-text" id="periodDateBadgeText">Hari Ini</span>
+              </div>
+
+              <div class="custom-period-dropdown" id="customPeriodDropdown" style="display: none;">
+                <div class="popover-title"><i class="fa-regular fa-calendar-range"></i> Filter Periode Transaksi</div>
+                <div class="form-group" style="margin-bottom: 10px;">
+                  <label class="form-label-xs">Tanggal Awal</label>
+                  <input type="date" class="form-control form-control-sm" id="customStartDate">
+                </div>
+                <div class="form-group" style="margin-bottom: 14px;">
+                  <label class="form-label-xs">Tanggal Akhir</label>
+                  <input type="date" class="form-control form-control-sm" id="customEndDate">
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <button type="button" class="btn btn-primary btn-sm btn-block" onclick="applyCustomPeriod()">Terapkan</button>
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="toggleCustomPeriodDropdown()">Batal</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="user-profile-wrapper">
+            <div class="user-profile-badge" id="headerUserProfile" onclick="toggleUserDropdown(event)">
+              <div class="user-avatar-circle">R</div>
+              <div class="user-meta-header">
+                <span class="user-name-header">Ryan</span>
+                <span class="user-role-header">Sales Coordinator</span>
+              </div>
+              <i class="fa-solid fa-chevron-down user-chevron"></i>
+            </div>
+            
+            <div class="user-dropdown-menu" id="userDropdownMenu" style="display: none;">
+              <div class="user-menu-info">
+                <div class="user-menu-name">Ryan Pratama</div>
+                <div class="user-menu-email">ryan.coordinator@kalbe.co.id</div>
+              </div>
+              <hr class="dropdown-divider">
+              <a href="javascript:void(0)" class="dropdown-menu-item" onclick="triggerManualSync()"><i class="fa-solid fa-arrows-rotate"></i> Sinkronisasi Live</a>
+              <a href="javascript:void(0)" class="dropdown-menu-item" onclick="switchView('dokumen')"><i class="fa-solid fa-folder-open"></i> Google Drive Cabang</a>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="main-content">
+        
+        <section class="content-view active" id="view-dashboard">
+          
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-label">TOTAL OMSET</span>
+                <span class="kpi-icon-pill icon-sales"><i class="fa-solid fa-wallet"></i></span>
+              </div>
+              <div class="kpi-value-wrap">
+                <span class="kpi-value" id="kpiTotalOmset">Rp 0</span>
+                <span class="badge badge-success" id="kpiAchieveBadge"><i class="fa-solid fa-arrow-trend-up"></i> 0%</span>
+              </div>
+              <div class="kpi-progress-wrap">
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill fill-sales" id="kpiProgressBar" style="width: 0%;"></div>
+                </div>
+                <div class="kpi-footer-note" id="kpiRemainingLabel"><i class="fa-solid fa-flag-checkered"></i> Sisa: Rp 0</div>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-label">TARGET KUMULATIF TIM</span>
+                <span class="kpi-icon-pill icon-target"><i class="fa-solid fa-bullseye"></i></span>
+              </div>
+              <div class="kpi-value-wrap">
+                <span class="kpi-value" id="kpiCumulativeTarget">Rp 147.000.000</span>
+              </div>
+              <div class="kpi-footer-note"><i class="fa-solid fa-location-dot"></i> Target Tim Reguler &amp; Tim Program</div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-label">Sisa Hari Kerja</span>
+                <span class="kpi-icon-pill icon-days"><i class="fa-solid fa-calendar-day"></i></span>
+              </div>
+              <div class="kpi-value-wrap">
+                <span class="kpi-value" id="kpiDaysRemaining">0 Hari</span>
+                <span class="badge badge-warning" id="kpiDaysPassedBadge">0 / 26 Hari</span>
+              </div>
+              <div class="kpi-footer-note"><i class="fa-solid fa-business-time"></i> Hari kerja aktif bulan ini</div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-label">Top Canvasser</span>
+                <span class="kpi-icon-pill icon-canvasser"><i class="fa-solid fa-truck-fast"></i></span>
+              </div>
+              <div class="top-performer-summary">
+                <span class="top-performer-name" id="kpiTopCanvasserName">-</span>
+                <div class="top-performer-metric">
+                  <strong class="text-primary font-semibold" id="kpiTopCanvasserAchieved">Rp 0 (0%)</strong>
+                  <span id="kpiTopCanvasserTeamBadge"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-label">Top Motoris</span>
+                <span class="kpi-icon-pill icon-motoris"><i class="fa-solid fa-motorcycle"></i></span>
+              </div>
+              <div class="top-performer-summary">
+                <span class="top-performer-name" id="kpiTopMotorisName">-</span>
+                <div class="top-performer-metric">
+                  <strong class="text-success font-semibold" id="kpiTopMotorisAchieved">Rp 0 (0%)</strong>
+                  <span id="kpiTopMotorisTeamBadge"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-main-grid">
+            
+            <div class="dashboard-left-col">
+              
+              <!-- 1. Tren Penjualan Harian -->
+              <div class="chart-card">
+                <div class="card-header-clean">
+                  <div>
+                    <div class="card-title">Tren Penjualan Harian</div>
+                    <div class="card-subtitle">Akumulasi pergerakan omset transaksi real-time</div>
+                  </div>
+                  <span class="badge badge-primary-light" id="salesTrendPeriodBadge">Hari Ini</span>
+                </div>
+                <div class="chart-canvas-container">
+                  <canvas id="salesTrendChart"></canvas>
+                </div>
+              </div>
+
+              <!-- 2. Grafik Penjualan Harian Sales -->
+              <div class="chart-card">
+                <div class="card-header-clean">
+                  <div>
+                    <div class="card-title">Grafik Penjualan Harian Sales</div>
+                    <div class="card-subtitle">Komparasi target harian dan pencapaian per personil sales lapangan</div>
+                  </div>
+                  <span class="badge badge-primary-light" id="salesDailyChartPeriodBadge">Hari Ini</span>
+                </div>
+                <div class="chart-canvas-container">
+                  <canvas id="salesDailyComparisonChart"></canvas>
+                </div>
+              </div>
+
+              <!-- 3. Peringkat & Performa Sales Personil -->
+              <div class="table-card">
+                <div class="card-header-clean">
+                  <div>
+                    <div class="card-title">Peringkat & Performa Sales Personil</div>
+                    <div class="card-subtitle">Pencapaian target individu personil lapangan</div>
+                  </div>
+                  <span class="filter-indicator-badge" id="salesFilterIndicator" style="display: none;" onclick="clearSalesFilter()">
+                    <span id="salesFilterText">Tim: -</span>
+                    <i class="fa-solid fa-xmark"></i>
+                  </span>
+                </div>
+                <div class="table-responsive">
+                  <table class="app-table">
+                    <thead>
+                      <tr>
+                        <th>Personil Sales</th>
+                        <th>Kategori Tim</th>
+                        <th class="text-right">Target</th>
+                        <th class="text-right">Realisasi</th>
+                        <th class="text-center">Achieve</th>
+                        <th>Progress Target</th>
+                      </tr>
+                    </thead>
+                    <tbody id="salesPerformanceTbody">
+                      <tr><td colspan="6" class="text-center text-muted py-3">Memuat performa sales...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- 4. Foto Absensi Tim -->
+              <div class="table-card attendance-card-widget" id="attendanceSection">
+                <div class="card-header-clean">
+                  <div>
+                    <div class="card-title" style="display:flex; align-items:center; gap:8px;">
+                      <i class="fa-solid fa-camera-retro text-primary"></i>
+                      <span id="attendanceSectionTitle">Foto Absensi Tim</span>
+                    </div>
+                    <div class="card-subtitle" id="attendanceSubtitle">Dokumentasi kehadiran personil sales hari ini</div>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:8px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      
+                      <div class="date-input-indo-wrapper" title="Filter Tanggal Absensi (Hari/Bulan/Tahun)">
+                        <input type="text" class="form-control form-control-sm date-input-indo-display" id="displayAttendanceFilterDate" readonly placeholder="DD/MM/YYYY">
+                        <i class="fa-regular fa-calendar-days date-input-indo-icon"></i>
+                        <input type="date" class="date-input-indo-native" id="inputAttendanceFilterDate" onclick="try{this.showPicker()}catch(e){}" onchange="handleAttendanceDateChange(this.value)">
+                      </div>
+
+                      <button type="button" class="btn btn-outline btn-sm" id="btnResetAttendanceToday" onclick="resetAttendanceToToday()" title="Kembali ke Hari Ini" style="display:none; padding: 0 8px;">
+                        <i class="fa-solid fa-calendar-day text-primary"></i> Hari Ini
+                      </button>
+                    </div>
+                    <span class="badge badge-success" id="attendanceCountBadge"><i class="fa-solid fa-user-check"></i> 0 Hadir</span>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="reloadAttendanceOnly()" title="Segarkan Foto Absensi">
+                      <i class="fa-solid fa-arrows-rotate"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="attendance-filter-bar">
+                  <button type="button" class="att-filter-chip active" onclick="filterAttendanceTeam('ALL', this)">Semua Tim</button>
+                  <button type="button" class="att-filter-chip" onclick="filterAttendanceTeam('Canvasser', this)">Canvasser</button>
+                  <button type="button" class="att-filter-chip" onclick="filterAttendanceTeam('Junior Canvasser', this)">Junior Canvasser</button>
+                  <button type="button" class="att-filter-chip" onclick="filterAttendanceTeam('MPR', this)">MPR</button>
+                  <button type="button" class="att-filter-chip" onclick="filterAttendanceTeam('Asisten MPR', this)">Asisten MPR</button>
+                  <button type="button" class="att-filter-chip" onclick="filterAttendanceTeam('Motoris', this)">Motoris</button>
+                  <button type="button" class="att-filter-chip" onclick="filterAttendanceTeam('MMTW', this)">MMTW</button>
+                  <button type="button" class="att-filter-chip" onclick="filterAttendanceTeam('Motoris Ultimate', this)">Motoris Ultimate</button>
+                  <button type="button" class="att-filter-chip" onclick="filterAttendanceTeam('SPG Kelontong', this)">SPG Kelontong</button>
+                  <button type="button" class="att-filter-chip" onclick="filterAttendanceTeam('SPR', this)">SPR</button>
+                </div>
+
+                <div class="attendance-grid" id="attendanceGridContainer">
+                  <div class="attendance-loading-placeholder">
+                    <i class="fa-solid fa-circle-notch fa-spin text-primary"></i>
+                    <span>Memuat foto absensi tim...</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 5. Foto Kunjungan -->
+              <div class="table-card attendance-card-widget" id="visitPhotosDashboardSection">
+                <div class="card-header-clean">
+                  <div>
+                    <div class="card-title" style="display:flex; align-items:center; gap:8px;">
+                      <i class="fa-solid fa-camera text-primary"></i>
+                      <span>Foto Kunjungan</span>
+                    </div>
+                    <div class="card-subtitle">Dokumentasi kunjungan lapangan</div>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <div class="date-input-indo-wrapper" title="Filter Tanggal Foto Kunjungan">
+                      <input type="text" class="form-control form-control-sm date-input-indo-display" id="displayVisitPhotosFilterDate" readonly placeholder="DD/MM/YYYY">
+                      <i class="fa-regular fa-calendar-days date-input-indo-icon"></i>
+                      <input type="date" class="date-input-indo-native" id="inputVisitPhotosFilterDate" onclick="try{this.showPicker()}catch(e){}" onchange="handleVisitPhotosDateChange(this.value)">
+                    </div>
+                    <button type="button" class="btn btn-outline btn-sm" id="btnResetVisitPhotosToday" onclick="resetVisitPhotosToToday()" title="Kembali ke Hari Ini" style="display:none; padding:0 8px;">
+                      <i class="fa-solid fa-calendar-day text-primary"></i> Hari Ini
+                    </button>
+                    <span class="badge badge-success" id="visitPhotosCountBadge">0 Foto</span>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="reloadVisitPhotosOnly()" title="Segarkan Foto Kunjungan">
+                      <i class="fa-solid fa-arrows-rotate"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="attendance-filter-bar">
+                  <button type="button" class="att-filter-chip visit-filter-chip active" onclick="filterVisitPhotosTeam('ALL')">Semua Tim</button>
+                  <button type="button" class="att-filter-chip visit-filter-chip" onclick="filterVisitPhotosTeam('Canvasser')">Canvasser</button>
+                  <button type="button" class="att-filter-chip visit-filter-chip" onclick="filterVisitPhotosTeam('Junior Canvasser')">Junior Canvasser</button>
+                  <button type="button" class="att-filter-chip visit-filter-chip" onclick="filterVisitPhotosTeam('MPR')">MPR</button>
+                  <button type="button" class="att-filter-chip visit-filter-chip" onclick="filterVisitPhotosTeam('Asisten MPR')">Asisten MPR</button>
+                  <button type="button" class="att-filter-chip visit-filter-chip" onclick="filterVisitPhotosTeam('Motoris')">Motoris</button>
+                  <button type="button" class="att-filter-chip visit-filter-chip" onclick="filterVisitPhotosTeam('MMTW')">MMTW</button>
+                  <button type="button" class="att-filter-chip visit-filter-chip" onclick="filterVisitPhotosTeam('Motoris Ultimate')">Motoris Ultimate</button>
+                  <button type="button" class="att-filter-chip visit-filter-chip" onclick="filterVisitPhotosTeam('SPG Kelontong')">SPG Kelontong</button>
+                  <button type="button" class="att-filter-chip visit-filter-chip" onclick="filterVisitPhotosTeam('SPR')">SPR</button>
+                </div>
+                <div class="attendance-grid" id="visitPhotosDashboardGridContainer"></div>
+              </div>
+
+              <div class="table-card today-plan-dashboard-card" id="todayPlanDashboardSection">
+                <div class="card-header-clean">
+                  <div>
+                    <div class="card-title"><i class="fa-solid fa-route text-primary"></i> Today’s Plan</div>
+                    <div class="card-subtitle">Rencana kunjungan tim sales hari ini</div>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="badge badge-success" id="todayPlanDashboardCount">0 Rencana</span>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="loadTodayPlans(getLocalDateInputValue())" title="Segarkan Today’s Plan"><i class="fa-solid fa-arrows-rotate"></i></button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="switchView('today-plan')">Kelola</button>
+                  </div>
+                </div>
+                <div class="activity-feed-list today-plan-list" id="todayPlanDashboardList">
+                  <div class="text-muted text-center py-2">Memuat rencana hari ini...</div>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="dashboard-side-col">
+              <!-- KCH News -->
+              <div class="chart-card kch-news-card">
+                <div class="card-header-clean">
+                  <div>
+                    <div class="card-title"><i class="fa-regular fa-newspaper text-primary"></i> KCH News</div>
+                    <div class="card-subtitle">Berita dan informasi terbaru Kalbe</div>
+                  </div>
+                  <span class="badge badge-primary-light">INFO KALBE</span>
+                </div>
+                <a class="kch-news-banner" id="kchNewsDashboardBanner" href="https://www.kalbe.co.id/id/news" target="_blank" rel="noopener noreferrer" aria-label="Buka berita terbaru Kalbe">
+                  <span class="kch-news-banner-kicker">KCH NEWS</span>
+                  <strong>Memuat berita...</strong>
+                  <span>Berita dan informasi Kalbe</span>
+                  <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </a>
+                <div class="kch-news-story">
+                  <div class="kch-news-date" id="kchNewsDashboardDate"><i class="fa-regular fa-calendar"></i> -</div>
+                  <div class="kch-news-headline" id="kchNewsDashboardHeadline">Belum ada berita aktif.</div>
+                  <div class="kch-news-summary" id="kchNewsDashboardSummary">Berita aktif dari sheet KCH_NEWS akan tampil di sini.</div>
+                  <a class="kch-news-link" id="kchNewsDashboardLink" href="https://www.kalbe.co.id/id/news" target="_blank" rel="noopener noreferrer">Lihat berita selengkapnya <i class="fa-solid fa-arrow-right"></i></a>
+                </div>
+              </div>
+
+              <!-- 1. Pencapaian Kategori Tim -->
+              <div class="chart-card">
+                <div class="card-header-clean">
+                  <div>
+                    <div class="card-title">Pencapaian Kategori Tim</div>
+                    <div class="card-subtitle">Distribusi omset per divisi sales</div>
+                  </div>
+                </div>
+                <div class="donut-wrap">
+                  <canvas id="teamDonutChart"></canvas>
+                  <div class="donut-center-text">
+                    <span class="donut-center-value" id="donutCenterPct">0%</span>
+                    <span class="donut-center-label">Realized</span>
+                  </div>
+                </div>
+                <div class="team-pill-legend" id="teamPillLegend"></div>
+              </div>
+
+              <!-- 2. Distribusi Penjualan 5 Wilayah Operasional -->
+              <div class="chart-card">
+                <div class="card-header-clean">
+                  <div>
+                    <div class="card-title">Distribusi Penjualan 5 Wilayah Operasional</div>
+                    <div class="card-subtitle">Peta realisasi omset 5 area cabang operasional</div>
+                  </div>
+                </div>
+                <div class="donut-wrap">
+                  <canvas id="areaDonutChart"></canvas>
+                  <div class="donut-center-text">
+                    <span class="donut-center-value" id="areaDonutCenterPct">0%</span>
+                    <span class="donut-center-label">Area Total</span>
+                  </div>
+                </div>
+                <div class="team-pill-legend" id="areaPillLegend"></div>
+              </div>
+
+              <!-- Hasil Meeting Mingguan -->
+              <div class="chart-card">
+                <div class="card-header-clean">
+                  <div>
+                    <div class="card-title"><i class="fa-solid fa-people-group text-primary"></i> Hasil Meeting Mingguan</div>
+                    <div class="card-subtitle">Ringkasan meeting tim terbaru</div>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="badge badge-success" id="weeklyMeetingDashboardCount">0 Meeting</span>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="loadWeeklyMeetings()" title="Segarkan hasil meeting"><i class="fa-solid fa-arrows-rotate"></i></button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="switchView('weekly-meeting')">Kelola</button>
+                  </div>
+                </div>
+                <div class="activity-feed-list" id="weeklyMeetingDashboardList">
+                  <div class="text-muted text-center py-2">Memuat hasil meeting...</div>
+                </div>
+              </div>
+
+              <!-- 3. Transaksi Terakhir -->
+              <div class="chart-card">
+                <div class="card-header-clean">
+                  <div>
+                    <div class="card-title">Transaksi Terakhir</div>
+                    <div class="card-subtitle">Faktur penjualan baru tercatat</div>
+                  </div>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="switchView('riwayat')">Lihat Semua</button>
+                </div>
+                <div class="activity-feed-list" id="recentTxFeedList">
+                  <div class="text-muted text-center py-2">Belum ada transaksi.</div>
+                </div>
+              </div>
+
+              <!-- 4. Aktivitas Sistem & User -->
+              <div class="chart-card">
+                <div class="card-header-clean">
+                  <div>
+                    <div class="card-title">Aktivitas Sistem & User</div>
+                    <div class="card-subtitle">Catatan login dan aksi pengguna</div>
+                  </div>
+                </div>
+                <div class="activity-feed-list" id="activityFeedList">
+                  <div class="text-muted text-center py-2">Belum ada catatan aktivitas.</div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </section>
+
+        <section class="content-view" id="view-kch-news">
+          <div class="page-title-box">
+            <div>
+              <h2 class="page-title">KCH News</h2>
+              <div class="page-subtitle">Berita Kalbe dan artikel internal KCH</div>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" onclick="loadKchNews()" title="Segarkan KCH News">
+              <i class="fa-solid fa-arrows-rotate"></i> Segarkan
+            </button>
+          </div>
+          <div class="chart-card kch-news-editor" id="kchNewsManagerPanel" style="display:none;">
+            <div class="card-header-clean">
+              <div>
+                <div class="card-title"><i class="fa-solid fa-pen-to-square text-primary"></i> Kelola Artikel KCH</div>
+                <div class="card-subtitle">Artikel tersimpan otomatis di sheet KCH_NEWS.</div>
+              </div>
+            </div>
+            <form id="kchNewsEditorForm" onsubmit="submitKchNewsArticle(event)">
+              <input type="hidden" id="kchNewsEditorId">
+              <div class="kch-news-editor-grid">
+                <div class="form-group">
+                  <label class="form-label required" for="kchNewsEditorTitle">Judul</label>
+                  <input class="form-control" id="kchNewsEditorTitle" maxlength="180" required placeholder="Judul artikel">
+                </div>
+                <div class="form-group">
+                  <label class="form-label required" for="kchNewsEditorDate">Tanggal terbit</label>
+                  <input type="date" class="form-control" id="kchNewsEditorDate" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label required" for="kchNewsEditorSummary">Ringkasan</label>
+                  <textarea class="form-control" id="kchNewsEditorSummary" rows="2" maxlength="500" required placeholder="Ringkasan yang tampil di kartu berita"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label required" for="kchNewsEditorContent">Isi artikel</label>
+                  <textarea class="form-control" id="kchNewsEditorContent" rows="8" maxlength="45000" required placeholder="Tulis isi artikel di sini"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="kchNewsEditorBanner">Teks banner</label>
+                  <input class="form-control" id="kchNewsEditorBanner" maxlength="100" placeholder="Opsional, default memakai judul">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="kchNewsEditorKicker">Label atas banner</label>
+                  <input class="form-control" id="kchNewsEditorKicker" maxlength="60" placeholder="Contoh: KALBE UPDATE">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="kchNewsEditorBannerSubtitle">Teks bawah banner</label>
+                  <input class="form-control" id="kchNewsEditorBannerSubtitle" maxlength="120" placeholder="Contoh: Berita dan informasi Kalbe">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="kchNewsEditorImage">URL gambar/banner</label>
+                  <input type="url" class="form-control" id="kchNewsEditorImage" placeholder="https://...">
+                </div>
+                <div class="form-group kch-news-editor-source">
+                  <label class="form-label" for="kchNewsEditorUrl">Link sumber/berita selengkapnya</label>
+                  <input type="url" class="form-control" id="kchNewsEditorUrl" placeholder="Opsional, https://...">
+                </div>
+              </div>
+              <div class="kch-news-editor-actions">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="resetKchNewsEditor()">Batal / Artikel baru</button>
+                <button type="submit" class="btn btn-primary btn-sm" id="btnSaveKchNews"><i class="fa-solid fa-paper-plane"></i> Terbitkan artikel</button>
+              </div>
+            </form>
+          </div>
+          <div class="kch-news-page-list" id="kchNewsPageList">
+            <div class="chart-card text-muted">Memuat KCH News...</div>
+          </div>
+        </section>
+
+        <section class="content-view" id="view-absensi">
+          <div class="page-title-box">
+            <div>
+              <h2 class="page-title">Absensi Tim</h2>
+              <div class="page-subtitle">Dokumentasi kehadiran personil sales dari sheet ATTENDANCE</div>
+            </div>
+          </div>
+
+          <div class="table-card attendance-card-widget">
+            <div class="card-header-clean">
+              <div>
+                <div class="card-title">Foto Absensi Tim</div>
+                <div class="card-subtitle" id="attendancePageSubtitle">Dokumentasi kehadiran personil sales</div>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <button type="button" class="btn btn-primary btn-sm" onclick="openPhotoUploadForm('attendance')">
+                  <i class="fa-solid fa-camera"></i> Input Absensi
+                </button>
+                <div class="date-input-indo-wrapper" title="Filter Tanggal Absensi">
+                  <input type="text" class="form-control form-control-sm date-input-indo-display" id="displayAttendancePageFilterDate" readonly placeholder="DD/MM/YYYY">
+                  <i class="fa-regular fa-calendar-days date-input-indo-icon"></i>
+                  <input type="date" class="date-input-indo-native" id="inputAttendancePageFilterDate" onclick="try{this.showPicker()}catch(e){}" onchange="handleAttendanceDateChange(this.value)">
+                </div>
+                <button type="button" class="btn btn-outline btn-sm" id="btnResetAttendancePageToday" onclick="resetAttendanceToToday()" title="Kembali ke Hari Ini" style="display:none; padding:0 8px;">
+                  <i class="fa-solid fa-calendar-day text-primary"></i> Hari Ini
+                </button>
+                <span class="badge badge-success" id="attendancePageCountBadge"><i class="fa-solid fa-user-check"></i> 0 Hadir</span>
+                <button type="button" class="btn btn-outline btn-sm" onclick="reloadAttendanceOnly()" title="Segarkan Absensi">
+                  <i class="fa-solid fa-arrows-rotate"></i>
+                </button>
+              </div>
+            </div>
+            <div class="attendance-filter-bar">
+              <button type="button" class="att-filter-chip active" onclick="filterAttendanceTeam('ALL', this)">Semua Tim</button>
+              <button type="button" class="att-filter-chip" onclick="filterAttendanceTeam('Canvasser', this)">Canvasser</button>
+              <button type="button" class="att-filter-chip" onclick="filterAttendanceTeam('Junior Canvasser', this)">Junior Canvasser</button>
+              <button type="button" class="att-filter-chip" onclick="filterAttendanceTeam('MPR', this)">MPR</button>
+              <button type="button" class="att-filter-chip" onclick="filterAttendanceTeam('Asisten MPR', this)">Asisten MPR</button>
+              <button type="button" class="att-filter-chip" onclick="filterAttendanceTeam('Motoris', this)">Motoris</button>
+              <button type="button" class="att-filter-chip" onclick="filterAttendanceTeam('MMTW', this)">MMTW</button>
+              <button type="button" class="att-filter-chip" onclick="filterAttendanceTeam('Motoris Ultimate', this)">Motoris Ultimate</button>
+              <button type="button" class="att-filter-chip" onclick="filterAttendanceTeam('SPG Kelontong', this)">SPG Kelontong</button>
+              <button type="button" class="att-filter-chip" onclick="filterAttendanceTeam('SPR', this)">SPR</button>
+            </div>
+            <div class="attendance-grid" id="attendancePageGridContainer">
+              <div class="attendance-loading-placeholder">
+                <i class="fa-solid fa-circle-notch fa-spin text-primary"></i>
+                <span>Memuat foto absensi tim...</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="content-view" id="view-foto-kunjungan">
+          <div class="page-title-box">
+            <div>
+              <h2 class="page-title">Foto Kunjungan</h2>
+              <div class="page-subtitle">Dokumentasi kunjungan lapangan personil sales</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary btn-sm" onclick="openPhotoUploadForm('visit')">
+                <i class="fa-solid fa-camera"></i> Input Foto Kunjungan
+              </button>
+              <div class="date-input-indo-wrapper" title="Filter Tanggal Foto Kunjungan">
+                <input type="text" class="form-control form-control-sm date-input-indo-display" id="displayVisitPhotosPageFilterDate" readonly placeholder="DD/MM/YYYY">
+                <i class="fa-regular fa-calendar-days date-input-indo-icon"></i>
+                <input type="date" class="date-input-indo-native" id="inputVisitPhotosPageFilterDate" onclick="try{this.showPicker()}catch(e){}" onchange="handleVisitPhotosDateChange(this.value)">
+              </div>
+              <button type="button" class="btn btn-outline btn-sm" id="btnResetVisitPhotosPageToday" onclick="resetVisitPhotosToToday()" title="Kembali ke Hari Ini" style="display:none; padding:0 8px;">
+                <i class="fa-solid fa-calendar-day text-primary"></i> Hari Ini
+              </button>
+              <span class="badge badge-success" id="visitPhotosPageCountBadge">0 Foto</span>
+              <button type="button" class="btn btn-outline btn-sm" onclick="reloadVisitPhotosOnly()" title="Segarkan Foto Kunjungan">
+                <i class="fa-solid fa-arrows-rotate"></i>
+              </button>
+            </div>
+          </div>
+          <div class="table-card attendance-card-widget">
+            <div class="attendance-filter-bar">
+              <button type="button" class="att-filter-chip visit-filter-chip active" onclick="filterVisitPhotosTeam('ALL')">Semua Tim</button>
+              <button type="button" class="att-filter-chip visit-filter-chip" onclick="filterVisitPhotosTeam('Canvasser')">Canvasser</button>
+              <button type="button" class="att-filter-chip visit-filter-chip" onclick="filterVisitPhotosTeam('Junior Canvasser')">Junior Canvasser</button>
+              <button type="button" class="att-filter-chip visit-filter-chip" onclick="filterVisitPhotosTeam('MPR')">MPR</button>
+              <button type="button" class="att-filter-chip visit-filter-chip" onclick="filterVisitPhotosTeam('Asisten MPR')">Asisten MPR</button>
+              <button type="button" class="att-filter-chip visit-filter-chip" onclick="filterVisitPhotosTeam('Motoris')">Motoris</button>
+              <button type="button" class="att-filter-chip visit-filter-chip" onclick="filterVisitPhotosTeam('MMTW')">MMTW</button>
+              <button type="button" class="att-filter-chip visit-filter-chip" onclick="filterVisitPhotosTeam('Motoris Ultimate')">Motoris Ultimate</button>
+              <button type="button" class="att-filter-chip visit-filter-chip" onclick="filterVisitPhotosTeam('SPG Kelontong')">SPG Kelontong</button>
+              <button type="button" class="att-filter-chip visit-filter-chip" onclick="filterVisitPhotosTeam('SPR')">SPR</button>
+            </div>
+            <div class="attendance-grid" id="visitPhotosPageGridContainer"></div>
+          </div>
+        </section>
+
+        <section class="content-view" id="view-today-plan">
+          <div class="page-title-box">
+            <div>
+              <h2 class="page-title">Today’s Plan</h2>
+              <div class="page-subtitle">Atur dan pantau rencana kunjungan sales hari ini</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="badge badge-primary-light" id="todayPlanDateLabel">Hari ini</span>
+              <button type="button" class="btn btn-outline btn-sm" onclick="loadTodayPlans(getLocalDateInputValue())" title="Segarkan rencana"><i class="fa-solid fa-arrows-rotate"></i> Segarkan</button>
+            </div>
+          </div>
+
+          <div class="table-card today-plan-editor-card" id="todayPlanEditorPanel" style="display:none; padding:18px; margin-bottom:18px;">
+            <div class="card-header-clean" style="padding:0; margin-bottom:14px;">
+              <div>
+                <div class="card-title" id="todayPlanFormTitle">Tambah Rencana Kunjungan</div>
+                <div class="card-subtitle">Rencana hari ini akan tampil di dashboard setelah disimpan</div>
+              </div>
+            </div>
+            <form id="todayPlanForm" onsubmit="handleTodayPlanSubmit(event)">
+              <input type="hidden" id="todayPlanId">
+              <input type="hidden" id="todayPlanDate">
+              <div class="form-grid-4">
+                <div class="form-group">
+                  <label class="form-label required" for="todayPlanSalesId">Sales</label>
+                  <select class="form-control" id="todayPlanSalesId" required onchange="handleTodayPlanSalesChange()">
+                    <option value="">Pilih sales</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="todayPlanSalesName">Nama Sales</label>
+                  <input class="form-control" id="todayPlanSalesName" type="text" readonly placeholder="Terisi otomatis">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="todayPlanTeamName">Tim</label>
+                  <input class="form-control" id="todayPlanTeamName" type="text" readonly placeholder="Terisi otomatis">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="todayPlanArea">Area</label>
+                  <input class="form-control" id="todayPlanArea" type="text" readonly placeholder="Terisi otomatis">
+                </div>
+                <div class="form-group">
+                  <label class="form-label required" for="todayPlanDestination">Tujuan / Outlet</label>
+                  <input class="form-control" id="todayPlanDestination" type="text" maxlength="500" required placeholder="Nama outlet atau tujuan kunjungan">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="todayPlanTime">Jam Rencana</label>
+                  <input class="form-control" id="todayPlanTime" type="time">
+                </div>
+                <div class="form-group" style="grid-column: span 2;">
+                  <label class="form-label" for="todayPlanNotes">Keterangan</label>
+                  <input class="form-control" id="todayPlanNotes" type="text" maxlength="2000" placeholder="Catatan atau urutan kunjungan (opsional)">
+                </div>
+              </div>
+              <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
+                <button type="button" class="btn btn-outline btn-sm" id="btnCancelTodayPlanEdit" onclick="resetTodayPlanForm()" style="display:none;">Batal</button>
+                <button type="submit" class="btn btn-primary btn-sm" id="btnSaveTodayPlan"><i class="fa-solid fa-floppy-disk"></i> Simpan Rencana</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="table-card" style="padding:18px;">
+            <div class="card-header-clean" style="padding:0; margin-bottom:14px;">
+              <div>
+                <div class="card-title">Agenda Tim Hari Ini</div>
+                <div class="card-subtitle">Diurutkan berdasarkan jam rencana kunjungan</div>
+              </div>
+              <span class="badge badge-success" id="todayPlanPageCount">0 Rencana</span>
+            </div>
+            <div class="activity-feed-list today-plan-list" id="todayPlanPageList">
+              <div class="text-muted text-center py-2">Memuat rencana hari ini...</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="content-view" id="view-weekly-meeting">
+          <div class="page-title-box">
+            <div>
+              <h2 class="page-title">Hasil Meeting Mingguan</h2>
+              <div class="page-subtitle">Catat ringkasan pembahasan, keputusan, dan tindak lanjut meeting tim</div>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" onclick="loadWeeklyMeetings()" title="Segarkan hasil meeting">
+              <i class="fa-solid fa-arrows-rotate"></i> Segarkan
+            </button>
+          </div>
+
+          <div class="table-card" id="weeklyMeetingEditorPanel" style="display:none; padding:18px; margin-bottom:18px;">
+            <div class="card-header-clean" style="padding:0; margin-bottom:14px;">
+              <div>
+                <div class="card-title" id="weeklyMeetingFormTitle">Tambah Hasil Meeting</div>
+                <div class="card-subtitle">Hasil meeting tersimpan di sheet WEEKLY_MEETINGS.</div>
+              </div>
+            </div>
+            <form id="weeklyMeetingForm" onsubmit="handleWeeklyMeetingSubmit(event)">
+              <input type="hidden" id="weeklyMeetingId">
+              <div class="form-grid-4">
+                <div class="form-group">
+                  <label class="form-label required" for="weeklyMeetingDate">Tanggal Meeting</label>
+                  <input type="date" class="form-control" id="weeklyMeetingDate" required>
+                </div>
+                <div class="form-group" style="grid-column: span 3;">
+                  <label class="form-label required" for="weeklyMeetingTitle">Judul / Topik Meeting</label>
+                  <input type="text" class="form-control" id="weeklyMeetingTitle" maxlength="180" required placeholder="Contoh: Evaluasi Mingguan Tim Sales">
+                </div>
+                <div class="form-group" style="grid-column: span 2;">
+                  <label class="form-label required" for="weeklyMeetingSummary">Ringkasan Pembahasan</label>
+                  <textarea class="form-control" id="weeklyMeetingSummary" rows="4" maxlength="5000" required placeholder="Tuliskan ringkasan pembahasan meeting"></textarea>
+                </div>
+                <div class="form-group" style="grid-column: span 2;">
+                  <label class="form-label" for="weeklyMeetingDecisions">Keputusan Meeting</label>
+                  <textarea class="form-control" id="weeklyMeetingDecisions" rows="4" maxlength="5000" placeholder="Keputusan yang disepakati (opsional)"></textarea>
+                </div>
+                <div class="form-group" style="grid-column: span 4;">
+                  <label class="form-label" for="weeklyMeetingFollowUp">Tindak Lanjut</label>
+                  <textarea class="form-control" id="weeklyMeetingFollowUp" rows="3" maxlength="5000" placeholder="Tindak lanjut, PIC, atau tenggat (opsional)"></textarea>
+                </div>
+              </div>
+              <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
+                <button type="button" class="btn btn-outline btn-sm" id="btnCancelWeeklyMeetingEdit" onclick="resetWeeklyMeetingForm()" style="display:none;">Batal</button>
+                <button type="submit" class="btn btn-primary btn-sm" id="btnSaveWeeklyMeeting"><i class="fa-solid fa-floppy-disk"></i> Simpan Hasil Meeting</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="table-card" style="padding:18px;">
+            <div class="card-header-clean" style="padding:0; margin-bottom:14px;">
+              <div>
+                <div class="card-title">Arsip Hasil Meeting</div>
+                <div class="card-subtitle">Meeting aktif ditampilkan dari yang paling baru</div>
+              </div>
+              <span class="badge badge-success" id="weeklyMeetingPageCount">0 Meeting</span>
+            </div>
+            <div class="activity-feed-list" id="weeklyMeetingPageList">
+              <div class="text-muted text-center py-2">Memuat hasil meeting...</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="content-view" id="view-input-tx">
+          <div class="page-title-box">
+            <div>
+              <h2 class="page-title">Formulir Input Penjualan Faktur</h2>
+              <div class="page-subtitle">Pencatatan faktur barang keluar langsung memotong stok di sheet INVENTORY</div>
+            </div>
+          </div>
+
+          <div class="form-container-card">
+            <form onsubmit="submitSalesTransaction(event)">
+              <div class="form-grid-4">
+                <div class="form-group">
+                  <label class="form-label required">Tanggal Penjualan</label>
+                  <input type="date" class="form-control" id="inputTxDate" required>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label required">Distributor / Channel</label>
+                  <select class="form-control" id="inputTxDistributor" onchange="handleDistributorChange()" required>
+                    <option value="">-- Pilih Distributor --</option>
+                    <option value="PT. Global Mitra Prima (Subdist)">PT. Global Mitra Prima (Subdist)</option>
+                    <option value="AP. Geubrina Rizki (Panel)">AP. Geubrina Rizki (Panel)</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label required">Kategori Tim</label>
+                  <select class="form-control" id="inputTxTeam" onchange="handleTeamChange()" required>
+                    <option value="">-- Pilih Tim --</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label required">Personil Sales</label>
+                  <div class="autocomplete-wrapper" id="salesAutocompleteWrapper">
+                    <div class="autocomplete-input-box">
+                      <i class="fa-solid fa-magnifying-glass autocomplete-icon"></i>
+                      <input type="text" class="form-control autocomplete-search-field" id="inputTxSalesSearch" placeholder="Cari Nama / ID Sales..." autocomplete="off">
+                      <button type="button" class="btn-clear-autocomplete" id="btnClearSalesSearch" style="display: none;" onclick="clearSalesSelection()">&times;</button>
+                    </div>
+                    <input type="hidden" id="inputTxSales" required>
+                    <div class="autocomplete-dropdown" id="salesAutocompleteDropdown" style="display: none;"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tabel Item Produk: Kolom SHJ berada di antara Harga Jual dan Qty -->
+              <div class="form-items-section">
+                <div class="form-items-header">
+                  <div>
+                    <div class="form-section-title">Daftar Produk & Kuantitas</div>
+                    <div class="form-section-desc">Pilih produk dan tentukan jumlah unit yang terjual</div>
+                  </div>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="addItemRow()">
+                    <i class="fa-solid fa-plus"></i> Tambah Produk
+                  </button>
+                </div>
+
+                <div class="table-responsive">
+                  <table class="app-table table-input-items">
+                    <thead>
+                      <tr>
+                        <th style="width: 32%;">Nama Produk</th>
+                        <th style="width: 12%;">Status Stok</th>
+                        <th style="width: 12%; text-align: right;">Harga Modal</th>
+                        <th style="width: 12%; text-align: right;">Harga Jual</th>
+                        <th style="width: 12%; text-align: right;">SHJ</th>
+                        <th style="width: 6%; text-align: center;">Qty</th>
+                        <th style="width: 11%; text-align: right;">Subtotal</th>
+                        <th style="width: 5%; text-align: center;">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody id="transactionItemsTbody"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="tx-summary-footer-box">
+                <div class="form-group">
+                  <label class="form-label">Catatan / Toko Pelanggan</label>
+                  <textarea class="form-control" id="inputTxNotes" rows="3" placeholder="Contoh: Toko Maju Jaya Lhokseumawe (Faktur tunai)"></textarea>
+                </div>
+
+                <div class="tx-total-display-card">
+                  <div class="total-row-item">
+                    <span>Estimasi Modal (HPP):</span>
+                    <strong id="displayTotalCost">Rp 0</strong>
+                  </div>
+                  <div class="total-row-item">
+                    <span>Estimasi SHJ (Laba):</span>
+                    <strong class="text-success" id="displayTotalShj">Rp 0</strong>
+                  </div>
+                  <div class="total-row-item grand-total">
+                    <span>TOTAL PENJUALAN:</span>
+                    <strong class="text-primary font-lg" id="displayTotalSales">Rp 0</strong>
+                  </div>
+                  <button type="submit" class="btn btn-primary btn-block btn-lg" id="btnSubmitTx" style="margin-top: 10px;">
+                    <i class="fa-solid fa-floppy-disk"></i> Simpan Transaksi Penjualan
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <section class="content-view" id="view-riwayat">
+          <div class="page-title-box">
+            <div>
+              <h2 class="page-title">Riwayat Faktur Penjualan</h2>
+              <div class="page-subtitle">Daftar lengkap transaksi penjualan tercatat di sheet SALES_TRANSACTIONS</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn btn-outline btn-sm" onclick="exportTransactionsToCSV()"><i class="fa-solid fa-file-excel text-success"></i> Unduh CSV</button>
+              <button type="button" class="btn btn-outline btn-sm" onclick="printTransactionsReport()"><i class="fa-solid fa-print"></i> Cetak Laporan</button>
+            </div>
+          </div>
+
+          <div class="table-card">
+            <div class="filter-bar-card">
+              <div class="search-input-wrap">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" class="form-control search-input" id="txSearchKeyword" placeholder="Cari Faktur / Nama Sales / Distributor..." onkeyup="handleTxSearchKeyup(event)">
+              </div>
+              <div class="filter-controls-group">
+                <select class="form-control" id="txFilterTeam" onchange="loadTransactions(1)" style="min-width: 140px;">
+                  <option value="ALL">Semua Tim</option>
+                </select>
+                <select class="form-control" id="txFilterDistributor" onchange="loadTransactions(1)" style="min-width: 165px;">
+                  <option value="ALL">Semua Distributor</option>
+                  <option value="PT. Global Mitra Prima (Subdist)">PT. Global Mitra Prima (Subdist)</option>
+                  <option value="AP. Geubrina Rizki (Panel)">AP. Geubrina Rizki (Panel)</option>
+                </select>
+                <input type="date" class="form-control" id="txFilterDate" onchange="loadTransactions(1)">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="resetTxFilter()"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+              </div>
+            </div>
+
+            <!-- Tabel Riwayat: Total Modal, Total Penjualan, dan Total SHJ -->
+            <div class="table-responsive">
+              <table class="app-table">
+                <thead>
+                  <tr>
+                    <th>ID Faktur</th>
+                    <th>Tanggal</th>
+                    <th>Nama Sales</th>
+                    <th>Kategori Tim</th>
+                    <th>Distributor</th>
+                    <th class="text-right">Total Modal</th>
+                    <th class="text-right">Total Penjualan</th>
+                    <th class="text-right">Total SHJ</th>
+                    <th class="text-center">Detail</th>
+                  </tr>
+                </thead>
+                <tbody id="transactionsTbody">
+                  <tr><td colspan="9" class="text-center text-muted py-3">Memuat data transaksi...</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="pagination-footer">
+              <span class="pagination-info" id="txPaginationInfo">Halaman 1</span>
+              <div class="pagination-controls">
+                <button type="button" class="btn btn-outline btn-sm" id="btnPrevTx" onclick="changeTxPage(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+                <button type="button" class="btn btn-outline btn-sm" id="btnNextTx" onclick="changeTxPage(1)"><i class="fa-solid fa-chevron-right"></i></button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="content-view" id="view-laporan-bulanan">
+          <div class="page-title-box">
+            <div>
+              <h2 class="page-title">Laporan Bulanan Tim</h2>
+              <div class="page-subtitle">Ringkasan pencapaian, produk terjual, SHJ, dan hari kerja per personil</div>
+            </div>
+          </div>
+
+          <div class="table-card" style="padding: 16px; margin-bottom: 18px;">
+            <div class="filter-controls-group" style="display: flex; gap: 10px; align-items: end; flex-wrap: wrap;">
+              <div style="min-width: 220px;">
+                <label class="form-label" for="monthlyReportSales">Sales</label>
+                <select class="form-control" id="monthlyReportSales" onchange="loadMonthlyTeamReport()">
+                  <option value="">Pilih Sales</option>
+                </select>
+              </div>
+              <div style="min-width: 170px;">
+                <label class="form-label" for="monthlyReportMonth">Bulan</label>
+                <input type="month" class="form-control" id="monthlyReportMonth" onchange="loadMonthlyTeamReport()">
+              </div>
+              <button type="button" class="btn btn-primary btn-sm" onclick="loadMonthlyTeamReport()"><i class="fa-solid fa-magnifying-glass"></i> Tampilkan Laporan</button>
+            </div>
+          </div>
+
+          <div class="kpi-grid" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
+            <div class="kpi-card">
+              <div class="kpi-header"><span class="kpi-label">TOTAL PENCAPAIAN</span><span class="kpi-icon-pill icon-sales"><i class="fa-solid fa-wallet"></i></span></div>
+              <div class="kpi-value" id="monthlyReportTotalSales">Rp 0</div>
+              <div class="page-subtitle" id="monthlyReportTargetInfo">Target bulanan: -</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-header"><span class="kpi-label">TOTAL SHJ</span><span class="kpi-icon-pill icon-target"><i class="fa-solid fa-coins"></i></span></div>
+              <div class="kpi-value" id="monthlyReportTotalShj">Rp 0</div>
+              <div class="page-subtitle">Akumulasi SHJ transaksi bulan ini</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-header"><span class="kpi-label">TOTAL HK</span><span class="kpi-icon-pill icon-days"><i class="fa-solid fa-calendar-check"></i></span></div>
+              <div class="kpi-value" id="monthlyReportTotalHK">0 Hari</div>
+              <div class="page-subtitle">Tanggal unik dengan absensi atau transaksi</div>
+            </div>
+          </div>
+
+          <div class="table-card">
+            <div style="padding: 16px 18px 0;">
+              <h3 class="section-title" style="margin: 0 0 4px;">Produk Terjual</h3>
+              <div class="page-subtitle" id="monthlyReportProductSubtitle">Peringkat dari jumlah terbanyak ke paling sedikit</div>
+            </div>
+            <div class="table-responsive">
+              <table class="app-table">
+                <thead>
+                  <tr>
+                    <th class="text-center">Peringkat</th>
+                    <th>Kode Produk</th>
+                    <th>Nama Produk</th>
+                    <th class="text-right">Qty Terjual</th>
+                    <th class="text-right">Total Penjualan</th>
+                    <th class="text-right">Total SHJ</th>
+                  </tr>
+                </thead>
+                <tbody id="monthlyReportProductsTbody">
+                  <tr><td colspan="6" class="text-center text-muted py-3">Pilih sales dan bulan untuk melihat laporan.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="content-view" id="view-stok">
+          <div class="page-title-box">
+            <div>
+              <h2 class="page-title">Monitoring Stok Cabang Lhokseumawe</h2>
+              <div class="page-subtitle">Ketersediaan fisik barang di gudang KCH</div>
+            </div>
+          </div>
+
+          <div class="table-card">
+            <div class="filter-bar-card">
+              <div class="search-input-wrap">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" class="form-control search-input" id="invSearchInput" placeholder="Cari nama atau kode produk..." onkeyup="filterInventoryTable()">
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="app-table">
+                <thead>
+                  <tr>
+                    <th>Kode</th>
+                    <th>Nama Produk KCH</th>
+                    <th>Kategori</th>
+                    <th>Brand</th>
+                    <th class="text-center">Satuan</th>
+                    <th>PT. Global Mitra Prima</th>
+                    <th>AP. Geubrina Rizki</th>
+                    <th class="text-right">Min. Stok</th>
+                    <th class="text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="inventoryTbody">
+                  <tr><td colspan="9" class="text-center text-muted py-3">Memuat stok gudang...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="content-view" id="view-harga">
+          <div class="page-title-box">
+            <div>
+              <h2 class="page-title">Matriks Master Harga Produk</h2>
+              <div class="page-subtitle">Konfigurasi HPP, harga jual, dan satuan per kategori tim</div>
+            </div>
+          </div>
+
+          <div class="table-card">
+            <div class="filter-bar-card">
+              <div class="search-input-wrap">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" class="form-control search-input" id="priceSearchInput" placeholder="Cari produk / tim..." onkeyup="filterPriceTable()">
+              </div>
+              <select class="form-control" id="filterPriceTeam" onchange="filterPriceTable()" style="max-width: 200px;">
+                <option value="ALL">Semua Tim</option>
+              </select>
+            </div>
+            <div class="table-responsive">
+              <table class="app-table">
+                <thead>
+                  <tr>
+                    <th>Kode Produk</th>
+                    <th>Nama Produk</th>
+                    <th class="text-center">Satuan</th>
+                    <th>Kategori Tim</th>
+                    <th class="text-right">Harga Modal (HPP)</th>
+                    <th class="text-right">Harga Jual</th>
+                    <th class="text-right">SHJ</th>
+                    <th class="text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="masterPriceTbody">
+                  <tr><td colspan="8" class="text-center text-muted py-3">Memuat data harga...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="content-view" id="view-tim">
+          <div class="page-title-box">
+            <div>
+              <h2 class="page-title">Direktori Profil Personil Sales</h2>
+              <div class="page-subtitle">Biodata personil lapangan: identitas, area operasional, kontak, kehadiran HK, dan target bulanan</div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span class="badge badge-primary" id="salesTotalCountBadge"><i class="fa-solid fa-users"></i> 0 Personil</span>
+            </div>
+          </div>
+
+          <div class="table-card" style="margin-bottom: 20px; padding: 14px 18px;">
+            <div class="filter-bar-card" style="margin-bottom: 0;">
+              <div class="search-input-wrap">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" class="form-control search-input" id="profileSearchInput" placeholder="Cari nama sales, ID, area operasional, atau no. telepon..." oninput="filterSalesProfiles()">
+              </div>
+              <div class="filter-controls-group">
+                <select class="form-control" id="profileFilterTeam" onchange="filterSalesProfiles()" style="min-width: 170px;">
+                  <option value="ALL">Semua Tim</option>
+                </select>
+                <select class="form-control" id="profileFilterArea" onchange="filterSalesProfiles()" style="min-width: 150px;">
+                  <option value="ALL">Semua Area</option>
+                  <option value="Lhokseumawe">Lhokseumawe</option>
+                  <option value="Bireuen">Bireuen</option>
+                  <option value="Takengon">Takengon</option>
+                  <option value="Langsa">Langsa</option>
+                  <option value="Banda Aceh">Banda Aceh</option>
+                </select>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="resetProfileFilter()"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="sales-profiles-grid" id="salesProfilesGridContainer">
+            <div class="attendance-loading-placeholder">
+              <i class="fa-solid fa-circle-notch fa-spin text-primary"></i>
+              <span>Memuat direktori profil sales...</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="content-view" id="view-dokumen">
+          <div class="page-title-box">
+            <div>
+              <h2 class="page-title">Berkas & Folder Google Drive</h2>
+              <div class="page-subtitle">Akses cepat ke folder dan dokumen operasional Cabang Lhokseumawe dari sheet FILES</div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span class="badge badge-primary" id="filesTotalCountBadge"><i class="fa-solid fa-folder-open"></i> 0 Berkas</span>
+            </div>
+          </div>
+
+          <!-- Toolbar Filter Pencarian & Kategori Dokumen -->
+          <div class="table-card" style="margin-bottom: 20px; padding: 14px 18px;">
+            <div class="filter-bar-card" style="margin-bottom: 0;">
+              <div class="search-input-wrap">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" class="form-control search-input" id="fileSearchInput" placeholder="Cari nama dokumen, berkas, atau kategori..." oninput="filterDriveFiles()">
+              </div>
+              <div class="filter-controls-group">
+                <select class="form-control" id="fileFilterCategory" onchange="filterDriveFiles()" style="min-width: 180px;">
+                  <option value="ALL">Semua Kategori</option>
+                </select>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="resetFileFilter()"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="file-grid-cards" id="driveFilesGridContainer">
+            <div class="attendance-loading-placeholder">
+              <i class="fa-solid fa-circle-notch fa-spin text-primary"></i>
+              <span>Memuat berkas & folder dari sheet FILES...</span>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modalTransactionDetail" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="modalTxIdTitle">Faktur Penjualan</h3>
+          <div class="modal-subtitle" id="modalTxDateSubtitle">Tanggal: -</div>
+        </div>
+        <button type="button" class="btn-modal-close" onclick="closeTxDetailModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-info-grid">
+          <div><strong>Sales:</strong> <span id="modalTxSalesName">-</span></div>
+          <div><strong>Tim:</strong> <span id="modalTxTeamName">-</span></div>
+          <div><strong>Distributor:</strong> <span id="modalTxDistributorName" class="badge badge-neutral">-</span></div>
+          <div><strong>Dibuat Oleh:</strong> <span id="modalTxCreatedBy">-</span></div>
+          <div style="grid-column: 1 / -1;"><strong>Keterangan:</strong> <span id="modalTxNotes">-</span></div>
+        </div>
+        <div class="table-responsive" style="margin-top: 14px;">
+          <table class="app-table table-sm">
+            <thead>
+              <tr>
+                <th>Produk</th>
+                <th class="text-center">Qty</th>
+                <th class="text-right">Harga</th>
+                <th class="text-right">SHJ</th>
+                <th class="text-right">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody id="modalTxItemsTbody"></tbody>
+          </table>
+        </div>
+        <div class="modal-total-summary">
+          <span>TOTAL TRANSAKSI:</span>
+          <strong class="text-primary font-lg" id="modalTxTotalSales">Rp 0</strong>
+        </div>
+        <div class="modal-total-summary" style="margin-top: 8px; padding-top: 8px;">
+          <span>TOTAL SHJ:</span>
+          <strong class="text-success font-lg" id="modalTxTotalShj">Rp 0</strong>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeTxDetailModal()">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modalAttendancePhoto" style="display: none;" onclick="closeAttendancePhotoModal()">
+    <div class="modal-dialog" style="max-width: 480px;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="modalAttSalesName">Foto Absensi Sales</h3>
+          <div class="modal-subtitle" id="modalAttMeta">KCH Cabang Lhokseumawe</div>
+        </div>
+        <button type="button" class="btn-modal-close" onclick="closeAttendancePhotoModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 14px; text-align: center;">
+        <div class="att-modal-img-container">
+          <img id="modalAttImg" src="" alt="Foto Absen" class="att-modal-img">
+        </div>
+        <div class="att-modal-details-card">
+          <div class="att-modal-row">
+            <span><i class="fa-solid fa-clock text-primary"></i> Waktu Absen:</span>
+            <strong id="modalAttTime">-</strong>
+          </div>
+          <div class="att-modal-row">
+            <span><i class="fa-solid fa-users text-primary"></i> Kategori Tim:</span>
+            <span class="badge badge-neutral" id="modalAttTeam">-</span>
+          </div>
+          <div class="att-modal-row">
+            <span><i class="fa-solid fa-location-dot text-primary"></i> Lokasi Check-In:</span>
+            <strong id="modalAttLocation">-</strong>
+          </div>
+          <div class="att-modal-row" style="border-bottom: none;">
+            <span><i class="fa-solid fa-comment-dots text-primary"></i> Catatan Kunjungan:</span>
+            <span id="modalAttNotes">-</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeAttendancePhotoModal()">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modalPhotoUpload" style="display:none;" onclick="closePhotoUploadForm()">
+    <div class="modal-dialog" style="max-width:560px;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="photoUploadTitle">Input Foto</h3>
+          <div class="modal-subtitle">Data akan langsung disimpan ke spreadsheet.</div>
+        </div>
+        <button type="button" class="btn-modal-close" onclick="closePhotoUploadForm()">&times;</button>
+      </div>
+      <form onsubmit="submitPhotoUploadForm(event)">
+        <div class="modal-body">
+          <div class="form-group" style="margin-bottom:14px;">
+            <label class="form-label required" for="photoUploadSalesId">Sales ID</label>
+            <select class="form-control" id="photoUploadSalesId" required onchange="handlePhotoUploadSalesChange(this.value)">
+              <option value="">Pilih Sales ID</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:14px;">
+            <label class="form-label">Sales Name</label>
+            <input type="text" class="form-control" id="photoUploadSalesName" readonly placeholder="Terisi otomatis dari Sales ID">
+          </div>
+          <div class="form-group" style="margin-bottom:14px;">
+            <label class="form-label">Area</label>
+            <input type="text" class="form-control" id="photoUploadArea" readonly placeholder="Terisi otomatis dari Sales ID">
+          </div>
+          <div class="form-group" style="margin-bottom:14px;">
+            <label class="form-label required" for="photoUploadNotes">Keterangan</label>
+            <textarea class="form-control" id="photoUploadNotes" rows="3" required placeholder="Masukkan keterangan"></textarea>
+          </div>
+          <div class="form-group" style="margin-bottom:14px;">
+            <label class="form-label required" for="photoUploadDate">Tanggal</label>
+            <input type="date" class="form-control" id="photoUploadDate" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label required" for="photoUploadFile">Foto</label>
+            <input type="file" class="form-control" id="photoUploadFile" accept="image/*" required>
+            <small class="text-muted" style="display:block;margin-top:5px;">Foto akan dikompres sebelum diunggah.</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closePhotoUploadForm()">Batal</button>
+          <button type="submit" class="btn btn-primary btn-sm" id="btnSubmitPhotoUpload"><i class="fa-solid fa-cloud-arrow-up"></i> Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modalKchNewsArticle" style="display:none;" onclick="closeKchNewsArticle()">
+    <div class="modal-dialog" style="max-width:760px;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="modalKchNewsTitle">Artikel KCH</h3>
+          <div class="modal-subtitle" id="modalKchNewsDate">-</div>
+        </div>
+        <button type="button" class="btn-modal-close" onclick="closeKchNewsArticle()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <img id="modalKchNewsImage" class="kch-news-detail-image" src="" alt="Banner artikel" style="display:none;">
+        <div class="kch-news-detail-content" id="modalKchNewsContent"></div>
+      </div>
+      <div class="modal-footer" id="modalKchNewsFooter">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeKchNewsArticle()">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-box" id="toastBox"></div>
+
+  <?!= include('js'); ?>
+
+</body>
+</html>

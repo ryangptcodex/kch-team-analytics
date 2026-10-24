@@ -1,0 +1,2912 @@
+<script>
+  /**
+   * KALBE CONSUMER HEALTH - SALES MONITORING SYSTEM (CABANG LHOKSEUMAWE)
+   * File: js.html
+   * Frontend Logic: Side-by-side Target vs Pencapaian, Input SHJ & Riwayat Modal/SHJ, File Search & Category Filter
+   * Author: ZettBOT by Zettbos
+   */
+
+  var appState = {
+    currentView: 'dashboard',
+    dashboardPeriod: 'TODAY',
+    customStartDate: '',
+    customEndDate: '',
+    dashboardTeamFilter: 'ALL',
+    attendanceDate: '',
+    attendanceTeamFilter: 'ALL',
+    attendanceData: [],
+    attendanceSales: [],
+    visitPhotoDate: '',
+    visitPhotoTeamFilter: 'ALL',
+    user: null,
+    teams: [],
+    distributors: [],
+    products: [],
+    sales: [],
+    priceMaster: [],
+    inventory: [],
+    files: [],
+    visitPhotos: [],
+    todayPlans: [],
+    weeklyMeetings: [],
+    kchNews: [],
+    canManageKchNews: false,
+    canManageTodayPlan: false,
+    canManageWeeklyMeetings: false,
+    workDays: null,
+    dashboardData: null,
+    salesFilterTeam: 'ALL',
+    charts: {},
+    transactionPage: 1,
+    transactionPageSize: 10,
+    transactionRows: [],
+    transactionSummary: null,
+    selectedSales: null,
+    selectedSalesId: '',
+    selectedAttendance: null,
+    itemRowCounter: 0,
+    txSearchTimer: null,
+    isLoadingDashboard: false,
+    isLoadingMetadata: false,
+    isSubmittingTransaction: false,
+    mockPreview: false
+  };
+
+  function updateDynamicGreeting() {
+    var now = new Date();
+    var hour = now.getHours();
+    var greeting = 'Good Morning';
+    if (hour >= 12 && hour < 18) greeting = 'Good Afternoon';
+    if (hour >= 18) greeting = 'Good Evening';
+
+    var shortName = (appState.user && appState.user.shortName) ? appState.user.shortName : 'Ryan';
+    var fullName = (appState.user && appState.user.fullName) ? appState.user.fullName : 'Ryan Pratama';
+
+    var greetingEl = document.getElementById('headerGreetingText');
+    if (greetingEl) greetingEl.innerHTML = greeting + ', ' + escapeHtml(shortName) + ' <span class="wave-emoji">👋</span>';
+
+    var subtitleEl = document.getElementById('headerSubtitleText');
+    if (subtitleEl && appState.currentView === 'dashboard') {
+      subtitleEl.textContent = 'Dashboard Sales Monitoring';
+    }
+
+    var userNameEl = document.querySelector('.user-name-header');
+    if (userNameEl) userNameEl.textContent = shortName;
+
+    var menuNameEl = document.querySelector('.user-menu-name');
+    if (menuNameEl) menuNameEl.textContent = fullName;
+
+    var menuEmailEl = document.querySelector('.user-menu-email');
+    if (menuEmailEl && appState.user && appState.user.email) menuEmailEl.textContent = appState.user.email;
+
+    var avatarEl = document.querySelector('.user-avatar-circle');
+    if (avatarEl) avatarEl.textContent = String(shortName || 'R').charAt(0).toUpperCase();
+  }
+
+  function getSalesDailyTargetRate(teamName) {
+    if (!teamName) return 0;
+    var t = String(teamName).toUpperCase().trim();
+    if (t === 'SPR') return 0;
+    if (t.indexOf('JUNIOR') > -1) return 0;
+    if (t.indexOf('ASISTEN MPR') > -1) return 0;
+    if (t === 'MPR' || t.indexOf('MPR ') === 0 || t.indexOf(' MPR') > -1) return 3500000;
+    if (t.indexOf('ULTIMATE') > -1) return 800000;
+    if (t.indexOf('MMTW') > -1) return 1200000;
+    if (t.indexOf('MOTORIS') > -1) return 1200000;
+    if (t.indexOf('SPG') > -1) return 800000;
+    if (t.indexOf('CANVASSER') > -1) return 3500000;
+    return 0;
+  }
+
+  function getSalesMonthlyTarget(teamName, manualTarget) {
+    var n = parseCleanNumber(manualTarget);
+    if (!teamName) return (n > 0) ? n : 0;
+    var t = String(teamName).toUpperCase().trim();
+    if (t === 'SPR') return 0;
+    if (t.indexOf('JUNIOR') > -1) return 0;
+    if (t.indexOf('ASISTEN MPR') > -1) return 0;
+    if (t === 'MPR' || t.indexOf('MPR ') === 0 || t.indexOf(' MPR') > -1) {
+      return (n > 0 && n !== 30000000 && n !== 27000000) ? n : 80000000;
+    }
+    if (t.indexOf('CANVASSER') > -1) {
+      return (n > 0 && n !== 30000000 && n !== 27000000) ? n : 80000000;
+    }
+    if (t.indexOf('ULTIMATE') > -1) return (n > 0) ? n : 20000000;
+    if (t.indexOf('MMTW') > -1) return (n > 0 && n !== 30000000) ? n : 27000000;
+    if (t.indexOf('MOTORIS') > -1) return (n > 0 && n !== 30000000) ? n : 27000000;
+    if (t.indexOf('SPG') > -1) return (n > 0) ? n : 20000000;
+    if (n > 0) return n;
+    return 0;
+  }
+
+  function formatRupiah(value) {
+    var n = parseCleanNumber(value);
+    return 'Rp ' + Math.round(n).toLocaleString('id-ID');
+  }
+
+  function parseCleanNumber(val) {
+    if (val === null || val === undefined || val === '') return 0;
+    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+    var clean = String(val).replace(/Rp|\s/gi, '').trim();
+    if (!clean) return 0;
+    if (clean.indexOf('.') > -1 && clean.indexOf(',') > -1) {
+      clean = clean.replace(/\./g, '').replace(',', '.');
+    } else if (clean.indexOf('.') > -1 && clean.indexOf(',') === -1) {
+      var parts = clean.split('.');
+      if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+        clean = clean.replace(/\./g, '');
+      }
+    } else if (clean.indexOf(',') > -1) {
+      clean = clean.replace(',', '.');
+    }
+    var n = parseFloat(clean);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function normalizeKey(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).trim().toUpperCase();
+  }
+
+  function isTeamMatched(teamValue, targetTeam) {
+    if (!targetTeam || targetTeam === 'ALL') return true;
+    return normalizeKey(teamValue) === normalizeKey(targetTeam);
+  }
+
+  function isNonTargetTeam(teamName) {
+    var t = normalizeKey(teamName);
+    return t === 'JUNIOR CANVASSER' || t === 'ASISTEN MPR' || t === 'SPR';
+  }
+
+  function getKpiTeamGroup(teamName) {
+    var t = normalizeKey(teamName);
+    if (t === 'Canvasser' || t === 'MPR') return 'CANVASSER GROUP';
+    if (t === 'MOTORIS' || t === 'MMTW') return 'MOTORIS GROUP';
+    if (t === 'MOTORIS ULTIMATE') return 'MOTORIS ULTIMATE';
+    if (t === 'SPG KELONTONG') return 'SPG KELONTONG';
+    return 'NON-TARGET';
+  }
+
+  function getTeamBadgeClass(teamName) {
+    var t = String(teamName || '').toLowerCase();
+    if (t.indexOf('asisten mpr') > -1 || t.indexOf('junior') > -1) return 'badge-team-junior';
+    if (t.indexOf('mpr') > -1 || t.indexOf('canvasser') > -1) return 'badge-team-senior';
+    if (t.indexOf('ultimate') > -1) return 'badge-team-ultimate';
+    if (t.indexOf('mmtw') > -1 || t.indexOf('motoris') > -1) return 'badge-team-motoris';
+    if (t.indexOf('spg') > -1) return 'badge-team-spg';
+    return 'badge-neutral';
+  }
+
+  function formatDateIndo(dateVal) {
+    if (!dateVal) return '-';
+    var str = String(dateVal).trim();
+    var ymd = normalizeDateString(dateVal);
+    if (ymd && /^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
+      var p = ymd.split('-');
+      return p[2] + '/' + p[1] + '/' + p[0];
+    }
+    return str;
+  }
+
+  function normalizeDateString(dateVal) {
+    if (!dateVal) return '';
+    var str = String(dateVal).trim();
+    if (str.indexOf(' ') > -1) str = str.split(' ')[0];
+    if (str.indexOf('/') > -1) {
+      var parts = str.split('/');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) return parts[0] + '-' + ('0' + parts[1]).slice(-2) + '-' + ('0' + parts[2]).slice(-2);
+        var d = ('0' + parts[0]).slice(-2);
+        var m = ('0' + parts[1]).slice(-2);
+        var y = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+        return y + '-' + m + '-' + d;
+      }
+    }
+    if (str.indexOf('-') > -1) {
+      var dash = str.split('-');
+      if (dash.length === 3 && dash[0].length <= 2) {
+        var dd = ('0' + dash[0]).slice(-2);
+        var mm = ('0' + dash[1]).slice(-2);
+        var yy = dash[2].length === 2 ? '20' + dash[2] : dash[2];
+        return yy + '-' + mm + '-' + dd;
+      }
+    }
+    return str.slice(0, 10);
+  }
+
+  function showToast(message, type) {
+    var box = document.getElementById('toastBox');
+    if (!box) return;
+    var toast = document.createElement('div');
+    toast.className = 'toast ' + (type === 'error' ? 'toast-error' : type === 'info' ? 'toast-info' : 'toast-success');
+    var icon = type === 'error' ? 'fa-circle-exclamation' : type === 'info' ? 'fa-circle-info' : 'fa-circle-check';
+    toast.innerHTML = '<i class="fa-solid ' + icon + '"></i><span>' + escapeHtml(message) + '</span>';
+    box.appendChild(toast);
+    setTimeout(function() {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(8px)';
+      setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 220);
+    }, 3500);
+  }
+
+  function escapeHtml(value) {
+    return String(value === null || value === undefined ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function toggleSidebarMobile() {
+    var sidebar = document.getElementById('sidebar');
+    if (sidebar) sidebar.classList.toggle('show');
+  }
+
+  function toggleSidebarDesktop() {
+    var layout = document.querySelector('.app-layout');
+    var button = document.getElementById('desktopSidebarToggle');
+    var icon = document.getElementById('desktopSidebarToggleIcon');
+    if (!layout || !button) return;
+
+    var isCollapsed = layout.classList.toggle('sidebar-collapsed');
+    button.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+    button.setAttribute('aria-label', isCollapsed ? 'Buka sidebar' : 'Tutup sidebar');
+    button.title = isCollapsed ? 'Buka sidebar' : 'Tutup sidebar';
+    if (icon) icon.className = isCollapsed ? 'fa-solid fa-arrow-right' : 'fa-solid fa-arrow-left';
+  }
+
+  function toggleUserDropdown(event) {
+    if (event) event.stopPropagation();
+    var menu = document.getElementById('userDropdownMenu');
+    if (!menu) return;
+    var isVisible = menu.style.display !== 'none';
+    menu.style.display = isVisible ? 'none' : 'block';
+  }
+
+  function toggleCustomPeriodDropdown() {
+    var dropdown = document.getElementById('customPeriodDropdown');
+    if (!dropdown) return;
+    var isVisible = dropdown.style.display !== 'none';
+    dropdown.style.display = isVisible ? 'none' : 'block';
+  }
+
+  function switchView(viewName) {
+    appState.currentView = viewName;
+
+    document.querySelectorAll('.content-view').forEach(function(el) {
+      el.classList.remove('active');
+    });
+    var view = document.getElementById('view-' + viewName);
+    if (view) view.classList.add('active');
+
+    document.querySelectorAll('.nav-item').forEach(function(el) {
+      el.classList.remove('active');
+    });
+    var nav = document.getElementById('nav-' + viewName);
+    if (nav) nav.classList.add('active');
+
+    var subtitle = document.getElementById('headerSubtitleText');
+    if (subtitle) {
+      var subtitles = {
+        dashboard: 'Dashboard Sales Monitoring',
+        'input-tx': 'Pencatatan Penjualan Faktur',
+        riwayat: 'Riwayat Transaksi Penjualan',
+        'laporan-bulanan': 'Laporan Bulanan Tim',
+        absensi: 'Absensi Tim',
+        'foto-kunjungan': 'Dokumentasi Foto Kunjungan',
+        'today-plan': 'Agenda Kunjungan Tim Hari Ini',
+        'weekly-meeting': 'Hasil Meeting Mingguan',
+        'kch-news': 'Berita dan Informasi Kalbe',
+        stok: 'Monitoring Stok Gudang',
+        harga: 'Master Harga Produk',
+        tim: 'Direktori Profil Sales',
+        dokumen: 'Arsip & Folder Google Drive'
+      };
+      subtitle.textContent = subtitles[viewName] || 'Dashboard Sales Monitoring';
+    }
+
+    var sidebar = document.getElementById('sidebar');
+    if (sidebar) sidebar.classList.remove('show');
+
+    var userMenu = document.getElementById('userDropdownMenu');
+    if (userMenu) userMenu.style.display = 'none';
+
+    if (viewName === 'input-tx') {
+      setDefaultTransactionDate();
+      ensureTransactionRows();
+    }
+    if (viewName === 'riwayat') loadTransactions(1);
+    if (viewName === 'laporan-bulanan') {
+      populateMonthlyReportSales();
+      loadMonthlyTeamReport();
+    }
+    if (viewName === 'stok') renderInventoryTable();
+    if (viewName === 'harga') renderPriceMasterTable();
+    if (viewName === 'tim') renderSalesProfiles();
+    if (viewName === 'dokumen') renderDriveFiles();
+    if (viewName === 'foto-kunjungan') renderVisitPhotos();
+    if (viewName === 'today-plan') {
+      populateTodayPlanSales();
+      resetTodayPlanDate();
+      loadTodayPlans(getLocalDateInputValue());
+    }
+    if (viewName === 'weekly-meeting') {
+      if (!getValue('weeklyMeetingDate')) setValue('weeklyMeetingDate', getLocalDateInputValue());
+      loadWeeklyMeetings();
+    }
+    if (viewName === 'kch-news') loadKchNews();
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('click', function(event) {
+      var userWrapper = document.querySelector('.user-profile-wrapper');
+      var userMenu = document.getElementById('userDropdownMenu');
+      if (userWrapper && userMenu && !userWrapper.contains(event.target)) userMenu.style.display = 'none';
+
+      var periodWrap = document.querySelector('.date-badge-wrapper');
+      var periodDropdown = document.getElementById('customPeriodDropdown');
+      if (periodWrap && periodDropdown && !periodWrap.contains(event.target)) periodDropdown.style.display = 'none';
+    });
+
+    initApp();
+  });
+
+  function initApp() {
+    updateDynamicGreeting();
+    setDefaultTransactionDate();
+    setupAttendanceDateControls();
+    setupVisitPhotoDateControls();
+    renderVisitPhotos();
+    loadMetadata();
+  }
+
+  function triggerManualSync() {
+    showToast('Sinkronisasi data dimulai...', 'info');
+    var menu = document.getElementById('userDropdownMenu');
+    if (menu) menu.style.display = 'none';
+    loadMetadata(function() {
+      loadDashboardMetrics();
+      if (appState.currentView === 'riwayat') loadTransactions(appState.transactionPage || 1);
+    });
+  }
+
+  function loadMetadata(callback) {
+    if (appState.isLoadingMetadata) return;
+    appState.isLoadingMetadata = true;
+    google.script.run
+      .withSuccessHandler(function(res) {
+        appState.isLoadingMetadata = false;
+        if (!res || !res.success) {
+          showToast(res && res.message ? res.message : 'Gagal memuat metadata aplikasi.', 'error');
+          setupMockPreviewData();
+          return;
+        }
+
+        appState.user = res.user || appState.user;
+        appState.teams = res.teams || [];
+        appState.distributors = res.distributors || [];
+        appState.products = res.products || [];
+        appState.sales = res.sales || [];
+        appState.attendanceSales = res.attendanceSales || res.sales || [];
+        appState.priceMaster = res.priceMaster || [];
+        appState.inventory = res.inventory || [];
+        appState.files = res.files || [];
+        appState.visitPhotos = res.visitPhotos || [];
+        appState.kchNews = res.kchNews || [];
+        appState.weeklyMeetings = res.weeklyMeetings || [];
+        appState.canManageKchNews = !!res.canManageKchNews;
+        appState.canManageTodayPlan = !!res.canManageTodayPlan;
+        appState.canManageWeeklyMeetings = !!res.canManageWeeklyMeetings;
+        appState.workDays = res.workDays || null;
+
+        updateDynamicGreeting();
+        populateAllSelects();
+        renderInventoryTable();
+        renderPriceMasterTable();
+        renderSalesProfiles();
+        renderDriveFiles();
+        renderVisitPhotos();
+        renderKchNews(appState.kchNews);
+        renderTodayPlans(appState.todayPlans || []);
+        renderWeeklyMeetings(appState.weeklyMeetings || []);
+        loadTodayPlans(getLocalDateInputValue());
+        ensureTransactionRows();
+        loadDashboardMetrics();
+        if (typeof callback === 'function') callback();
+      })
+      .withFailureHandler(function(err) {
+        appState.isLoadingMetadata = false;
+        showToast('Gagal terhubung ke server: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+      })
+      .getInitialAppMetadata();
+  }
+
+  function populateAllSelects() {
+    populateSelectOptions('inputTxTeam', appState.teams, '-- Pilih Tim --', false);
+    populateSelectOptions('txFilterTeam', appState.teams, 'Semua Tim', true);
+    populateSelectOptions('filterPriceTeam', appState.teams, 'Semua Tim', true);
+    populateSelectOptions('profileFilterTeam', appState.teams, 'Semua Tim', true);
+    populateFileCategories();
+    populateMonthlyReportSales();
+    populateTodayPlanSales();
+  }
+
+  function populateMonthlyReportSales() {
+    var select = document.getElementById('monthlyReportSales');
+    if (!select) return;
+    var current = select.value;
+    var html = '<option value="">Pilih Sales</option>';
+    var availableSales = (appState.sales || []).filter(function(sales) {
+      return normalizeKey(sales.status || 'ACTIVE') !== 'INACTIVE' && sales.sales_id;
+    });
+    availableSales.forEach(function(sales) {
+      var label = (sales.full_name || sales.sales_id) + ' (' + (sales.team_name || '-') + ')';
+      html += '<option value="' + escapeHtml(sales.sales_id) + '">' + escapeHtml(label) + '</option>';
+    });
+    select.innerHTML = html;
+    if (current && Array.prototype.some.call(select.options, function(option) { return option.value === current; })) {
+      select.value = current;
+    } else if (availableSales.length) {
+      select.value = availableSales[0].sales_id;
+    }
+
+    var monthInput = document.getElementById('monthlyReportMonth');
+    if (monthInput && !monthInput.value) monthInput.value = getLocalDateInputValue().slice(0, 7);
+  }
+
+  function loadMonthlyTeamReport() {
+    populateMonthlyReportSales();
+    var salesId = getValue('monthlyReportSales');
+    var month = getValue('monthlyReportMonth');
+    if (!salesId || !month) return;
+
+    setText('monthlyReportTotalSales', 'Memuat...');
+    setText('monthlyReportTotalShj', 'Memuat...');
+    setText('monthlyReportTotalHK', '...');
+    var tbody = document.getElementById('monthlyReportProductsTbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Memuat laporan bulanan...</td></tr>';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.success) {
+          showToast(res && res.message ? res.message : 'Laporan bulanan gagal dimuat.', 'error');
+          if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Laporan tidak dapat dimuat.</td></tr>';
+          return;
+        }
+        var summary = res.summary || {};
+        var sales = res.sales || {};
+        setText('monthlyReportTotalSales', formatRupiah(summary.totalSales));
+        setText('monthlyReportTotalShj', formatRupiah(summary.totalShj));
+        setText('monthlyReportTotalHK', (Number(summary.totalHK) || 0) + ' Hari');
+        var targetText = sales.targetMonthly > 0
+          ? 'Target bulanan: ' + formatRupiah(sales.targetMonthly) + ' · ' + (Number(sales.achievementPercent) || 0).toFixed(1).replace('.', ',') + '%'
+          : 'Target bulanan tidak tersedia';
+        setText('monthlyReportTargetInfo', targetText);
+        setText('monthlyReportProductSubtitle', (sales.salesName || salesId) + ' · ' + (sales.teamName || '-') + ' · Peringkat berdasarkan jumlah produk terjual');
+
+        var products = res.products || [];
+        if (!tbody) return;
+        if (!products.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Belum ada penjualan produk untuk sales ini pada bulan yang dipilih.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = products.map(function(product, index) {
+          return '<tr>' +
+            '<td class="text-center"><span class="badge badge-neutral">' + (index + 1) + '</span></td>' +
+            '<td>' + escapeHtml(product.productId || '-') + '</td>' +
+            '<td class="font-semibold">' + escapeHtml(product.productName || '-') + '</td>' +
+            '<td class="text-right">' + (Number(product.quantity) || 0).toLocaleString('id-ID') + '</td>' +
+            '<td class="text-right">' + formatRupiah(product.totalSales) + '</td>' +
+            '<td class="text-right text-success font-semibold">' + formatRupiah(product.totalShj) + '</td>' +
+          '</tr>';
+        }).join('');
+      })
+      .withFailureHandler(function(err) {
+        showToast('Gagal memuat laporan: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Laporan tidak dapat dimuat.</td></tr>';
+      })
+      .getMonthlyTeamReport(month, salesId);
+  }
+
+  function populateSelectOptions(selectId, source, firstLabel, includeAll) {
+    var select = document.getElementById(selectId);
+    if (!select) return;
+
+    var current = select.value;
+    var html = '';
+    if (includeAll) html += '<option value="ALL">' + escapeHtml(firstLabel || 'Semua') + '</option>';
+    else html += '<option value="">' + escapeHtml(firstLabel || '-- Pilih --') + '</option>';
+
+    var seen = {};
+    (source || []).forEach(function(item) {
+      var value = typeof item === 'string' ? item : (item.team_name || item.teamName || item.name || '');
+      if (!value) return;
+      if (selectId === 'inputTxTeam' && isNonTargetTeam(value)) return;
+      var key = normalizeKey(value);
+      if (seen[key]) return;
+      seen[key] = true;
+      html += '<option value="' + escapeHtml(value) + '">' + escapeHtml(value) + '</option>';
+    });
+
+    select.innerHTML = html;
+    if (current && Array.prototype.some.call(select.options, function(opt) { return opt.value === current; })) {
+      select.value = current;
+    }
+  }
+
+  function populateFileCategories() {
+    var select = document.getElementById('fileFilterCategory');
+    if (!select) return;
+    var current = select.value;
+    var seen = {};
+    var html = '<option value="ALL">Semua Kategori</option>';
+    (appState.files || []).forEach(function(f) {
+      var cat = String(f.category || 'Google Drive').trim();
+      if (!cat) return;
+      var key = normalizeKey(cat);
+      if (seen[key]) return;
+      seen[key] = true;
+      html += '<option value="' + escapeHtml(cat) + '">' + escapeHtml(cat) + '</option>';
+    });
+    select.innerHTML = html;
+    if (current && seen[normalizeKey(current)]) select.value = current;
+  }
+
+  function getActiveProductsForTeam(teamName) {
+    var t = normalizeKey(teamName);
+    if (!t || isNonTargetTeam(teamName)) return [];
+    var filtered = (appState.priceMaster || []).filter(function(p) {
+      var pTeam = normalizeKey(p.team_name || p.teamName || '');
+      var status = normalizeKey(p.status || 'ACTIVE');
+      return status !== 'INACTIVE' && pTeam === t;
+    });
+
+    if (filtered.length === 0) {
+      filtered = (appState.products || []).map(function(p) {
+        return {
+          product_id: p.product_id || '',
+          product_name: p.product_name || p.name || '',
+          unit: p.unit || 'Box',
+          cost_price: parseCleanNumber(p.cost_price || p.costPrice),
+          selling_price: parseCleanNumber(p.selling_price || p.sellingPrice),
+          shj: parseCleanNumber(p.shj)
+        };
+      }).filter(function(p) { return p.product_id || p.product_name; });
+    }
+    return filtered;
+  }
+
+  function setDashboardPeriod(period) {
+    appState.dashboardPeriod = String(period || 'TODAY').toUpperCase();
+    if (appState.dashboardPeriod !== 'CUSTOM') {
+      appState.customStartDate = '';
+      appState.customEndDate = '';
+    }
+    document.querySelectorAll('.seg-btn-modern').forEach(function(btn) { btn.classList.remove('active'); });
+    var btnId = appState.dashboardPeriod === 'TODAY' ? 'segBtn-today' : appState.dashboardPeriod === 'WEEK' ? 'segBtn-week' : 'segBtn-month';
+    var btn = document.getElementById(btnId);
+    if (btn) btn.classList.add('active');
+    updatePeriodDateDisplay();
+    loadDashboardMetrics();
+  }
+
+  function applyCustomPeriod() {
+    var start = document.getElementById('customStartDate');
+    var end = document.getElementById('customEndDate');
+    if (!start || !end || !start.value || !end.value) {
+      showToast('Tanggal awal dan tanggal akhir wajib dipilih.', 'error');
+      return;
+    }
+    if (start.value > end.value) {
+      showToast('Tanggal awal tidak boleh lebih besar dari tanggal akhir.', 'error');
+      return;
+    }
+    appState.dashboardPeriod = 'CUSTOM';
+    appState.customStartDate = start.value;
+    appState.customEndDate = end.value;
+    document.querySelectorAll('.seg-btn-modern').forEach(function(btn) { btn.classList.remove('active'); });
+    var customBtn = document.getElementById('segBtn-custom');
+    if (customBtn) customBtn.classList.add('active');
+    var dropdown = document.getElementById('customPeriodDropdown');
+    if (dropdown) dropdown.style.display = 'none';
+    updatePeriodDateDisplay();
+    loadDashboardMetrics();
+  }
+
+  function updatePeriodDateDisplay() {
+    var textEl = document.getElementById('periodDateBadgeText');
+    if (!textEl) return;
+    if (appState.dashboardPeriod === 'TODAY') textEl.textContent = 'Hari Ini';
+    else if (appState.dashboardPeriod === 'WEEK') textEl.textContent = '7 Hari Terakhir';
+    else if (appState.dashboardPeriod === 'MONTH') textEl.textContent = 'Bulan Ini';
+    else if (appState.dashboardPeriod === 'CUSTOM') textEl.textContent = formatDateIndo(appState.customStartDate) + ' - ' + formatDateIndo(appState.customEndDate);
+  }
+
+  function loadDashboardMetrics() {
+    if (appState.isLoadingDashboard) return;
+    appState.isLoadingDashboard = true;
+
+    var payload = {
+      period: appState.dashboardPeriod,
+      startDate: appState.dashboardPeriod === 'CUSTOM' ? appState.customStartDate : '',
+      endDate: appState.dashboardPeriod === 'CUSTOM' ? appState.customEndDate : '',
+      teamId: appState.dashboardTeamFilter || 'ALL',
+      attendanceDate: appState.attendanceDate || ''
+    };
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        appState.isLoadingDashboard = false;
+        if (!res || !res.success) {
+          showToast(res && res.message ? res.message : 'Gagal memuat dashboard.', 'error');
+          return;
+        }
+        appState.dashboardData = res;
+        appState.attendanceData = res.todayAttendance || [];
+        renderDashboardData(res);
+      })
+      .withFailureHandler(function(err) {
+        appState.isLoadingDashboard = false;
+        showToast('Gagal memuat dashboard: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+      })
+      .getDashboardMetrics(payload);
+  }
+
+  function renderDashboardData(data) {
+    if (!data) return;
+    renderKpiCards(data.kpi || {});
+    renderSalesTrendChart(data.salesTrend || []);
+    renderSalesLeaderboard(data.salesPerformance || [], appState.salesFilterTeam || 'ALL');
+    renderDailySalesComparisonChart(data.salesPerformance || []);
+    renderTeamDonutChart(data.teamAchievements || []);
+    renderAreaDonutChart(data.areaAchievements || []);
+    renderAttendanceGrid(data.todayAttendance || [], appState.attendanceTeamFilter || 'ALL');
+    renderVisitPhotos();
+    renderRecentTransactions(data.recentTransactions || []);
+    renderActivityFeed(data.recentActivities || []);
+    updatePeriodBadges();
+  }
+
+  function renderKpiCards(kpi) {
+    var totalSales = parseCleanNumber(kpi.totalSales);
+    var totalTarget = parseCleanNumber(kpi.totalTarget || kpi.cumulativeTarget);
+    var pct = Number(kpi.achievementPct || 0);
+    var remaining = Math.max(totalTarget - totalSales, 0);
+
+    setText('kpiTotalOmset', formatRupiah(totalSales));
+    setHtml('kpiAchieveBadge', '<i class="fa-solid fa-arrow-trend-up"></i> ' + pct.toFixed(1).replace('.0', '') + '%');
+    setText('kpiCumulativeTarget', formatRupiah(totalTarget));
+    setHtml('kpiRemainingLabel', '<i class="fa-solid fa-flag-checkered"></i> Sisa: ' + formatRupiah(remaining));
+    setStyle('kpiProgressBar', 'width', Math.min(Math.max(pct, 0), 100) + '%');
+
+    var passed = parseCleanNumber(kpi.workDaysPassed);
+    var remainingDays = parseCleanNumber(kpi.workDaysRemaining);
+    var totalDays = parseCleanNumber(kpi.totalWorkDays);
+    setText('kpiDaysRemaining', remainingDays + ' Hari');
+    setText('kpiDaysPassedBadge', passed + ' / ' + totalDays + ' Hari');
+
+    var topCan = kpi.topCanvasser || kpi.topSeniorCanvasser || null;
+    var topMotor = kpi.topMotoris || null;
+
+    setText('kpiTopCanvasserName', topCan ? topCan.name : '-');
+    setText('kpiTopCanvasserAchieved', topCan ? formatRupiah(topCan.achieved) + ' (' + (topCan.pct || 0) + '%)' : 'Rp 0 (0%)');
+    setHtml('kpiTopCanvasserTeamBadge', topCan ? '<span class="badge ' + getTeamBadgeClass(topCan.teamName) + '">' + escapeHtml(topCan.teamName) + '</span>' : '<span class="badge badge-neutral">-</span>');
+
+    setText('kpiTopMotorisName', topMotor ? topMotor.name : '-');
+    setText('kpiTopMotorisAchieved', topMotor ? formatRupiah(topMotor.achieved) + ' (' + (topMotor.pct || 0) + '%)' : 'Rp 0 (0%)');
+    setHtml('kpiTopMotorisTeamBadge', topMotor ? '<span class="badge ' + getTeamBadgeClass(topMotor.teamName) + '">' + escapeHtml(topMotor.teamName) + '</span>' : '<span class="badge badge-neutral">-</span>');
+  }
+
+  function updatePeriodBadges() {
+    var label = getPeriodLabel();
+    setText('salesTrendPeriodBadge', label);
+    setText('salesDailyChartPeriodBadge', label);
+    setText('attendanceSectionTitle', 'Foto Absensi Tim');
+  }
+
+  function getPeriodLabel() {
+    if (appState.dashboardPeriod === 'TODAY') return 'Hari Ini';
+    if (appState.dashboardPeriod === 'WEEK') return '7 Hari Terakhir';
+    if (appState.dashboardPeriod === 'MONTH') return 'Bulan Ini';
+    if (appState.dashboardPeriod === 'CUSTOM') return formatDateIndo(appState.customStartDate) + ' - ' + formatDateIndo(appState.customEndDate);
+    return 'Hari Ini';
+  }
+
+  function renderSalesTrendChart(trend) {
+    var canvas = document.getElementById('salesTrendChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    destroyChart('salesTrendChart');
+
+    var labels = (trend || []).map(function(item) { return formatDateIndo(item.date); });
+    var values = (trend || []).map(function(item) { return parseCleanNumber(item.amount); });
+    var isToday = !appState.dashboardPeriod || appState.dashboardPeriod === 'TODAY';
+    var targetValues = (trend || []).map(function(item) {
+      return item.targetAmount === null || item.targetAmount === undefined ? null : parseCleanNumber(item.targetAmount);
+    });
+    var targetLabel = isToday ? 'Target Harian' : 'Target Periode';
+    var achievedLabel = isToday ? 'Pencapaian Hari Ini' : 'Pencapaian Periode';
+    var datasets = [];
+
+    if (isToday) {
+      datasets.push({
+        label: targetLabel,
+        data: targetValues,
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        fill: false,
+        tension: 0,
+        borderDash: [6, 4],
+        borderColor: '#cbd5e1'
+      });
+    }
+
+    datasets.push({
+      label: achievedLabel,
+      data: values,
+      borderWidth: 2,
+      pointRadius: 2.5,
+      pointHoverRadius: 5,
+      fill: true,
+      tension: 0.35,
+      backgroundColor: 'rgba(37,99,235,0.08)',
+      borderColor: '#2563eb'
+    });
+
+    var salesTrendOptions = chartOptionsRupiah();
+    if (appState.dashboardPeriod === 'MONTH') {
+      var monthlyTargetScale = (appState.dashboardData && appState.dashboardData.salesPerformance ? appState.dashboardData.salesPerformance : []).reduce(function(maxTarget, sp) {
+        return Math.max(maxTarget, parseCleanNumber(sp.monthlyTarget || sp.target));
+      }, 0);
+      if (monthlyTargetScale > 0) salesTrendOptions.scales.y.suggestedMax = monthlyTargetScale;
+    }
+
+    appState.charts.salesTrendChart = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: datasets
+      },
+      options: salesTrendOptions
+    });
+  }
+
+  function applySalesLeaderboardFilter(teamName) {
+    appState.salesFilterTeam = teamName || 'ALL';
+    var data = appState.dashboardData && appState.dashboardData.salesPerformance ? appState.dashboardData.salesPerformance : [];
+    renderSalesLeaderboard(data, appState.salesFilterTeam);
+  }
+
+  function clearSalesFilter() {
+    appState.salesFilterTeam = 'ALL';
+    setStyle('salesFilterIndicator', 'display', 'none');
+    var data = appState.dashboardData && appState.dashboardData.salesPerformance ? appState.dashboardData.salesPerformance : [];
+    renderSalesLeaderboard(data, 'ALL');
+  }
+
+  function renderSalesLeaderboard(data, teamFilter) {
+    var tbody = document.getElementById('salesPerformanceTbody');
+    if (!tbody) return;
+    teamFilter = teamFilter || 'ALL';
+
+    var rows = (data || []).filter(function(sp) {
+      if (isNonTargetTeam(sp.teamName)) return false;
+      return teamFilter === 'ALL' || isTeamMatched(sp.teamName, teamFilter);
+    });
+
+    rows.sort(function(a, b) { return parseCleanNumber(b.achieved) - parseCleanNumber(a.achieved); });
+
+    if (teamFilter !== 'ALL') {
+      setStyle('salesFilterIndicator', 'display', 'inline-flex');
+      setText('salesFilterText', 'Tim: ' + teamFilter);
+    } else {
+      setStyle('salesFilterIndicator', 'display', 'none');
+    }
+
+    if (rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Belum ada data performa sales.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map(function(sp, idx) {
+      var target = parseCleanNumber(sp.monthlyTarget || sp.target);
+      var achieved = parseCleanNumber(sp.achieved);
+      var pct = target > 0 ? Math.round((achieved / target) * 100) : parseCleanNumber(sp.percentage);
+      var width = Math.min(Math.max(pct, 0), 100);
+      var initial = String(sp.name || 'S').trim().charAt(0).toUpperCase() || 'S';
+      var badge = getTeamBadgeClass(sp.teamName);
+      return '<tr>' +
+        '<td>' +
+          '<div style="display:flex;align-items:center;gap:10px;min-width:180px;">' +
+            '<div class="sales-avatar-mini">' + escapeHtml(initial) + '</div>' +
+            '<div style="min-width:0;">' +
+              '<div style="font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(sp.name || '-') + '</div>' +
+              '<div style="font-size:10.5px;color:#64748b;">' + escapeHtml(sp.salesId || '-') + '</div>' +
+            '</div>' +
+          '</div>' +
+        '</td>' +
+        '<td><span class="badge ' + badge + '">' + escapeHtml(sp.teamName || '-') + '</span></td>' +
+        '<td class="text-right">' + formatRupiah(target) + '</td>' +
+        '<td class="text-right font-semibold">' + formatRupiah(achieved) + '</td>' +
+        '<td class="text-center"><span class="badge ' + (pct >= 100 ? 'badge-success' : pct >= 75 ? 'badge-primary' : pct >= 50 ? 'badge-warning' : 'badge-danger') + '">' + pct + '%</span></td>' +
+        '<td style="min-width:160px;">' +
+          '<div style="display:flex;align-items:center;gap:8px;">' +
+            '<div style="flex:1;height:7px;background:#f1f5f9;border-radius:10px;overflow:hidden;"><div style="height:100%;width:' + width + '%;background:#2563eb;border-radius:10px;"></div></div>' +
+            '<span style="font-size:10.5px;font-weight:700;color:#64748b;min-width:33px;text-align:right;">' + pct + '%</span>' +
+          '</div>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  function renderDailySalesComparisonChart(data) {
+    var canvas = document.getElementById('salesDailyComparisonChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    destroyChart('salesDailyComparisonChart');
+
+    var rows = (data || []).filter(function(sp) { return !isNonTargetTeam(sp.teamName); });
+    var labels = rows.map(function(sp) { return sp.name || '-'; });
+    var isToday = !appState.dashboardPeriod || appState.dashboardPeriod === 'TODAY';
+    var targets = rows.map(function(sp) {
+      return parseCleanNumber(isToday ? (sp.dailyRate || getSalesDailyTargetRate(sp.teamName)) : sp.periodTarget);
+    });
+    var achieved = rows.map(function(sp) {
+      return parseCleanNumber(isToday ? sp.todayAchieved : sp.achieved);
+    });
+    var targetLabel = isToday ? 'Target Harian' : 'Target Periode';
+    var achievedLabel = isToday ? 'Pencapaian Hari Ini' : 'Pencapaian Periode';
+
+    appState.charts.salesDailyComparisonChart = new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: targetLabel, data: targets, backgroundColor: '#cbd5e1', borderRadius: 5 },
+          { label: achievedLabel, data: achieved, backgroundColor: '#2563eb', borderRadius: 5 }
+        ]
+      },
+      options: chartOptionsRupiah()
+    });
+  }
+
+  function renderTeamDonutChart(data) {
+    var canvas = document.getElementById('teamDonutChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    destroyChart('teamDonutChart');
+
+    var rows = (data || []).filter(function(item) { return !isNonTargetTeam(item.teamName); });
+    var labels = rows.map(function(item) { return item.teamName || '-'; });
+    var values = rows.map(function(item) { return parseCleanNumber(item.achieved); });
+    var colors = rows.map(function(item) { return item.color || '#2563eb'; });
+    var total = values.reduce(function(sum, n) { return sum + n; }, 0);
+    var centerPct = appState.dashboardData && appState.dashboardData.kpi ? Number(appState.dashboardData.kpi.achievementPct || 0) : 0;
+
+    setText('donutCenterPct', centerPct.toFixed(1).replace('.0', '') + '%');
+
+    appState.charts.teamDonutChart = new Chart(canvas.getContext('2d'), {
+      type: 'doughnut',
+      data: { labels: labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx) { return ctx.label + ': ' + formatRupiah(ctx.raw); } } } } }
+    });
+
+    var legend = document.getElementById('teamPillLegend');
+    if (legend) {
+      legend.innerHTML = rows.map(function(item) {
+        return '<span class="team-legend-tag" onclick="applySalesLeaderboardFilter(\'' + jsQuote(item.teamName) + '\')"><span class="team-legend-dot" style="background:' + (item.color || '#2563eb') + ';"></span>' + escapeHtml(item.teamName) + '</span>';
+      }).join('');
+    }
+  }
+
+  function renderAreaDonutChart(data) {
+    var canvas = document.getElementById('areaDonutChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    destroyChart('areaDonutChart');
+
+    var rows = data || [];
+    var labels = rows.map(function(item) { return item.areaName || '-'; });
+    var values = rows.map(function(item) { return parseCleanNumber(item.achieved); });
+    var colors = rows.map(function(item) { return item.color || '#2563eb'; });
+    var total = values.reduce(function(sum, n) { return sum + n; }, 0);
+    setText('areaDonutCenterPct', total > 0 ? '100%' : '0%');
+
+    appState.charts.areaDonutChart = new Chart(canvas.getContext('2d'), {
+      type: 'doughnut',
+      data: { labels: labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx) { return ctx.label + ': ' + formatRupiah(ctx.raw); } } } } }
+    });
+
+    var legend = document.getElementById('areaPillLegend');
+    if (legend) {
+      legend.innerHTML = rows.map(function(item) {
+        return '<span class="team-legend-tag"><span class="team-legend-dot" style="background:' + (item.color || '#2563eb') + ';"></span>' + escapeHtml(item.areaName || '-') + '</span>';
+      }).join('');
+    }
+  }
+
+  function getPhotoTimeSortValue(timeValue) {
+    var match = String(timeValue || '').trim().match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (!match) return null;
+    return (Number(match[1]) * 3600) + (Number(match[2]) * 60) + Number(match[3] || 0);
+  }
+
+  function sortPhotoCardsByTime(items) {
+    return (items || []).slice().sort(function(a, b) {
+      var timeA = getPhotoTimeSortValue(a && a.time);
+      var timeB = getPhotoTimeSortValue(b && b.time);
+      if (timeA === null && timeB === null) return 0;
+      if (timeA === null) return 1;
+      if (timeB === null) return -1;
+      return timeA - timeB;
+    });
+  }
+
+  function renderAttendanceGrid(data, teamFilter) {
+    var containers = [
+      document.getElementById('attendanceGridContainer'),
+      document.getElementById('attendancePageGridContainer')
+    ].filter(function(container) { return !!container; });
+    if (containers.length === 0) return;
+    teamFilter = teamFilter || 'ALL';
+
+    var attendanceRows = data || [];
+    var rows = attendanceRows.filter(function(item) {
+      return teamFilter === 'ALL' || isTeamMatched(item.teamName, teamFilter);
+    });
+    rows = sortPhotoCardsByTime(rows);
+
+    appState.attendanceData = attendanceRows;
+    var countHtml = '<i class="fa-solid fa-user-check"></i> ' + rows.length + ' Hadir';
+    setHtml('attendanceCountBadge', countHtml);
+    setHtml('attendancePageCountBadge', countHtml);
+
+    var attendedIds = {};
+    attendanceRows.forEach(function(item) {
+      var id = normalizeKey(item.salesId || item.id || '');
+      if (id) attendedIds[id] = true;
+    });
+    var absentSales = (appState.attendanceSales || appState.sales || []).filter(function(sales) {
+      var salesId = normalizeKey(sales.sales_id || sales.salesId || '');
+      var isActive = normalizeKey(sales.status || 'ACTIVE') !== 'INACTIVE';
+      return salesId && isActive && !attendedIds[salesId] &&
+        (teamFilter === 'ALL' || isTeamMatched(sales.team_name || sales.teamName, teamFilter));
+    });
+
+    if (rows.length === 0 && absentSales.length === 0) {
+      containers.forEach(function(container) {
+        container.innerHTML = '<div class="attendance-loading-placeholder"><i class="fa-regular fa-image"></i><span>Belum ada dokumentasi absensi pada tanggal ini.</span></div>';
+      });
+      return;
+    }
+
+    var cardsHtml = rows.map(function(att) {
+      var statusNorm = normalizeKey(att.status);
+      var banner = '';
+      if (statusNorm.indexOf('IZIN') > -1) banner = '<div class="att-photo-banner-overlay banner-izin"><i class="fa-solid fa-person-walking-arrow-right banner-icon"></i><span class="banner-text-label">IZIN</span><span class="banner-sublabel">Tidak melakukan absensi lapangan</span></div>';
+      else if (statusNorm.indexOf('SAKIT') > -1) banner = '<div class="att-photo-banner-overlay banner-sakit"><i class="fa-solid fa-kit-medical banner-icon"></i><span class="banner-text-label">SAKIT</span><span class="banner-sublabel">Tidak melakukan absensi lapangan</span></div>';
+      else if (statusNorm.indexOf('TIDAK HADIR') > -1 || statusNorm.indexOf('ALPHA') > -1) banner = '<div class="att-photo-banner-overlay banner-tidak-hadir"><i class="fa-solid fa-user-xmark banner-icon"></i><span class="banner-text-label">TIDAK HADIR</span><span class="banner-sublabel">Tidak ada dokumentasi absensi</span></div>';
+
+      var statusClass = 'att-status-hadir';
+      if (statusNorm.indexOf('TEPAT') > -1) statusClass = 'att-status-tepat-waktu';
+      else if (statusNorm.indexOf('IZIN') > -1) statusClass = 'att-status-izin';
+      else if (statusNorm.indexOf('SAKIT') > -1) statusClass = 'att-status-sakit';
+      else if (statusNorm.indexOf('TIDAK') > -1 || statusNorm.indexOf('ALPHA') > -1) statusClass = 'att-status-tidak-hadir';
+
+      var photo = att.photoUrl || '';
+      var imgHtml = photo ? '<img src="' + escapeHtml(photo) + '" class="att-img" alt="Foto Absensi" onerror="this.style.display=\'none\';">' : '';
+      var cardData = encodeURIComponent(JSON.stringify(att));
+
+      return '<div class="att-card" onclick="openAttendancePhotoByEncoded(\'' + cardData + '\')">' +
+        '<div class="att-img-wrap">' + imgHtml + banner +
+          '<div class="att-badge-time"><i class="fa-regular fa-clock"></i> ' + escapeHtml(att.time || '-') + '</div>' +
+          '<div class="att-badge-status ' + statusClass + '">' + escapeHtml(att.status || 'Hadir') + '</div>' +
+        '</div>' +
+        '<div class="att-info">' +
+          '<div class="att-name">' + escapeHtml(att.salesName || '-') + '</div>' +
+          '<div class="att-team-badge">' + escapeHtml(att.teamName || '-') + '</div>' +
+          '<div class="att-loc"><i class="fa-solid fa-location-dot"></i> ' + escapeHtml(att.location || '-') + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    cardsHtml += absentSales.map(function(sales) {
+      return '<div class="att-card att-card-absent" aria-label="' + escapeHtml(sales.full_name || sales.sales_id || 'Sales') + ' belum absen">' +
+        '<div class="att-img-wrap att-img-wrap-absent"><div class="att-absence-placeholder"><i class="fa-solid fa-user-clock"></i><span>BELUM ABSEN</span></div></div>' +
+        '<div class="att-info">' +
+          '<div class="att-name">' + escapeHtml(sales.full_name || '-') + '</div>' +
+          '<div class="att-team-badge">' + escapeHtml(sales.team_name || sales.teamName || '-') + '</div>' +
+          '<div class="att-loc"><i class="fa-solid fa-location-dot"></i> ' + escapeHtml(sales.area || '-') + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    containers.forEach(function(container) { container.innerHTML = cardsHtml; });
+  }
+
+  function renderVisitPhotos() {
+    var allVisitPhotos = appState.visitPhotos || [];
+    var selectedDate = appState.visitPhotoDate || getLocalDateInputValue();
+    var dashboardPhotos = allVisitPhotos.filter(function(visit) {
+      return normalizeDateString(visit.date || '') === selectedDate &&
+        (appState.visitPhotoTeamFilter === 'ALL' || isTeamMatched(visit.teamName, appState.visitPhotoTeamFilter));
+    });
+    dashboardPhotos = sortPhotoCardsByTime(dashboardPhotos);
+    document.querySelectorAll('.visit-filter-chip').forEach(function(btn) {
+      btn.classList.toggle('active', normalizeKey(btn.textContent.trim()) === normalizeKey(appState.visitPhotoTeamFilter === 'ALL' ? 'Semua Tim' : appState.visitPhotoTeamFilter));
+    });
+    setText('visitPhotosCountBadge', dashboardPhotos.length + ' Foto');
+    setText('visitPhotosPageCountBadge', dashboardPhotos.length + ' Foto');
+    renderVisitPhotoCards('visitPhotosDashboardGridContainer', dashboardPhotos);
+    renderVisitPhotoCards('visitPhotosPageGridContainer', dashboardPhotos);
+  }
+
+  function renderVisitPhotoCards(containerId, visitPhotos) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    if (!visitPhotos || visitPhotos.length === 0) {
+      container.innerHTML = '<div class="attendance-loading-placeholder"><i class="fa-regular fa-image"></i><span>Belum ada foto kunjungan pada tanggal ini. Tambahkan data di sheet VISIT_PHOTOS.</span></div>';
+      return;
+    }
+    container.innerHTML = visitPhotos.map(function(visit) {
+      var imgHtml = visit.photoUrl
+        ? '<img src="' + escapeHtml(visit.photoUrl) + '" class="att-img" alt="Foto Kunjungan" onerror="this.style.display=\'none\';">'
+        : '';
+      return '<div class="att-card">' +
+        '<div class="att-img-wrap">' + imgHtml +
+          '<div class="att-badge-time"><i class="fa-regular fa-clock"></i> ' + escapeHtml(visit.time || '-') + '</div>' +
+          '<div class="att-badge-status att-status-hadir">Kunjungan</div>' +
+        '</div>' +
+        '<div class="att-info">' +
+          '<div class="att-name">' + escapeHtml(visit.salesName || '-') + '</div>' +
+          '<div class="att-team-badge">' + escapeHtml(visit.teamName || '-') + '</div>' +
+          '<div class="att-loc"><i class="fa-regular fa-calendar"></i> ' + formatDateIndo(visit.date || '-') + '</div>' +
+          '<div class="att-loc"><i class="fa-solid fa-location-dot"></i> ' + escapeHtml(visit.area || '-') + '</div>' +
+          '<div class="att-loc"><i class="fa-solid fa-comment-dots"></i> ' + escapeHtml(visit.notes || '-') + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function populateTodayPlanSales() {
+    var select = document.getElementById('todayPlanSalesId');
+    if (!select) return;
+    var current = select.value;
+    var availableSales = (appState.sales || []).filter(function(sales) {
+      return sales.sales_id && normalizeKey(sales.status || 'ACTIVE') !== 'INACTIVE';
+    });
+    var html = '<option value="">Pilih sales</option>';
+    availableSales.forEach(function(sales) {
+      var label = (sales.full_name || sales.sales_id) + ' (' + (sales.team_name || '-') + ')';
+      html += '<option value="' + escapeHtml(sales.sales_id) + '">' + escapeHtml(label) + '</option>';
+    });
+    select.innerHTML = html;
+    if (current && Array.prototype.some.call(select.options, function(option) { return option.value === current; })) select.value = current;
+    handleTodayPlanSalesChange();
+  }
+
+  function handleTodayPlanSalesChange() {
+    var selectedId = getValue('todayPlanSalesId');
+    var sales = (appState.sales || []).find(function(item) { return normalizeKey(item.sales_id) === normalizeKey(selectedId); });
+    setValue('todayPlanSalesName', sales ? (sales.full_name || sales.sales_id) : '');
+    setValue('todayPlanTeamName', sales ? (sales.team_name || '') : '');
+    setValue('todayPlanArea', sales ? (sales.area || '') : '');
+  }
+
+  function resetTodayPlanDate() {
+    var today = getLocalDateInputValue();
+    setValue('todayPlanDate', today);
+    setText('todayPlanDateLabel', formatDateIndo(today));
+  }
+
+  function loadTodayPlans(dateValue) {
+    var date = normalizeDateString(dateValue) || getLocalDateInputValue();
+    setValue('todayPlanDate', date);
+    setText('todayPlanDateLabel', formatDateIndo(date));
+    ['todayPlanDashboardList', 'todayPlanPageList'].forEach(function(id) {
+      var container = document.getElementById(id);
+      if (container) container.innerHTML = '<div class="text-muted text-center py-2">Memuat rencana kunjungan...</div>';
+    });
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.success) {
+          showToast(res && res.message ? res.message : 'Gagal memuat Today’s Plan.', 'error');
+          appState.todayPlans = [];
+          renderTodayPlans([]);
+          return;
+        }
+        appState.todayPlans = res.plans || [];
+        if (typeof res.canManage === 'boolean') appState.canManageTodayPlan = res.canManage;
+        renderTodayPlans(appState.todayPlans);
+      })
+      .withFailureHandler(function(err) {
+        appState.todayPlans = [];
+        renderTodayPlans([]);
+        showToast('Gagal memuat Today’s Plan: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+      })
+      .getTodayPlans(date);
+  }
+
+  function renderTodayPlans(plans) {
+    plans = plans || [];
+    setText('todayPlanDashboardCount', plans.length + ' Rencana');
+    setText('todayPlanPageCount', plans.length + ' Rencana');
+    var editor = document.getElementById('todayPlanEditorPanel');
+    if (editor) editor.style.display = appState.canManageTodayPlan ? 'block' : 'none';
+
+    var html = plans.length ? plans.map(function(plan) {
+      var actionHtml = appState.canManageTodayPlan
+        ? '<div class="today-plan-actions" style="display:flex;gap:6px;margin-top:7px;">' +
+            '<button type="button" class="btn btn-outline btn-sm" onclick="editTodayPlan(\'' + escapeHtml(plan.id || '') + '\')"><i class="fa-solid fa-pen"></i> Edit</button>' +
+            '<button type="button" class="btn btn-outline btn-sm" onclick="archiveTodayPlan(\'' + escapeHtml(plan.id || '') + '\')"><i class="fa-solid fa-box-archive"></i> Arsipkan</button>' +
+          '</div>'
+        : '';
+      return '<div class="activity-item today-plan-item">' +
+        '<div class="activity-icon-wrap" style="background:#eff6ff;color:#2563eb;"><i class="fa-solid fa-location-dot"></i></div>' +
+        '<div class="activity-content">' +
+          '<div class="activity-title-row"><span>' + escapeHtml(plan.salesName || plan.salesId || '-') + ' <span class="badge badge-neutral">' + escapeHtml(plan.teamName || '-') + '</span></span><span class="activity-time">' + (plan.plannedTime ? '<i class="fa-regular fa-clock"></i> ' + escapeHtml(plan.plannedTime) : 'Jam belum diatur') + '</span></div>' +
+          '<div class="activity-desc"><strong>' + escapeHtml(plan.destination || '-') + '</strong></div>' +
+          '<div class="activity-time"><i class="fa-solid fa-map-pin"></i> ' + escapeHtml(plan.area || '-') + (plan.notes ? ' · ' + escapeHtml(plan.notes) : '') + '</div>' +
+          actionHtml +
+        '</div>' +
+      '</div>';
+    }).join('') : '<div class="attendance-loading-placeholder"><i class="fa-solid fa-route"></i><span>Belum ada rencana kunjungan untuk hari ini.</span></div>';
+
+    ['todayPlanDashboardList', 'todayPlanPageList'].forEach(function(id) {
+      var container = document.getElementById(id);
+      if (container) container.innerHTML = html;
+    });
+  }
+
+  function resetTodayPlanForm() {
+    var form = document.getElementById('todayPlanForm');
+    if (form) form.reset();
+    setValue('todayPlanId', '');
+    resetTodayPlanDate();
+    handleTodayPlanSalesChange();
+    setText('todayPlanFormTitle', 'Tambah Rencana Kunjungan');
+    setStyle('btnCancelTodayPlanEdit', 'display', 'none');
+    var saveButton = document.getElementById('btnSaveTodayPlan');
+    if (saveButton) saveButton.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan Rencana';
+  }
+
+  function editTodayPlan(planId) {
+    if (!appState.canManageTodayPlan) return;
+    var plan = (appState.todayPlans || []).find(function(item) { return String(item.id) === String(planId); });
+    if (!plan) return;
+    setValue('todayPlanId', plan.id);
+    setValue('todayPlanDate', plan.date || getLocalDateInputValue());
+    setValue('todayPlanSalesId', plan.salesId);
+    handleTodayPlanSalesChange();
+    setValue('todayPlanDestination', plan.destination);
+    setValue('todayPlanTime', plan.plannedTime);
+    setValue('todayPlanNotes', plan.notes);
+    setText('todayPlanFormTitle', 'Edit Rencana Kunjungan');
+    setStyle('btnCancelTodayPlanEdit', 'display', 'inline-flex');
+    var saveButton = document.getElementById('btnSaveTodayPlan');
+    if (saveButton) saveButton.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Perbarui Rencana';
+    var panel = document.getElementById('todayPlanEditorPanel');
+    if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function handleTodayPlanSubmit(event) {
+    if (event) event.preventDefault();
+    if (!appState.canManageTodayPlan) { showToast('Akses input Today’s Plan hanya untuk admin/koordinator.', 'error'); return; }
+    var payload = {
+      planId: getValue('todayPlanId'),
+      date: getValue('todayPlanDate') || getLocalDateInputValue(),
+      salesId: getValue('todayPlanSalesId'),
+      destination: getValue('todayPlanDestination'),
+      plannedTime: getValue('todayPlanTime'),
+      notes: getValue('todayPlanNotes')
+    };
+    var button = document.getElementById('btnSaveTodayPlan');
+    if (button) { button.disabled = true; button.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...'; }
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (button) button.disabled = false;
+        if (!res || !res.success) {
+          if (button) button.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan Rencana';
+          showToast(res && res.message ? res.message : 'Rencana gagal disimpan.', 'error');
+          return;
+        }
+        showToast(res.message || 'Rencana berhasil disimpan.', 'success');
+        resetTodayPlanForm();
+        loadTodayPlans(getLocalDateInputValue());
+      })
+      .withFailureHandler(function(err) {
+        if (button) { button.disabled = false; button.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan Rencana'; }
+        showToast('Gagal menyimpan rencana: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+      })
+      .saveTodayPlan(payload);
+  }
+
+  function archiveTodayPlan(planId) {
+    if (!appState.canManageTodayPlan || !window.confirm('Arsipkan rencana kunjungan ini?')) return;
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.success) {
+          showToast(res && res.message ? res.message : 'Rencana gagal diarsipkan.', 'error');
+          return;
+        }
+        showToast(res.message || 'Rencana berhasil diarsipkan.', 'success');
+        if (String(getValue('todayPlanId')) === String(planId)) resetTodayPlanForm();
+        loadTodayPlans(getLocalDateInputValue());
+      })
+      .withFailureHandler(function(err) {
+        showToast('Gagal mengarsipkan rencana: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+      })
+      .archiveTodayPlan(planId);
+  }
+
+  function loadWeeklyMeetings() {
+    ['weeklyMeetingDashboardList', 'weeklyMeetingPageList'].forEach(function(id) {
+      var container = document.getElementById(id);
+      if (container) container.innerHTML = '<div class="text-muted text-center py-2">Memuat hasil meeting...</div>';
+    });
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.success) {
+          showToast(res && res.message ? res.message : 'Gagal memuat hasil meeting mingguan.', 'error');
+          appState.weeklyMeetings = [];
+          renderWeeklyMeetings([]);
+          return;
+        }
+        appState.weeklyMeetings = res.meetings || [];
+        if (typeof res.canManage === 'boolean') appState.canManageWeeklyMeetings = res.canManage;
+        renderWeeklyMeetings(appState.weeklyMeetings);
+      })
+      .withFailureHandler(function(err) {
+        appState.weeklyMeetings = [];
+        renderWeeklyMeetings([]);
+        showToast('Gagal memuat hasil meeting: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+      })
+      .getWeeklyMeetings();
+  }
+
+  function renderWeeklyMeetings(meetings) {
+    meetings = meetings || [];
+    setText('weeklyMeetingDashboardCount', meetings.length + ' Meeting');
+    setText('weeklyMeetingPageCount', meetings.length + ' Meeting');
+    var editor = document.getElementById('weeklyMeetingEditorPanel');
+    if (editor) editor.style.display = appState.canManageWeeklyMeetings ? 'block' : 'none';
+
+    function itemHtml(meeting) {
+      var actionHtml = appState.canManageWeeklyMeetings
+        ? '<div style="display:flex;gap:6px;margin-top:8px;">' +
+            '<button type="button" class="btn btn-outline btn-sm" onclick="editWeeklyMeeting(\'' + escapeHtml(meeting.id || '') + '\')"><i class="fa-solid fa-pen"></i> Edit</button>' +
+            '<button type="button" class="btn btn-outline btn-sm" onclick="archiveWeeklyMeeting(\'' + escapeHtml(meeting.id || '') + '\')"><i class="fa-solid fa-box-archive"></i> Arsipkan</button>' +
+          '</div>'
+        : '';
+      var detailHtml = (meeting.decisions ? '<div class="activity-time" style="white-space:pre-line;margin-top:5px;"><strong>Keputusan:</strong> ' + escapeHtml(meeting.decisions) + '</div>' : '') +
+        (meeting.followUp ? '<div class="activity-time" style="white-space:pre-line;margin-top:4px;"><strong>Tindak lanjut:</strong> ' + escapeHtml(meeting.followUp) + '</div>' : '');
+      return '<div class="activity-item">' +
+        '<div class="activity-icon-wrap" style="background:#eff6ff;color:#2563eb;"><i class="fa-solid fa-people-group"></i></div>' +
+        '<div class="activity-content">' +
+          '<div class="activity-title-row"><strong>' + escapeHtml(meeting.title || 'Meeting Mingguan') + '</strong><span class="activity-time"><i class="fa-regular fa-calendar"></i> ' + escapeHtml(formatDateIndo(meeting.date || '')) + '</span></div>' +
+          '<div class="activity-desc" style="white-space:pre-line;margin-top:5px;">' + escapeHtml(meeting.summary || '') + '</div>' +
+          detailHtml + actionHtml +
+        '</div>' +
+      '</div>';
+    }
+
+    var dashboardList = meetings.slice(0, 3);
+    var dashboardHtml = dashboardList.length
+      ? dashboardList.map(itemHtml).join('')
+      : '<div class="attendance-loading-placeholder"><i class="fa-solid fa-people-group"></i><span>Belum ada hasil meeting mingguan.</span></div>';
+    var pageHtml = meetings.length
+      ? meetings.map(itemHtml).join('')
+      : '<div class="attendance-loading-placeholder"><i class="fa-solid fa-people-group"></i><span>Belum ada hasil meeting mingguan.</span></div>';
+    var dashboardContainer = document.getElementById('weeklyMeetingDashboardList');
+    if (dashboardContainer) dashboardContainer.innerHTML = dashboardHtml;
+    var pageContainer = document.getElementById('weeklyMeetingPageList');
+    if (pageContainer) pageContainer.innerHTML = pageHtml;
+  }
+
+  function resetWeeklyMeetingForm() {
+    var form = document.getElementById('weeklyMeetingForm');
+    if (form) form.reset();
+    setValue('weeklyMeetingId', '');
+    setValue('weeklyMeetingDate', getLocalDateInputValue());
+    setText('weeklyMeetingFormTitle', 'Tambah Hasil Meeting');
+    setStyle('btnCancelWeeklyMeetingEdit', 'display', 'none');
+    var saveButton = document.getElementById('btnSaveWeeklyMeeting');
+    if (saveButton) saveButton.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan Hasil Meeting';
+  }
+
+  function editWeeklyMeeting(meetingId) {
+    if (!appState.canManageWeeklyMeetings) return;
+    var meeting = (appState.weeklyMeetings || []).find(function(item) { return String(item.id) === String(meetingId); });
+    if (!meeting) return;
+    setValue('weeklyMeetingId', meeting.id);
+    setValue('weeklyMeetingDate', meeting.date || getLocalDateInputValue());
+    setValue('weeklyMeetingTitle', meeting.title);
+    setValue('weeklyMeetingSummary', meeting.summary);
+    setValue('weeklyMeetingDecisions', meeting.decisions);
+    setValue('weeklyMeetingFollowUp', meeting.followUp);
+    setText('weeklyMeetingFormTitle', 'Edit Hasil Meeting');
+    setStyle('btnCancelWeeklyMeetingEdit', 'display', 'inline-flex');
+    var saveButton = document.getElementById('btnSaveWeeklyMeeting');
+    if (saveButton) saveButton.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Perbarui Hasil Meeting';
+    var panel = document.getElementById('weeklyMeetingEditorPanel');
+    if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function handleWeeklyMeetingSubmit(event) {
+    if (event) event.preventDefault();
+    if (!appState.canManageWeeklyMeetings) { showToast('Akses input hasil meeting hanya untuk admin/koordinator.', 'error'); return; }
+    var payload = {
+      meetingId: getValue('weeklyMeetingId'),
+      date: getValue('weeklyMeetingDate'),
+      title: getValue('weeklyMeetingTitle'),
+      summary: getValue('weeklyMeetingSummary'),
+      decisions: getValue('weeklyMeetingDecisions'),
+      followUp: getValue('weeklyMeetingFollowUp')
+    };
+    var button = document.getElementById('btnSaveWeeklyMeeting');
+    if (button) { button.disabled = true; button.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...'; }
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (button) button.disabled = false;
+        if (!res || !res.success) {
+          if (button) button.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan Hasil Meeting';
+          showToast(res && res.message ? res.message : 'Hasil meeting gagal disimpan.', 'error');
+          return;
+        }
+        showToast(res.message || 'Hasil meeting berhasil disimpan.', 'success');
+        resetWeeklyMeetingForm();
+        loadWeeklyMeetings();
+      })
+      .withFailureHandler(function(err) {
+        if (button) { button.disabled = false; button.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan Hasil Meeting'; }
+        showToast('Gagal menyimpan hasil meeting: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+      })
+      .saveWeeklyMeeting(payload);
+  }
+
+  function archiveWeeklyMeeting(meetingId) {
+    if (!appState.canManageWeeklyMeetings || !window.confirm('Arsipkan hasil meeting ini?')) return;
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.success) {
+          showToast(res && res.message ? res.message : 'Hasil meeting gagal diarsipkan.', 'error');
+          return;
+        }
+        showToast(res.message || 'Hasil meeting berhasil diarsipkan.', 'success');
+        if (String(getValue('weeklyMeetingId')) === String(meetingId)) resetWeeklyMeetingForm();
+        loadWeeklyMeetings();
+      })
+      .withFailureHandler(function(err) {
+        showToast('Gagal mengarsipkan hasil meeting: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+      })
+      .archiveWeeklyMeeting(meetingId);
+  }
+
+  function getSafeKchNewsUrl(url) {
+    var value = String(url || '').trim();
+    return /^https?:\/\//i.test(value) ? value : '';
+  }
+
+  function buildKchNewsBannerHtml(news) {
+    var imageUrl = getSafeKchNewsUrl(news.imageUrl);
+    var bannerText = news.bannerText || news.title || 'Berita dan informasi Kalbe';
+    var bannerKicker = news.bannerKicker || 'KALBE UPDATE';
+    var bannerSubtitle = news.bannerSubtitle || 'Berita dan informasi Kalbe';
+    var imageHtml = imageUrl
+      ? '<img class="kch-news-banner-image" src="' + escapeHtml(imageUrl) + '" alt="' + escapeHtml(news.title || 'Banner KCH News') + '" onerror="this.style.display=\'none\';">'
+      : '';
+    return imageHtml +
+      '<span class="kch-news-banner-kicker">' + escapeHtml(bannerKicker) + '</span>' +
+      '<strong>' + escapeHtml(bannerText) + '</strong>' +
+      '<span>' + escapeHtml(bannerSubtitle) + '</span>' +
+      '<i class="fa-solid fa-arrow-up-right-from-square"></i>';
+  }
+
+  function renderKchNews(newsRows) {
+    var rows = (newsRows || []).filter(function(item) { return item && item.title; });
+    var dashboardBanner = document.getElementById('kchNewsDashboardBanner');
+    var dashboardDate = document.getElementById('kchNewsDashboardDate');
+    var dashboardHeadline = document.getElementById('kchNewsDashboardHeadline');
+    var dashboardSummary = document.getElementById('kchNewsDashboardSummary');
+    var dashboardLink = document.getElementById('kchNewsDashboardLink');
+    var pageList = document.getElementById('kchNewsPageList');
+    var managerPanel = document.getElementById('kchNewsManagerPanel');
+    if (managerPanel) {
+      managerPanel.style.display = appState.canManageKchNews ? 'block' : 'none';
+      if (appState.canManageKchNews && !getValue('kchNewsEditorDate')) resetKchNewsEditor();
+    }
+
+    if (rows.length === 0) {
+      if (dashboardBanner) {
+        dashboardBanner.classList.remove('has-image');
+        dashboardBanner.href = '#';
+        dashboardBanner.onclick = function(event) { event.preventDefault(); };
+        dashboardBanner.innerHTML = '<span class="kch-news-banner-kicker">KCH NEWS</span><strong>Belum ada berita aktif</strong><span>Aktifkan berita di sheet KCH_NEWS</span><i class="fa-regular fa-newspaper"></i>';
+      }
+      if (dashboardDate) dashboardDate.innerHTML = '<i class="fa-regular fa-calendar"></i> -';
+      setText('kchNewsDashboardHeadline', 'Belum ada berita aktif.');
+      setText('kchNewsDashboardSummary', appState.canManageKchNews ? 'Buat artikel lewat menu Kelola Artikel KCH.' : 'Belum ada berita yang diterbitkan.');
+      if (dashboardLink) dashboardLink.style.display = 'none';
+      if (pageList) pageList.innerHTML = '<div class="chart-card kch-news-empty"><i class="fa-regular fa-newspaper"></i><strong>Belum ada berita aktif</strong><span>' + (appState.canManageKchNews ? 'Gunakan formulir Kelola Artikel KCH untuk menerbitkan artikel pertama.' : 'Berita yang diterbitkan akan tampil di sini.') + '</span></div>';
+      return;
+    }
+
+    var latest = rows[0];
+    var latestUrl = getSafeKchNewsUrl(latest.newsUrl);
+    if (dashboardBanner) {
+      dashboardBanner.classList.toggle('has-image', !!getSafeKchNewsUrl(latest.imageUrl));
+      dashboardBanner.href = latestUrl || '#';
+      dashboardBanner.target = latestUrl ? '_blank' : '';
+      dashboardBanner.onclick = function(event) {
+        if (!latestUrl && latest.content) { event.preventDefault(); openKchNewsArticle(latest.newsId); }
+      };
+      dashboardBanner.innerHTML = buildKchNewsBannerHtml(latest);
+    }
+    if (dashboardDate) dashboardDate.innerHTML = '<i class="fa-regular fa-calendar"></i> ' + escapeHtml(formatDateIndo(latest.date || ''));
+    setText('kchNewsDashboardHeadline', latest.title || '-');
+    setText('kchNewsDashboardSummary', latest.summary || 'Buka berita untuk membaca informasi selengkapnya.');
+    if (dashboardLink) {
+      dashboardLink.href = latestUrl || '#';
+      dashboardLink.target = latestUrl ? '_blank' : '';
+      dashboardLink.style.display = latestUrl || latest.content ? 'inline-flex' : 'none';
+      dashboardLink.innerHTML = latest.content
+        ? 'Baca artikel selengkapnya <i class="fa-solid fa-arrow-right"></i>'
+        : 'Lihat berita selengkapnya <i class="fa-solid fa-arrow-right"></i>';
+      dashboardLink.onclick = function(event) {
+        if (latest.content) { event.preventDefault(); openKchNewsArticle(latest.newsId); }
+      };
+    }
+
+    if (pageList) {
+      pageList.innerHTML = rows.map(function(item) {
+        var itemUrl = getSafeKchNewsUrl(item.newsUrl);
+        var itemDate = formatDateIndo(item.date || '');
+        var itemId = escapeHtml(item.newsId || '');
+        var articleLink = item.content
+          ? '<button type="button" class="kch-news-link kch-news-article-button" onclick="openKchNewsArticle(\'' + itemId + '\')">Baca artikel selengkapnya <i class="fa-solid fa-arrow-right"></i></button>'
+          : '';
+        var sourceLink = itemUrl
+          ? '<a class="kch-news-link" href="' + escapeHtml(itemUrl) + '" target="_blank" rel="noopener noreferrer">Buka tautan sumber <i class="fa-solid fa-arrow-up-right-from-square"></i></a>'
+          : '';
+        var manageActions = appState.canManageKchNews
+          ? '<div class="kch-news-manage-actions"><button type="button" class="btn btn-outline btn-sm" onclick="editKchNewsArticle(\'' + itemId + '\')"><i class="fa-solid fa-pen"></i> Edit</button><button type="button" class="btn btn-danger-soft btn-sm" onclick="archiveKchNewsArticleUi(\'' + itemId + '\')"><i class="fa-solid fa-box-archive"></i> Arsipkan</button></div>'
+          : '';
+        var bannerAction = itemUrl
+          ? 'href="' + escapeHtml(itemUrl) + '" target="_blank" rel="noopener noreferrer"'
+          : item.content
+            ? 'href="#" onclick="openKchNewsArticle(\'' + itemId + '\');return false;"'
+            : 'href="#" onclick="return false;"';
+        return '<article class="chart-card kch-news-page-card">' +
+          '<a class="kch-news-banner' + (getSafeKchNewsUrl(item.imageUrl) ? ' has-image' : '') + '" ' + bannerAction + '>' + buildKchNewsBannerHtml(item) + '</a>' +
+          '<div class="kch-news-story">' +
+            '<div class="kch-news-date"><i class="fa-regular fa-calendar"></i> ' + escapeHtml(itemDate) + '</div>' +
+            '<div class="kch-news-headline">' + escapeHtml(item.title || '-') + '</div>' +
+            '<div class="kch-news-summary">' + escapeHtml(item.summary || 'Buka berita untuk membaca informasi selengkapnya.') + '</div>' +
+            articleLink + sourceLink + manageActions +
+          '</div>' +
+        '</article>';
+      }).join('');
+    }
+  }
+
+  function resetKchNewsEditor() {
+    setValue('kchNewsEditorId', '');
+    setValue('kchNewsEditorTitle', '');
+    setValue('kchNewsEditorDate', getLocalDateInputValue());
+    setValue('kchNewsEditorSummary', '');
+    setValue('kchNewsEditorContent', '');
+    setValue('kchNewsEditorBanner', '');
+    setValue('kchNewsEditorKicker', '');
+    setValue('kchNewsEditorBannerSubtitle', '');
+    setValue('kchNewsEditorImage', '');
+    setValue('kchNewsEditorUrl', '');
+    setText('btnSaveKchNews', 'Terbitkan artikel');
+  }
+
+  function submitKchNewsArticle(event) {
+    if (event) event.preventDefault();
+    if (!appState.canManageKchNews) { showToast('Akses kelola artikel hanya untuk admin/pengelola.', 'error'); return; }
+    var payload = {
+      newsId: getValue('kchNewsEditorId'),
+      title: getValue('kchNewsEditorTitle'),
+      date: getValue('kchNewsEditorDate'),
+      summary: getValue('kchNewsEditorSummary'),
+      content: getValue('kchNewsEditorContent'),
+      bannerText: getValue('kchNewsEditorBanner'),
+      bannerKicker: getValue('kchNewsEditorKicker'),
+      bannerSubtitle: getValue('kchNewsEditorBannerSubtitle'),
+      imageUrl: getValue('kchNewsEditorImage'),
+      newsUrl: getValue('kchNewsEditorUrl')
+    };
+    var button = document.getElementById('btnSaveKchNews');
+    if (button) { button.disabled = true; button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...'; }
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (button) button.disabled = false;
+        if (!res || !res.success) {
+          if (button) button.innerHTML = payload.newsId ? 'Simpan perubahan' : 'Terbitkan artikel';
+          showToast(res && res.message ? res.message : 'Artikel gagal disimpan.', 'error');
+          return;
+        }
+        showToast(res.message || 'Artikel tersimpan.', 'success');
+        resetKchNewsEditor();
+        loadKchNews();
+      })
+      .withFailureHandler(function(err) {
+        if (button) { button.disabled = false; button.innerHTML = payload.newsId ? 'Simpan perubahan' : 'Terbitkan artikel'; }
+        showToast('Gagal menyimpan artikel: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+      })
+      .saveKchNewsArticle(payload);
+  }
+
+  function editKchNewsArticle(newsId) {
+    var item = (appState.kchNews || []).find(function(row) { return String(row.newsId) === String(newsId); });
+    if (!item) { showToast('Artikel tidak ditemukan.', 'error'); return; }
+    setValue('kchNewsEditorId', item.newsId || '');
+    setValue('kchNewsEditorTitle', item.title || '');
+    setValue('kchNewsEditorDate', item.date || getLocalDateInputValue());
+    setValue('kchNewsEditorSummary', item.summary || '');
+    setValue('kchNewsEditorContent', item.content || '');
+    setValue('kchNewsEditorBanner', item.bannerText || '');
+    setValue('kchNewsEditorKicker', item.bannerKicker || '');
+    setValue('kchNewsEditorBannerSubtitle', item.bannerSubtitle || '');
+    setValue('kchNewsEditorImage', item.imageUrl || '');
+    setValue('kchNewsEditorUrl', item.newsUrl || '');
+    setText('btnSaveKchNews', 'Simpan perubahan');
+    var panel = document.getElementById('kchNewsManagerPanel');
+    if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function archiveKchNewsArticleUi(newsId) {
+    if (!appState.canManageKchNews || !window.confirm('Arsipkan artikel ini? Artikel tidak akan tampil untuk pembaca.')) return;
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.success) { showToast(res && res.message ? res.message : 'Artikel gagal diarsipkan.', 'error'); return; }
+        if (String(getValue('kchNewsEditorId')) === String(newsId)) resetKchNewsEditor();
+        showToast(res.message || 'Artikel diarsipkan.', 'success');
+        loadKchNews();
+      })
+      .withFailureHandler(function(err) { showToast('Gagal mengarsipkan artikel: ' + (err && err.message ? err.message : 'Unknown error'), 'error'); })
+      .archiveKchNewsArticle(newsId);
+  }
+
+  function openKchNewsArticle(newsId) {
+    var item = (appState.kchNews || []).find(function(row) { return String(row.newsId) === String(newsId); });
+    if (!item) return;
+    setText('modalKchNewsTitle', item.title || 'Artikel KCH');
+    setText('modalKchNewsDate', formatDateIndo(item.date || ''));
+    var content = document.getElementById('modalKchNewsContent');
+    if (content) content.innerHTML = escapeHtml(item.content || item.summary || '').replace(/\r?\n/g, '<br>');
+    var imageUrl = getSafeKchNewsUrl(item.imageUrl);
+    var image = document.getElementById('modalKchNewsImage');
+    if (image) {
+      image.style.display = imageUrl ? 'block' : 'none';
+      image.src = imageUrl || '';
+    }
+    var footer = document.getElementById('modalKchNewsFooter');
+    var sourceUrl = getSafeKchNewsUrl(item.newsUrl);
+    if (footer) footer.innerHTML = (sourceUrl ? '<a class="btn btn-outline btn-sm" href="' + escapeHtml(sourceUrl) + '" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-arrow-up-right-from-square"></i> Buka tautan sumber</a>' : '') + '<button type="button" class="btn btn-secondary btn-sm" onclick="closeKchNewsArticle()">Tutup</button>';
+    setStyle('modalKchNewsArticle', 'display', 'flex');
+  }
+
+  function closeKchNewsArticle() {
+    setStyle('modalKchNewsArticle', 'display', 'none');
+  }
+
+  function loadKchNews() {
+    var pageList = document.getElementById('kchNewsPageList');
+    if (pageList) pageList.innerHTML = '<div class="chart-card text-muted">Memuat KCH News...</div>';
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.success) {
+          showToast(res && res.message ? res.message : 'Gagal memuat KCH News.', 'error');
+          renderKchNews(appState.kchNews || []);
+          return;
+        }
+        appState.kchNews = res.news || [];
+        if (typeof res.canManage === 'boolean') appState.canManageKchNews = res.canManage;
+        renderKchNews(appState.kchNews);
+      })
+      .withFailureHandler(function(err) {
+        showToast('Gagal memuat KCH News: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+        renderKchNews(appState.kchNews || []);
+      })
+      .getKchNews();
+  }
+
+  function setupVisitPhotoDateControls() {
+    appState.visitPhotoDate = getLocalDateInputValue();
+    ['inputVisitPhotosFilterDate', 'inputVisitPhotosPageFilterDate'].forEach(function(id) { setValue(id, appState.visitPhotoDate); });
+    ['displayVisitPhotosFilterDate', 'displayVisitPhotosPageFilterDate'].forEach(function(id) { setValue(id, formatDateIndo(appState.visitPhotoDate)); });
+    setStyle('btnResetVisitPhotosToday', 'display', 'none');
+    setStyle('btnResetVisitPhotosPageToday', 'display', 'none');
+  }
+
+  function handleVisitPhotosDateChange(value) {
+    appState.visitPhotoDate = value || getLocalDateInputValue();
+    ['inputVisitPhotosFilterDate', 'inputVisitPhotosPageFilterDate'].forEach(function(id) { setValue(id, appState.visitPhotoDate); });
+    ['displayVisitPhotosFilterDate', 'displayVisitPhotosPageFilterDate'].forEach(function(id) { setValue(id, formatDateIndo(appState.visitPhotoDate)); });
+    var resetDisplay = appState.visitPhotoDate === getLocalDateInputValue() ? 'none' : 'inline-flex';
+    setStyle('btnResetVisitPhotosToday', 'display', resetDisplay);
+    setStyle('btnResetVisitPhotosPageToday', 'display', resetDisplay);
+    renderVisitPhotos();
+  }
+
+  function resetVisitPhotosToToday() {
+    handleVisitPhotosDateChange(getLocalDateInputValue());
+  }
+
+  function filterVisitPhotosTeam(teamName) {
+    appState.visitPhotoTeamFilter = teamName || 'ALL';
+    renderVisitPhotos();
+  }
+
+  function reloadVisitPhotosOnly() {
+    var targetDate = appState.visitPhotoDate || getLocalDateInputValue();
+    ['visitPhotosDashboardGridContainer', 'visitPhotosPageGridContainer'].forEach(function(id) {
+      var container = document.getElementById(id);
+      if (container) container.innerHTML = '<div class="attendance-loading-placeholder"><i class="fa-solid fa-circle-notch fa-spin text-primary"></i><span>Memuat foto kunjungan...</span></div>';
+    });
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.success) {
+          showToast(res && res.message ? res.message : 'Gagal memuat foto kunjungan.', 'error');
+          renderVisitPhotos();
+          return;
+        }
+        var otherDates = (appState.visitPhotos || []).filter(function(visit) {
+          return normalizeDateString(visit.date || '') !== targetDate;
+        });
+        appState.visitPhotos = otherDates.concat(res.visitPhotos || []);
+        renderVisitPhotos();
+      })
+      .withFailureHandler(function(err) {
+        showToast('Gagal memuat foto kunjungan: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+        renderVisitPhotos();
+      })
+      .getVisitPhotosByDate(targetDate);
+  }
+
+  function filterAttendanceTeam(teamName, buttonEl) {
+    appState.attendanceTeamFilter = teamName || 'ALL';
+    document.querySelectorAll('.att-filter-chip').forEach(function(btn) {
+      btn.classList.toggle('active', normalizeKey(btn.textContent.trim()) === normalizeKey(appState.attendanceTeamFilter === 'ALL' ? 'Semua Tim' : appState.attendanceTeamFilter));
+    });
+    var data = appState.attendanceData || [];
+    renderAttendanceGrid(data || [], appState.attendanceTeamFilter);
+  }
+
+  function setupAttendanceDateControls() {
+    var today = getLocalDateInputValue();
+    appState.attendanceDate = today;
+    ['inputAttendanceFilterDate', 'inputAttendancePageFilterDate'].forEach(function(id) { setValue(id, today); });
+    ['displayAttendanceFilterDate', 'displayAttendancePageFilterDate'].forEach(function(id) { setValue(id, formatDateIndo(today)); });
+  }
+
+  function handleAttendanceDateChange(value) {
+    appState.attendanceDate = value || getLocalDateInputValue();
+    ['inputAttendanceFilterDate', 'inputAttendancePageFilterDate'].forEach(function(id) { setValue(id, appState.attendanceDate); });
+    ['displayAttendanceFilterDate', 'displayAttendancePageFilterDate'].forEach(function(id) { setValue(id, formatDateIndo(appState.attendanceDate)); });
+    setStyle('btnResetAttendanceToday', 'display', appState.attendanceDate === getLocalDateInputValue() ? 'none' : 'inline-flex');
+    setStyle('btnResetAttendancePageToday', 'display', appState.attendanceDate === getLocalDateInputValue() ? 'none' : 'inline-flex');
+    setText('attendancePageSubtitle', 'Dokumentasi kehadiran personil sales (' + formatDateIndo(appState.attendanceDate) + ')');
+    loadAttendanceByDate(appState.attendanceDate);
+    loadDashboardMetrics();
+  }
+
+  function resetAttendanceToToday() {
+    handleAttendanceDateChange(getLocalDateInputValue());
+  }
+
+  function reloadAttendanceOnly() {
+    loadAttendanceByDate(appState.attendanceDate || getLocalDateInputValue());
+  }
+
+  function loadAttendanceByDate(dateStr) {
+    var target = dateStr || getLocalDateInputValue();
+    ['attendanceGridContainer', 'attendancePageGridContainer'].forEach(function(id) {
+      var container = document.getElementById(id);
+      if (container) container.innerHTML = '<div class="attendance-loading-placeholder"><i class="fa-solid fa-circle-notch fa-spin text-primary"></i><span>Memuat foto absensi tim...</span></div>';
+    });
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.success) {
+          showToast(res && res.message ? res.message : 'Gagal memuat absensi.', 'error');
+          return;
+        }
+        appState.attendanceData = res.attendance || [];
+        renderAttendanceGrid(appState.attendanceData, appState.attendanceTeamFilter || 'ALL');
+      })
+      .withFailureHandler(function(err) {
+        showToast('Gagal memuat absensi: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+      })
+      .getAttendanceByDate(target);
+  }
+
+  function openPhotoUploadForm(type) {
+    var photoType = type === 'visit' ? 'visit' : 'attendance';
+    var salesSource = appState.attendanceSales || appState.sales || [];
+    var salesRows = salesSource.filter(function(s) {
+      return s.sales_id && String(s.status || 'ACTIVE').toUpperCase() !== 'INACTIVE';
+    });
+    var select = document.getElementById('photoUploadSalesId');
+    if (!select) return;
+    select.innerHTML = '<option value="">Pilih Sales ID</option>' + salesRows.map(function(s) {
+      return '<option value="' + escapeHtml(s.sales_id) + '">' + escapeHtml(s.sales_id) + '</option>';
+    }).join('');
+    setValue('photoUploadSalesName', '');
+    setValue('photoUploadArea', '');
+    setValue('photoUploadNotes', '');
+    setValue('photoUploadDate', getLocalDateInputValue());
+    var fileInput = document.getElementById('photoUploadFile');
+    if (fileInput) fileInput.value = '';
+    appState.photoUploadType = photoType;
+    setText('photoUploadTitle', photoType === 'attendance' ? 'Input Foto Absensi' : 'Input Foto Kunjungan');
+    setText('btnSubmitPhotoUpload', 'Simpan');
+    var submitButton = document.getElementById('btnSubmitPhotoUpload');
+    if (submitButton) submitButton.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Simpan';
+    setStyle('modalPhotoUpload', 'display', 'flex');
+  }
+
+  function handlePhotoUploadSalesChange(salesId) {
+    var salesSource = appState.attendanceSales || appState.sales || [];
+    var selected = salesSource.find(function(s) {
+      return normalizeKey(s.sales_id) === normalizeKey(salesId);
+    });
+    setValue('photoUploadSalesName', selected ? (selected.full_name || '') : '');
+    setValue('photoUploadArea', selected ? (selected.area || '') : '');
+  }
+
+  function closePhotoUploadForm() {
+    setStyle('modalPhotoUpload', 'display', 'none');
+  }
+
+  function compressPhotoFile(file, callback) {
+    if (!file || !/^image\//i.test(file.type || '')) {
+      callback(null, 'Pilih file foto/gambar yang valid.');
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function(event) {
+      var image = new Image();
+      image.onload = function() {
+        var maxSide = 1600;
+        var scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+        var canvas = document.createElement('canvas');
+        var context = canvas.getContext('2d');
+        var dataUrl = '';
+        for (var attempt = 0; attempt < 8; attempt++) {
+          canvas.width = Math.max(1, Math.round(image.width * scale));
+          canvas.height = Math.max(1, Math.round(image.height * scale));
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          var quality = Math.max(0.45, 0.82 - (attempt % 4) * 0.12);
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+          if (dataUrl.length <= 4.5 * 1024 * 1024) break;
+          if (attempt === 3) scale *= 0.8;
+        }
+        if (dataUrl.length > 4.5 * 1024 * 1024) {
+          callback(null, 'Ukuran foto terlalu besar setelah dikompres. Pilih foto yang lebih kecil.');
+          return;
+        }
+        callback(dataUrl, '');
+      };
+      image.onerror = function() { callback(null, 'Foto tidak dapat dibaca.'); };
+      image.src = event.target.result;
+    };
+    reader.onerror = function() { callback(null, 'Foto gagal dibaca.'); };
+    reader.readAsDataURL(file);
+  }
+
+  function submitPhotoUploadForm(event) {
+    if (event) event.preventDefault();
+    var type = appState.photoUploadType;
+    var salesId = getValue('photoUploadSalesId');
+    var date = getValue('photoUploadDate');
+    var notes = String(getValue('photoUploadNotes') || '').trim();
+    var fileInput = document.getElementById('photoUploadFile');
+    var file = fileInput && fileInput.files ? fileInput.files[0] : null;
+    if (!type || !salesId || !date || !notes || !file) {
+      showToast('Lengkapi Sales ID, keterangan, tanggal, dan foto.', 'error');
+      return;
+    }
+    var submitButton = document.getElementById('btnSubmitPhotoUpload');
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Mengompres...';
+    }
+
+    compressPhotoFile(file, function(imageDataUrl, errorMessage) {
+      if (errorMessage) {
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Simpan';
+        }
+        showToast(errorMessage, 'error');
+        return;
+      }
+      if (submitButton) submitButton.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...';
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Simpan';
+          }
+          if (!res || !res.success) {
+            showToast(res && res.message ? res.message : 'Gagal menyimpan foto.', 'error');
+            return;
+          }
+          closePhotoUploadForm();
+          showToast(res.message || 'Foto berhasil disimpan.', 'success');
+          if (type === 'attendance') {
+            handleAttendanceDateChange(date);
+          } else {
+            handleVisitPhotosDateChange(date);
+            reloadVisitPhotosOnly();
+          }
+        })
+        .withFailureHandler(function(err) {
+          if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Simpan';
+          }
+          showToast('Gagal menyimpan foto: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+        })
+        .saveSalesPhotoUpload({ salesId: salesId, date: date, notes: notes, imageDataUrl: imageDataUrl }, type);
+    });
+  }
+
+  function openAttendancePhotoByEncoded(encoded) {
+    try {
+      openAttendancePhoto(JSON.parse(decodeURIComponent(encoded)));
+    } catch (e) {
+      showToast('Data foto absensi tidak valid.', 'error');
+    }
+  }
+
+  function openAttendancePhoto(att) {
+    appState.selectedAttendance = att;
+    setText('modalAttSalesName', att.salesName || 'Foto Absensi Sales');
+    setText('modalAttMeta', formatDateIndo(att.date) + ' • KCH Cabang Lhokseumawe');
+    setText('modalAttTime', att.time || '-');
+    setHtml('modalAttTeam', '<span class="badge ' + getTeamBadgeClass(att.teamName) + '">' + escapeHtml(att.teamName || '-') + '</span>');
+    setText('modalAttLocation', att.location || '-');
+    setText('modalAttNotes', att.notes || '-');
+
+    var img = document.getElementById('modalAttImg');
+    if (img) {
+      if (att.photoUrl) {
+        img.src = att.photoUrl;
+        img.style.display = 'block';
+      } else {
+        img.removeAttribute('src');
+        img.style.display = 'none';
+      }
+    }
+
+    setStyle('modalAttendancePhoto', 'display', 'flex');
+  }
+
+  function closeAttendancePhotoModal() {
+    setStyle('modalAttendancePhoto', 'display', 'none');
+  }
+
+  function renderRecentTransactions(rows) {
+    var el = document.getElementById('recentTxFeedList');
+    if (!el) return;
+    if (!rows || rows.length === 0) {
+      el.innerHTML = '<div class="text-muted text-center py-2">Belum ada transaksi.</div>';
+      return;
+    }
+    el.innerHTML = rows.map(function(item) {
+      return '<div class="activity-item clickable" onclick="openTransactionDetail(\'' + jsQuote(item.id || '') + '\')">' +
+        '<div class="activity-icon-wrap" style="background:#eff6ff;color:#2563eb;"><i class="fa-solid fa-receipt"></i></div>' +
+        '<div class="activity-content">' +
+          '<div class="activity-title-row"><span>' + escapeHtml(item.salesName || '-') + '</span><span class="activity-time">' + escapeHtml(formatDateIndo(item.date) || '-') + '</span></div>' +
+          '<div class="activity-desc">' + escapeHtml(item.id || '-') + ' • ' + escapeHtml(item.teamName || '-') + ' • ' + formatRupiah(item.totalSales) + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function renderActivityFeed(rows) {
+    var el = document.getElementById('activityFeedList');
+    if (!el) return;
+    if (!rows || rows.length === 0) {
+      el.innerHTML = '<div class="text-muted text-center py-2">Belum ada catatan aktivitas.</div>';
+      return;
+    }
+    el.innerHTML = rows.map(function(item) {
+      var action = String(item.action || 'AKTIVITAS').replace(/_/g, ' ');
+      return '<div class="activity-item">' +
+        '<div class="activity-icon-wrap" style="background:#f1f5f9;color:#475569;"><i class="fa-solid fa-clock-rotate-left"></i></div>' +
+        '<div class="activity-content">' +
+          '<div class="activity-title-row"><span>' + escapeHtml(action) + '</span><span class="activity-time">' + escapeHtml(item.time || '-') + '</span></div>' +
+          '<div class="activity-desc">' + escapeHtml(item.details || item.targetRef || item.username || '-') + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function handleTeamChange() {
+    var team = getValue('inputTxTeam');
+    var search = document.getElementById('inputTxSalesSearch');
+    if (search) search.value = '';
+    setValue('inputTxSales', '');
+    appState.selectedSales = null;
+    appState.selectedSalesId = '';
+    setStyle('btnClearSalesSearch', 'display', 'none');
+    closeSalesAutocomplete();
+    refreshTransactionRowsForTeam(team);
+  }
+
+  function setupSalesAutocomplete() {
+    var input = document.getElementById('inputTxSalesSearch');
+    if (!input) return;
+    input.addEventListener('input', function() { filterSalesDropdown(); });
+    input.addEventListener('focus', function() { filterSalesDropdown(); });
+    input.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') closeSalesAutocomplete();
+    });
+  }
+
+  function filterSalesDropdown() {
+    var input = document.getElementById('inputTxSalesSearch');
+    var dropdown = document.getElementById('salesAutocompleteDropdown');
+    var team = getValue('inputTxTeam');
+    if (!input || !dropdown) return;
+
+    var keyword = String(input.value || '').toLowerCase().trim();
+    var rows = (appState.sales || []).filter(function(s) {
+      if (isNonTargetTeam(s.team_name)) return false;
+      if (team && !isTeamMatched(s.team_name, team)) return false;
+      if (String(s.status || 'ACTIVE').toUpperCase() === 'INACTIVE') return false;
+      if (!keyword) return true;
+      var blob = [s.full_name, s.sales_id, s.team_name, s.area, s.phone].join(' ').toLowerCase();
+      return blob.indexOf(keyword) > -1;
+    }).slice(0, 30);
+
+    if (rows.length === 0) {
+      dropdown.innerHTML = '<div class="autocomplete-empty"><i class="fa-regular fa-user"></i><span>Tidak ada sales yang cocok.</span></div>';
+      dropdown.style.display = 'block';
+      return;
+    }
+
+    dropdown.innerHTML = rows.map(function(s) {
+      var initial = String(s.full_name || 'S').trim().charAt(0).toUpperCase() || 'S';
+      return '<div class="autocomplete-item" onclick="selectSales(\'' + jsQuote(s.sales_id || '') + '\')">' +
+        '<div class="autocomplete-item-left">' +
+          '<div class="autocomplete-item-avatar">' + escapeHtml(initial) + '</div>' +
+          '<div class="autocomplete-item-meta"><span class="autocomplete-item-name">' + escapeHtml(s.full_name || '-') + '</span><span class="autocomplete-item-team">' + escapeHtml(s.team_name || '-') + '</span></div>' +
+        '</div>' +
+        '<span class="autocomplete-item-id-badge">' + escapeHtml(s.sales_id || '-') + '</span>' +
+      '</div>';
+    }).join('');
+    dropdown.style.display = 'block';
+  }
+
+  function selectSales(salesId) {
+    var sales = (appState.sales || []).find(function(s) { return normalizeKey(s.sales_id) === normalizeKey(salesId); });
+    if (!sales) return;
+    if (isNonTargetTeam(sales.team_name)) {
+      showToast('Kategori ini hanya digunakan untuk absensi.', 'error');
+      return;
+    }
+    var team = getValue('inputTxTeam');
+    if (team && !isTeamMatched(sales.team_name, team)) {
+      showToast('Sales tidak sesuai dengan kategori tim yang dipilih.', 'error');
+      return;
+    }
+
+    appState.selectedSales = sales;
+    appState.selectedSalesId = sales.sales_id || '';
+    setValue('inputTxSales', sales.sales_id || '');
+    var search = document.getElementById('inputTxSalesSearch');
+    if (search) search.value = sales.full_name || sales.sales_id || '';
+    setStyle('btnClearSalesSearch', 'display', 'flex');
+    closeSalesAutocomplete();
+    logClientActivity('SELECT_SALES', sales.sales_id || '', 'Memilih sales ' + (sales.full_name || sales.sales_id || ''));
+  }
+
+  function clearSalesSelection() {
+    appState.selectedSales = null;
+    appState.selectedSalesId = '';
+    setValue('inputTxSales', '');
+    var search = document.getElementById('inputTxSalesSearch');
+    if (search) search.value = '';
+    setStyle('btnClearSalesSearch', 'display', 'none');
+    closeSalesAutocomplete();
+  }
+
+  function closeSalesAutocomplete() {
+    var dropdown = document.getElementById('salesAutocompleteDropdown');
+    if (dropdown) dropdown.style.display = 'none';
+  }
+
+  function ensureTransactionRows() {
+    var tbody = document.getElementById('transactionItemsTbody');
+    if (!tbody) return;
+    if (tbody.children.length === 0) addItemRow();
+    setupSalesAutocomplete();
+    recalculateTransactionTotals();
+  }
+
+  function refreshTransactionRowsForTeam(teamName) {
+    var tbody = document.getElementById('transactionItemsTbody');
+    if (!tbody) return;
+    if (!teamName || isNonTargetTeam(teamName)) {
+      clearTransactionRowsOnly();
+      addItemRow();
+      return;
+    }
+    document.querySelectorAll('.item-product-select').forEach(function(select) {
+      populateProductSelect(select, teamName, select.value);
+    });
+    recalculateTransactionTotals();
+  }
+
+  function addItemRow() {
+    var tbody = document.getElementById('transactionItemsTbody');
+    if (!tbody) return;
+    var teamName = getValue('inputTxTeam');
+    if (teamName && isNonTargetTeam(teamName)) {
+      showToast('Kategori ' + teamName + ' hanya untuk absensi.', 'error');
+      return;
+    }
+
+    appState.itemRowCounter += 1;
+    var rowId = 'tx-item-' + appState.itemRowCounter;
+    var tr = document.createElement('tr');
+    tr.dataset.rowId = rowId;
+    tr.innerHTML =
+      '<td><select class="form-control item-product-select" onchange="handleProductChange(this)" data-row-id="' + rowId + '"><option value="">-- Pilih Produk --</option></select></td>' +
+      '<td class="text-center"><span class="item-stock-badge badge-stock-empty" data-role="stock">Stok -</span></td>' +
+      '<td class="text-right"><span data-role="cost">Rp 0</span></td>' +
+      '<td class="text-right"><span data-role="sell">Rp 0</span></td>' +
+      '<td class="text-right"><span data-role="shj">Rp 0</span></td>' +
+      '<td><input type="number" min="1" step="1" value="1" class="form-control" style="width:70px;text-align:center;margin:auto;" data-role="qty" oninput="recalculateTransactionTotals()"></td>' +
+      '<td class="text-right font-semibold"><span data-role="subtotal">Rp 0</span></td>' +
+      '<td class="text-center"><button type="button" class="btn btn-danger-soft btn-sm" onclick="removeItemRow(\'' + rowId + '\')"><i class="fa-solid fa-trash"></i></button></td>';
+    tbody.appendChild(tr);
+    populateProductSelect(tr.querySelector('.item-product-select'), teamName, '');
+    recalculateTransactionTotals();
+  }
+
+  function populateProductSelect(select, teamName, selectedValue) {
+    if (!select) return;
+    var products = getActiveProductsForTeam(teamName);
+    var html = '<option value="">-- Pilih Produk --</option>';
+    products.forEach(function(p) {
+      var id = p.product_id || p.productId || '';
+      var name = p.product_name || p.productName || id;
+      var unit = p.unit || 'Box';
+      html += '<option value="' + escapeHtml(id) + '">' + escapeHtml(name + ' (' + unit + ')') + '</option>';
+    });
+    select.innerHTML = html;
+    if (selectedValue && products.some(function(p) { return normalizeKey(p.product_id || p.productId) === normalizeKey(selectedValue); })) select.value = selectedValue;
+  }
+
+  function handleProductChange(select) {
+    var tr = select && select.closest('tr');
+    if (!tr) return;
+    var teamName = getValue('inputTxTeam');
+    var productId = select.value;
+    var product = findPriceProduct(productId, teamName);
+    updateProductRowUI(tr, product);
+    recalculateTransactionTotals();
+  }
+
+  function findPriceProduct(productId, teamName) {
+    if (!productId) return null;
+    var normId = normalizeKey(productId);
+    var normTeam = normalizeKey(teamName);
+    var exact = (appState.priceMaster || []).find(function(p) {
+      return normalizeKey(p.product_id || p.productId) === normId && normalizeKey(p.team_name || p.teamName) === normTeam;
+    });
+    if (exact) return exact;
+    return (appState.products || []).find(function(p) { return normalizeKey(p.product_id || p.productId) === normId; }) || null;
+  }
+
+  function updateProductRowUI(tr, product) {
+    var cost = product ? parseCleanNumber(product.cost_price || product.costPrice) : 0;
+    var sell = product ? parseCleanNumber(product.selling_price || product.sellingPrice) : 0;
+    var shj = product ? parseCleanNumber(product.shj || (sell - cost)) : (sell - cost);
+    var stockInfo = product ? findInventory(product.product_id || product.productId) : null;
+    var productMaster = product ? (appState.products || []).find(function(item) {
+      return normalizeKey(item.product_id || item.productId) === normalizeKey(product.product_id || product.productId);
+    }) || product : null;
+
+    var costEl = tr.querySelector('[data-role="cost"]');
+    var sellEl = tr.querySelector('[data-role="sell"]');
+    var shjEl = tr.querySelector('[data-role="shj"]');
+    var stockEl = tr.querySelector('[data-role="stock"]');
+    if (costEl) costEl.textContent = formatRupiah(cost);
+    if (sellEl) sellEl.textContent = formatRupiah(sell);
+    if (shjEl) shjEl.textContent = formatRupiah(shj);
+
+    if (stockEl) {
+      if (!stockInfo) {
+        stockEl.className = 'item-stock-badge badge-stock-empty';
+        stockEl.innerHTML = '<span class="badge-dot dot-neutral"></span> Stok -';
+      } else {
+        var distributor = String(getValue('inputTxDistributor') || '').toLowerCase();
+        var isGeubrina = distributor.indexOf('ap. geubrina rizki') === 0;
+        var selectedStock = isGeubrina
+          ? stockInfo['AP. Geubrina Rizki']
+          : stockInfo['PT. Global Mitra Prima'];
+        var stock = distributor
+          ? parseCleanNumber(selectedStock)
+          : parseCleanNumber(stockInfo['PT. Global Mitra Prima']) + parseCleanNumber(stockInfo['AP. Geubrina Rizki']);
+        var min = parseCleanNumber(productMaster && (productMaster.min_stock || productMaster.minStock)) || 50;
+        if (stock <= 0) {
+          stockEl.className = 'item-stock-badge badge-stock-danger';
+          stockEl.innerHTML = '<span class="badge-dot dot-danger"></span> Habis (' + stock + ')';
+        } else if (stock <= min) {
+          stockEl.className = 'item-stock-badge badge-stock-warning';
+          stockEl.innerHTML = '<span class="badge-dot dot-warning"></span> Menipis (' + stock + ')';
+        } else {
+          stockEl.className = 'item-stock-badge badge-stock-ready';
+          stockEl.innerHTML = '<span class="badge-dot dot-ready"></span> Siap (' + stock + ')';
+        }
+      }
+    }
+  }
+
+  function handleDistributorChange() {
+    var tbody = document.getElementById('transactionItemsTbody');
+    if (!tbody) return;
+    Array.prototype.forEach.call(tbody.querySelectorAll('.item-product-select'), function(select) {
+      if (select.value) handleProductChange(select);
+    });
+  }
+
+  function findInventory(productId) {
+    var key = normalizeKey(productId);
+    return (appState.inventory || []).find(function(item) { return normalizeKey(item.product_id || item.productId) === key; }) || null;
+  }
+
+  function removeItemRow(rowId) {
+    var tr = document.querySelector('tr[data-row-id="' + cssEscapeSimple(rowId) + '"]');
+    if (tr && tr.parentNode) tr.parentNode.removeChild(tr);
+    var tbody = document.getElementById('transactionItemsTbody');
+    if (tbody && tbody.children.length === 0) addItemRow();
+    recalculateTransactionTotals();
+  }
+
+  function clearTransactionRowsOnly() {
+    var tbody = document.getElementById('transactionItemsTbody');
+    if (tbody) tbody.innerHTML = '';
+  }
+
+  function recalculateTransactionTotals() {
+    var tbody = document.getElementById('transactionItemsTbody');
+    if (!tbody) return;
+    var teamName = getValue('inputTxTeam');
+    var totalSales = 0;
+    var totalCost = 0;
+    var totalShj = 0;
+
+    Array.prototype.forEach.call(tbody.querySelectorAll('tr'), function(tr) {
+      var productIdEl = tr.querySelector('.item-product-select');
+      var qtyEl = tr.querySelector('[data-role="qty"]');
+      var productId = productIdEl ? productIdEl.value : '';
+      var qty = Math.max(0, parseInt(qtyEl ? qtyEl.value : 0, 10) || 0);
+      var product = findPriceProduct(productId, teamName);
+      var cost = product ? parseCleanNumber(product.cost_price || product.costPrice) : 0;
+      var sell = product ? parseCleanNumber(product.selling_price || product.sellingPrice) : 0;
+      var shj = product ? parseCleanNumber(product.shj || (sell - cost)) : 0;
+      var subtotal = sell * qty;
+      totalSales += subtotal;
+      totalCost += cost * qty;
+      totalShj += shj * qty;
+      var subtotalEl = tr.querySelector('[data-role="subtotal"]');
+      if (subtotalEl) subtotalEl.textContent = formatRupiah(subtotal);
+    });
+
+    setText('displayTotalSales', formatRupiah(totalSales));
+    setText('displayTotalCost', formatRupiah(totalCost));
+    setText('displayTotalShj', formatRupiah(totalShj));
+  }
+
+  function setDefaultTransactionDate() {
+    var input = document.getElementById('inputTxDate');
+    if (input && !input.value) input.value = getLocalDateInputValue();
+  }
+
+  function submitSalesTransaction(event) {
+    if (event) event.preventDefault();
+    if (appState.isSubmittingTransaction) return;
+
+    var teamName = getValue('inputTxTeam');
+    var salesId = getValue('inputTxSales');
+    var distributor = getValue('inputTxDistributor');
+    var date = getValue('inputTxDate');
+    var notes = getValue('inputTxNotes');
+
+    if (!teamName) {
+      showToast('Pilih kategori tim terlebih dahulu.', 'error');
+      return;
+    }
+    if (isNonTargetTeam(teamName)) {
+      showToast('Kategori ' + teamName + ' hanya digunakan untuk absensi.', 'error');
+      return;
+    }
+    if (!salesId) {
+      showToast('Pilih personil sales terlebih dahulu.', 'error');
+      return;
+    }
+    if (!distributor) {
+      showToast('Pilih distributor/channel.', 'error');
+      return;
+    }
+    if (!date) {
+      showToast('Tanggal penjualan wajib diisi.', 'error');
+      return;
+    }
+
+    var tbody = document.getElementById('transactionItemsTbody');
+    var items = [];
+    if (tbody) {
+      Array.prototype.forEach.call(tbody.querySelectorAll('tr'), function(tr) {
+        var productIdEl = tr.querySelector('.item-product-select');
+        var qtyEl = tr.querySelector('[data-role="qty"]');
+        var productId = productIdEl ? String(productIdEl.value || '').trim() : '';
+        var qty = parseInt(qtyEl ? qtyEl.value : 0, 10) || 0;
+        if (!productId) return;
+        var product = findPriceProduct(productId, teamName);
+        if (!product) return;
+        var cost = parseCleanNumber(product.cost_price || product.costPrice);
+        var sell = parseCleanNumber(product.selling_price || product.sellingPrice);
+        items.push({
+          productId: productId,
+          qty: qty,
+          costPrice: cost,
+          sellingPrice: sell,
+          shj: sell - cost
+        });
+      });
+    }
+
+    if (items.length === 0) {
+      showToast('Pilih minimal satu produk.', 'error');
+      return;
+    }
+    if (items.some(function(item) { return item.qty <= 0; })) {
+      showToast('Qty produk harus lebih besar dari 0.', 'error');
+      return;
+    }
+
+    appState.isSubmittingTransaction = true;
+    var btn = document.getElementById('btnSubmitTx');
+    var originalBtn = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...';
+    }
+
+    var payload = {
+      date: date,
+      salesId: salesId,
+      teamName: teamName,
+      distributor: distributor,
+      items: items,
+      notes: notes,
+      username: appState.user && appState.user.username ? appState.user.username : 'ryan'
+    };
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        appState.isSubmittingTransaction = false;
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalBtn || '<i class="fa-solid fa-floppy-disk"></i> Simpan Transaksi Penjualan';
+        }
+        if (!res || !res.success) {
+          showToast(res && res.message ? res.message : 'Transaksi gagal disimpan.', 'error');
+          return;
+        }
+        var stockField = String(distributor || '').toLowerCase().indexOf('ap. geubrina rizki') === 0
+          ? 'AP. Geubrina Rizki'
+          : 'PT. Global Mitra Prima';
+        items.forEach(function(item) {
+          var inventoryItem = findInventory(item.productId);
+          if (inventoryItem) {
+            inventoryItem[stockField] = Math.max(0, parseCleanNumber(inventoryItem[stockField]) - item.qty);
+          }
+        });
+        showToast(res.message || ('Transaksi ' + res.transactionId + ' berhasil disimpan.'), 'success');
+        resetSalesTransactionForm();
+        loadDashboardMetrics();
+        renderInventoryTable();
+        if (appState.currentView === 'riwayat') loadTransactions(1);
+      })
+      .withFailureHandler(function(err) {
+        appState.isSubmittingTransaction = false;
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalBtn || '<i class="fa-solid fa-floppy-disk"></i> Simpan Transaksi Penjualan';
+        }
+        showToast('Gagal menyimpan transaksi: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+      })
+      .saveSalesTransaction(payload);
+  }
+
+  function resetSalesTransactionForm() {
+    setDefaultTransactionDate();
+    setValue('inputTxDistributor', '');
+    setValue('inputTxTeam', '');
+    clearSalesSelection();
+    setValue('inputTxNotes', '');
+    clearTransactionRowsOnly();
+    addItemRow();
+    recalculateTransactionTotals();
+  }
+
+  function loadTransactions(page) {
+    appState.transactionPage = page || 1;
+    var search = String(getValue('txSearchKeyword') || '').trim().toLowerCase();
+    var team = getValue('txFilterTeam') || 'ALL';
+    var distributor = getValue('txFilterDistributor') || 'ALL';
+    var date = getValue('txFilterDate') || '';
+    var tbody = document.getElementById('transactionsTbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Memuat data transaksi...</td></tr>';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.success) {
+          if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Gagal memuat transaksi.</td></tr>';
+          showToast(res && res.message ? res.message : 'Gagal memuat transaksi.', 'error');
+          return;
+        }
+        appState.transactionRows = res.data || [];
+        appState.transactionSummary = res.summary || null;
+        renderTransactionsTable(res.data || []);
+        renderTransactionPagination(res);
+      })
+      .withFailureHandler(function(err) {
+        if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Gagal memuat transaksi.</td></tr>';
+        showToast('Gagal memuat transaksi: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+      })
+      .getTransactionsPaginated(appState.transactionPage, appState.transactionPageSize, search, team, distributor, date);
+  }
+
+  function handleTxSearchKeyup(event) {
+    if (event && event.key === 'Enter') {
+      loadTransactions(1);
+      return;
+    }
+    clearTimeout(appState.txSearchTimer);
+    appState.txSearchTimer = setTimeout(function() { loadTransactions(1); }, 450);
+  }
+
+  function renderTransactionsTable(rows) {
+    var tbody = document.getElementById('transactionsTbody');
+    if (!tbody) return;
+    if (!rows || rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Tidak ada transaksi yang sesuai filter.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(function(item) {
+      return '<tr>' +
+        '<td><span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;font-weight:700;">' + escapeHtml(item.id || '-') + '</span></td>' +
+        '<td>' + escapeHtml(formatDateIndo(item.date)) + '</td>' +
+        '<td><strong>' + escapeHtml(item.salesName || '-') + '</strong></td>' +
+        '<td><span class="badge ' + getTeamBadgeClass(item.teamName) + '">' + escapeHtml(item.teamName || '-') + '</span></td>' +
+        '<td>' + escapeHtml(item.distributor || '-') + '</td>' +
+        '<td class="text-right">' + formatRupiah(item.totalCost) + '</td>' +
+        '<td class="text-right font-semibold">' + formatRupiah(item.totalSales) + '</td>' +
+        '<td class="text-right text-success font-semibold">' + formatRupiah(item.totalShj) + '</td>' +
+        '<td class="text-center"><button type="button" class="btn btn-outline btn-sm" onclick="openTransactionDetail(\'' + jsQuote(item.id || '') + '\')"><i class="fa-regular fa-eye"></i></button></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  function renderTransactionPagination(res) {
+    var current = Number(res.currentPage || appState.transactionPage || 1);
+    var totalPages = Number(res.totalPages || 1);
+    setText('txPaginationInfo', 'Halaman ' + current + ' dari ' + totalPages + ' • ' + Number(res.totalRows || 0) + ' faktur');
+    var prev = document.getElementById('btnPrevTx');
+    var next = document.getElementById('btnNextTx');
+    if (prev) prev.disabled = current <= 1;
+    if (next) next.disabled = current >= totalPages;
+  }
+
+  function changeTxPage(delta) {
+    var next = Math.max(1, (appState.transactionPage || 1) + delta);
+    loadTransactions(next);
+  }
+
+  function resetTxFilter() {
+    setValue('txSearchKeyword', '');
+    setValue('txFilterTeam', 'ALL');
+    setValue('txFilterDistributor', 'ALL');
+    setValue('txFilterDate', '');
+    loadTransactions(1);
+  }
+
+  function openTransactionDetail(transactionId) {
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.success) {
+          showToast(res && res.message ? res.message : 'Detail faktur tidak ditemukan.', 'error');
+          return;
+        }
+        var h = res.header || {};
+        setText('modalTxIdTitle', h.id || 'Faktur Penjualan');
+        setText('modalTxDateSubtitle', 'Tanggal: ' + formatDateIndo(h.date));
+        setText('modalTxSalesName', h.salesName || '-');
+        setHtml('modalTxTeamName', '<span class="badge ' + getTeamBadgeClass(h.teamName) + '">' + escapeHtml(h.teamName || '-') + '</span>');
+        setText('modalTxDistributorName', h.distributor || '-');
+        setText('modalTxCreatedBy', h.createdBy || '-');
+        setText('modalTxNotes', h.notes || '-');
+        setText('modalTxTotalSales', formatRupiah(h.totalSales));
+        setText('modalTxTotalShj', formatRupiah(h.totalShj));
+
+        var tbody = document.getElementById('modalTxItemsTbody');
+        if (tbody) {
+          tbody.innerHTML = (res.items || []).map(function(item) {
+            return '<tr>' +
+              '<td><div style="font-weight:600;">' + escapeHtml(item.productName || '-') + '</div><div style="font-size:10px;color:#64748b;">' + escapeHtml(item.productId || '-') + '</div></td>' +
+              '<td class="text-center">' + Number(item.qty || 0) + '</td>' +
+              '<td class="text-right">' + formatRupiah(item.sellingPrice) + '</td>' +
+              '<td class="text-right text-success">' + formatRupiah(item.shj) + '</td>' +
+              '<td class="text-right font-semibold">' + formatRupiah(item.subtotalSales) + '</td>' +
+            '</tr>';
+          }).join('') || '<tr><td colspan="5" class="text-center text-muted">Tidak ada item.</td></tr>';
+        }
+        setStyle('modalTransactionDetail', 'display', 'flex');
+      })
+      .withFailureHandler(function(err) {
+        showToast('Gagal memuat detail faktur: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+      })
+      .getTransactionDetail(transactionId);
+  }
+
+  function closeTxDetailModal() {
+    setStyle('modalTransactionDetail', 'display', 'none');
+  }
+
+  function renderInventoryTable() {
+    var tbody = document.getElementById('inventoryTbody');
+    if (!tbody) return;
+    var keyword = String(getValue('invSearchInput') || '').toLowerCase().trim();
+    var productsById = {};
+    (appState.products || []).forEach(function(p) {
+      productsById[normalizeKey(p.product_id || p.productId)] = p;
+    });
+    var rows = (appState.inventory || []).map(function(inv) {
+      var p = productsById[normalizeKey(inv.product_id || inv.productId)] || {};
+      return {
+        productId: inv.product_id || inv.productId || p.product_id || '',
+        productName: inv.product_name || inv.productName || p.product_name || p.name || '',
+        category: p.category || '-',
+        brand: p.brand || '-',
+        unit: p.unit || 'Box',
+        globalStock: parseCleanNumber(inv['PT. Global Mitra Prima'] || inv.pt_global_mitra_prima),
+        geubrinaStock: parseCleanNumber(inv['AP. Geubrina Rizki'] || inv.ap_geubrina_rizki),
+        minStock: parseCleanNumber(p.min_stock || p.minStock) || 50
+      };
+    }).filter(function(row) {
+      var blob = [row.productId, row.productName, row.category, row.brand].join(' ').toLowerCase();
+      return !keyword || blob.indexOf(keyword) > -1;
+    });
+
+    if (rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Data stok tidak ditemukan.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map(function(row) {
+      var combinedStock = row.globalStock + row.geubrinaStock;
+      var status = combinedStock <= 0 ? ['Habis', 'badge-danger'] : combinedStock <= row.minStock ? ['Menipis', 'badge-warning'] : ['Aman', 'badge-success'];
+      return '<tr>' +
+        '<td>' + escapeHtml(row.productId || '-') + '</td>' +
+        '<td><strong>' + escapeHtml(row.productName || '-') + '</strong></td>' +
+        '<td>' + escapeHtml(row.category || '-') + '</td>' +
+        '<td>' + escapeHtml(row.brand || '-') + '</td>' +
+        '<td class="text-center">' + escapeHtml(row.unit || '-') + '</td>' +
+        '<td class="text-right font-semibold">' + row.globalStock.toLocaleString('id-ID') + '</td>' +
+        '<td class="text-right font-semibold">' + row.geubrinaStock.toLocaleString('id-ID') + '</td>' +
+        '<td class="text-right">' + row.minStock.toLocaleString('id-ID') + '</td>' +
+        '<td class="text-center"><span class="badge ' + status[1] + '">' + status[0] + '</span></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  function filterInventoryTable() {
+    renderInventoryTable();
+  }
+
+  function renderPriceMasterTable() {
+    var tbody = document.getElementById('masterPriceTbody');
+    if (!tbody) return;
+    var keyword = String(getValue('priceSearchInput') || '').toLowerCase().trim();
+    var teamFilter = getValue('filterPriceTeam') || 'ALL';
+    var rows = (appState.priceMaster || []).filter(function(p) {
+      var team = p.team_name || p.teamName || '';
+      var blob = [p.product_id, p.product_name, team, p.unit].join(' ').toLowerCase();
+      var status = String(p.status || 'ACTIVE').toUpperCase();
+      return status !== 'INACTIVE' && (!keyword || blob.indexOf(keyword) > -1) && (teamFilter === 'ALL' || isTeamMatched(team, teamFilter));
+    });
+
+    if (rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">Data master harga tidak ditemukan.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map(function(p) {
+      var cost = parseCleanNumber(p.cost_price);
+      var sell = parseCleanNumber(p.selling_price);
+      var shj = parseCleanNumber(p.shj || (sell - cost));
+      return '<tr>' +
+        '<td>' + escapeHtml(p.product_id || '-') + '</td>' +
+        '<td><strong>' + escapeHtml(p.product_name || '-') + '</strong></td>' +
+        '<td class="text-center">' + escapeHtml(p.unit || 'Box') + '</td>' +
+        '<td><span class="badge ' + getTeamBadgeClass(p.team_name) + '">' + escapeHtml(p.team_name || '-') + '</span></td>' +
+        '<td class="text-right">' + formatRupiah(cost) + '</td>' +
+        '<td class="text-right">' + formatRupiah(sell) + '</td>' +
+        '<td class="text-right text-success font-semibold">' + formatRupiah(shj) + '</td>' +
+        '<td class="text-center"><span class="badge badge-success">' + escapeHtml(p.status || 'ACTIVE') + '</span></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  function filterPriceTable() {
+    renderPriceMasterTable();
+  }
+
+  function renderSalesProfiles() {
+    var container = document.getElementById('salesProfilesGridContainer');
+    if (!container) return;
+    var keyword = String(getValue('profileSearchInput') || '').toLowerCase().trim();
+    var team = getValue('profileFilterTeam') || 'ALL';
+    var area = getValue('profileFilterArea') || 'ALL';
+
+    var rows = (appState.sales || []).filter(function(s) {
+      var blob = [s.sales_id, s.full_name, s.team_name, s.area, s.phone, s.email].join(' ').toLowerCase();
+      return (!keyword || blob.indexOf(keyword) > -1) && (team === 'ALL' || isTeamMatched(s.team_name, team)) && (area === 'ALL' || normalizeKey(s.area) === normalizeKey(area));
+    });
+
+    setHtml('salesTotalCountBadge', '<i class="fa-solid fa-users"></i> ' + rows.length + ' Personil');
+
+    if (rows.length === 0) {
+      container.innerHTML = '<div class="attendance-loading-placeholder"><i class="fa-regular fa-user"></i><span>Personil sales tidak ditemukan.</span></div>';
+      return;
+    }
+
+    container.innerHTML = rows.map(function(s) {
+      var initial = String(s.full_name || 'S').trim().charAt(0).toUpperCase() || 'S';
+      var photo = s.photo_url || '';
+      var target = getSalesMonthlyTarget(s.team_name, s.target_monthly);
+      var hk = '-';
+      var img = photo ? '<img src="' + escapeHtml(photo) + '" class="profile-avatar-img" alt="Foto Sales" onerror="this.style.display=\'none\';">' : '<div class="profile-avatar-fallback">' + escapeHtml(initial) + '</div>';
+      var waHref = s.phone ? 'https://wa.me/' + normalizePhone(s.phone) : '#';
+      var mailHref = s.email ? 'mailto:' + encodeURIComponent(s.email) : '#';
+
+      return '<div class="sales-profile-card">' +
+        '<div class="profile-card-top">' +
+          '<div class="profile-avatar-box">' + img + '<span class="profile-status-indicator ' + (String(s.status || 'ACTIVE').toUpperCase() === 'INACTIVE' ? 'status-dot-inactive' : 'status-dot-active') + '"></span></div>' +
+          '<div class="profile-main-meta">' +
+            '<div class="profile-name-row"><div class="profile-sales-name" title="' + escapeHtml(s.full_name || '-') + '">' + escapeHtml(s.full_name || '-') + '</div></div>' +
+            '<div class="profile-id-tag">' + escapeHtml(s.sales_id || '-') + '</div>' +
+            '<div class="profile-badge-row"><span class="badge ' + getTeamBadgeClass(s.team_name) + '">' + escapeHtml(s.team_name || '-') + '</span><span class="profile-area-badge"><i class="fa-solid fa-location-dot"></i> ' + escapeHtml(s.area || '-') + '</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="profile-metrics-panel">' +
+          '<div class="profile-metric-item"><span class="profile-metric-title">Target Bulanan</span><span class="profile-metric-num">' + formatRupiah(target) + '</span></div>' +
+          '<div class="profile-metric-item"><span class="profile-metric-title">Target Harian</span><span class="profile-metric-num">' + formatRupiah(getSalesDailyTargetRate(s.team_name)) + '</span></div>' +
+          '<div class="profile-metric-item"><span class="profile-metric-title">Status</span><span class="profile-hk-badge"><i class="fa-solid fa-circle-check"></i> ' + escapeHtml(s.status || 'ACTIVE') + '</span></div>' +
+        '</div>' +
+        '<div class="profile-card-footer">' +
+          '<div class="profile-contact-group">' +
+            '<a class="profile-contact-btn btn-wa-action" href="' + escapeHtml(waHref) + '" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i></a>' +
+            '<a class="profile-contact-btn btn-email-action" href="' + escapeHtml(mailHref) + '"><i class="fa-regular fa-envelope"></i></a>' +
+          '</div>' +
+          '<div class="profile-attendance-status"><i class="fa-regular fa-calendar-check"></i> ' + hk + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function filterSalesProfiles() {
+    renderSalesProfiles();
+  }
+
+  function resetProfileFilter() {
+    setValue('profileSearchInput', '');
+    setValue('profileFilterTeam', 'ALL');
+    setValue('profileFilterArea', 'ALL');
+    renderSalesProfiles();
+  }
+function renderDriveFiles() {
+    var container = document.getElementById('driveFilesGridContainer');
+    if (!container) return;
+    var keyword = String(getValue('fileSearchInput') || '').toLowerCase().trim();
+    var category = getValue('fileFilterCategory') || 'ALL';
+    var rows = (appState.files || []).filter(function(f) {
+      var blob = [f.file_name, f.category, f.drive_url, f.update_date].join(' ').toLowerCase();
+      return (!keyword || blob.indexOf(keyword) > -1) && (category === 'ALL' || normalizeKey(f.category) === normalizeKey(category));
+    });
+
+    setHtml('filesTotalCountBadge', '<i class="fa-solid fa-folder-open"></i> ' + rows.length + ' Berkas');
+
+    if (rows.length === 0) {
+      container.innerHTML = '<div class="attendance-loading-placeholder"><i class="fa-regular fa-folder-open"></i><span>Dokumen tidak ditemukan.</span></div>';
+      return;
+    }
+
+    container.innerHTML = rows.map(function(f) {
+      var url = f.drive_url || '';
+      var name = String(f.file_name || 'Dokumen KCH');
+      var cat = String(f.category || 'Google Drive');
+      var blob = (name + ' ' + cat + ' ' + url).toLowerCase();
+      var isPdf = /\.pdf(?:$|[?#])/i.test(url) || /(^|[^a-z])pdf([^a-z]|$)/i.test(name + ' ' + cat);
+      var isDrive = /drive\.google\.com|docs\.google\.com|googleusercontent\.com/i.test(url);
+
+      var icon = 'fa-file-lines';
+      var iconStyle = 'background-color:#eff6ff;color:#2563eb;';
+      if (isPdf) {
+        icon = 'fa-file-pdf';
+        iconStyle = 'background-color:#fef2f2;color:#dc2626;';
+      } else if (isDrive) {
+        icon = 'fa-google-drive';
+        iconStyle = 'background-color:#ecfdf5;color:#16a34a;';
+      } else if (blob.indexOf('excel') > -1 || /\.xlsx?(?:$|[?#])/i.test(url)) {
+        icon = 'fa-file-excel';
+        iconStyle = 'background-color:#ecfdf5;color:#16a34a;';
+      } else if (blob.indexOf('word') > -1 || /\.docx?(?:$|[?#])/i.test(url)) {
+        icon = 'fa-file-word';
+        iconStyle = 'background-color:#eff6ff;color:#2563eb;';
+      } else if (blob.indexOf('powerpoint') > -1 || blob.indexOf('ppt') > -1 || /\.pptx?(?:$|[?#])/i.test(url)) {
+        icon = 'fa-file-powerpoint';
+        iconStyle = 'background-color:#fff7ed;color:#ea580c;';
+      } else if (blob.indexOf('folder') > -1) {
+        icon = 'fa-folder-open';
+        iconStyle = 'background-color:#eff6ff;color:#2563eb;';
+      }
+
+      var iconPrefix = icon === 'fa-google-drive' ? 'fa-brands' : 'fa-solid';
+
+      return '<div class="file-card">' +
+        '<div class="file-icon-box" style="' + iconStyle + '"><i class="' + iconPrefix + ' ' + icon + '"></i></div>' +
+        '<div class="file-name">' + escapeHtml(name) + '</div>' +
+        '<div class="file-info">' + escapeHtml(cat) + '</div>' +
+        '<div class="file-info">Update: ' + escapeHtml(formatDateIndo(f.update_date || '-')) + '</div>' +
+        '<a href="' + escapeHtml(url || 'https://drive.google.com') + '" target="_blank" rel="noopener" class="btn btn-outline btn-sm"><i class="fa-solid fa-arrow-up-right-from-square"></i> Buka</a>' +
+      '</div>';
+    }).join('');
+  }
+
+  function filterDriveFiles() {
+    renderDriveFiles();
+  }
+
+  function resetFileFilter() {
+    setValue('fileSearchInput', '');
+    setValue('fileFilterCategory', 'ALL');
+    renderDriveFiles();
+  }
+
+  function exportTransactionsToCSV() {
+    var search = String(getValue('txSearchKeyword') || '').trim().toLowerCase();
+    var team = getValue('txFilterTeam') || 'ALL';
+    var distributor = getValue('txFilterDistributor') || 'ALL';
+    var date = getValue('txFilterDate') || '';
+    showToast('Menyiapkan file CSV...', 'info');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.success) {
+          showToast(res && res.message ? res.message : 'Export gagal.', 'error');
+          return;
+        }
+        var rows = res.data || [];
+        var csv = [['ID Faktur', 'Tanggal', 'Nama Sales', 'Kategori Tim', 'Distributor', 'Total Modal', 'Total Penjualan', 'Total SHJ']];
+        rows.forEach(function(item) {
+          csv.push([
+            item.id || '',
+            item.date || '',
+            item.salesName || '',
+            item.teamName || '',
+            item.distributor || '',
+            parseCleanNumber(item.totalCost),
+            parseCleanNumber(item.totalSales),
+            parseCleanNumber(item.totalShj)
+          ]);
+        });
+        downloadTextFile('KCH_Transactions_' + getLocalDateInputValue() + '.csv', csv.map(function(row) {
+          return row.map(csvEscape).join(',');
+        }).join('\r\n'), 'text/csv;charset=utf-8;');
+        showToast('CSV berhasil dibuat.', 'success');
+      })
+      .withFailureHandler(function(err) {
+        showToast('Export gagal: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+      })
+      .getAllTransactionsForExport(search, team, distributor, date);
+  }
+
+  function printTransactionsReport() {
+    var search = String(getValue('txSearchKeyword') || '').trim().toLowerCase();
+    var team = getValue('txFilterTeam') || 'ALL';
+    var distributor = getValue('txFilterDistributor') || 'ALL';
+    var date = getValue('txFilterDate') || '';
+    showToast('Menyiapkan laporan cetak...', 'info');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.success) {
+          showToast(res && res.message ? res.message : 'Laporan gagal dibuat.', 'error');
+          return;
+        }
+        var win = window.open('', '_blank');
+        if (!win) {
+          showToast('Popup diblokir browser. Izinkan popup untuk mencetak laporan.', 'error');
+          return;
+        }
+        var rows = res.data || [];
+        var html = '<!DOCTYPE html><html><head><title>Laporan Transaksi KCH</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#111827}h1{font-size:20px;margin:0 0 4px}p{color:#64748b;font-size:12px;margin:0 0 18px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d1d5db;padding:7px;text-align:left}th{background:#f3f4f6}td.num{text-align:right}.sum{margin-top:16px;display:flex;justify-content:flex-end;gap:20px;font-size:12px;font-weight:700}</style></head><body>';
+        html += '<h1>KALBE CONSUMER HEALTH - CABANG LHOKSEUMAWE</h1><p>Laporan Transaksi Penjualan</p>';
+        html += '<table><thead><tr><th>ID Faktur</th><th>Tanggal</th><th>Sales</th><th>Tim</th><th>Distributor</th><th>Total Modal</th><th>Total Penjualan</th><th>Total SHJ</th></tr></thead><tbody>';
+        rows.forEach(function(item) {
+          html += '<tr><td>' + escapeHtml(item.id || '-') + '</td><td>' + escapeHtml(formatDateIndo(item.date)) + '</td><td>' + escapeHtml(item.salesName || '-') + '</td><td>' + escapeHtml(item.teamName || '-') + '</td><td>' + escapeHtml(item.distributor || '-') + '</td><td class="num">' + formatRupiah(item.totalCost) + '</td><td class="num">' + formatRupiah(item.totalSales) + '</td><td class="num">' + formatRupiah(item.totalShj) + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        html += '<div class="sum"><span>Penjualan: ' + formatRupiah(res.totalSales) + '</span><span>SHJ: ' + formatRupiah(res.totalShj) + '</span></div>';
+        html += '<script>window.onload=function(){window.print();}<\/script></body></html>';
+        win.document.open();
+        win.document.write(html);
+        win.document.close();
+      })
+      .withFailureHandler(function(err) {
+        showToast('Laporan gagal dibuat: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+      })
+      .getAllTransactionsForExport(search, team, distributor, date);
+  }
+
+  function logClientActivity(action, targetRef, details) {
+    try {
+      google.script.run.logClientActivity(action, targetRef, details, appState.user && appState.user.username ? appState.user.username : 'ryan');
+    } catch (e) {}
+  }
+
+  function setupMockPreviewData() {
+    appState.mockPreview = true;
+    if (!appState.teams.length) {
+      appState.teams = [
+        { team_name: 'Canvasser' },
+        { team_name: 'Junior Canvasser' },
+        { team_name: 'MPR' },
+        { team_name: 'Asisten MPR' },
+        { team_name: 'Motoris' },
+        { team_name: 'MMTW' },
+        { team_name: 'Motoris Ultimate' },
+        { team_name: 'SPG Kelontong' }
+      ];
+    }
+    if (!appState.sales.length) {
+      appState.sales = [
+        { sales_id: 'SLS-001', full_name: 'Sales Senior 01', team_name: 'Canvasser', area: 'Lhokseumawe', status: 'ACTIVE' },
+        { sales_id: 'SLS-002', full_name: 'Sales MPR 01', team_name: 'MPR', area: 'Lhokseumawe', status: 'ACTIVE' },
+        { sales_id: 'SLS-003', full_name: 'Sales Motoris 01', team_name: 'Motoris', area: 'Lhokseumawe', status: 'ACTIVE' },
+        { sales_id: 'SLS-004', full_name: 'Sales MMTW 01', team_name: 'MMTW', area: 'Bireuen', status: 'ACTIVE' },
+        { sales_id: 'SLS-005', full_name: 'Sales Ultimate 01', team_name: 'Motoris Ultimate', area: 'Takengon', status: 'ACTIVE' },
+        { sales_id: 'SLS-006', full_name: 'Sales SPG 01', team_name: 'SPG Kelontong', area: 'Langsa', status: 'ACTIVE' },
+        { sales_id: 'SLS-007', full_name: 'Helper Junior 01', team_name: 'Junior Canvasser', area: 'Lhokseumawe', status: 'ACTIVE' },
+        { sales_id: 'SLS-008', full_name: 'Helper MPR 01', team_name: 'Asisten MPR', area: 'Lhokseumawe', status: 'ACTIVE' }
+      ];
+    }
+    if (!appState.attendanceSales.length) appState.attendanceSales = appState.sales.slice();
+    if (!appState.dashboardData) {
+      appState.dashboardData = {
+        kpi: { totalSales: 0, totalTarget: 0, cumulativeTarget: 0, achievementPct: 0, workDaysPassed: 0, workDaysRemaining: 0, totalWorkDays: 0, topCanvasser: null, topMotoris: null },
+        teamAchievements: [], areaAchievements: [], salesTrend: [], salesPerformance: [], todayAttendance: [], recentTransactions: [], recentActivities: []
+      };
+    }
+    populateAllSelects();
+    ensureTransactionRows();
+    renderSalesProfiles();
+    renderInventoryTable();
+    renderPriceMasterTable();
+    renderDriveFiles();
+    renderDashboardData(appState.dashboardData);
+  }
+
+  function chartOptionsRupiah() {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { display: true, position: 'top', labels: { boxWidth: 9, boxHeight: 9, font: { size: 10 } } },
+        tooltip: { callbacks: { label: function(ctx) { return ' ' + ctx.dataset.label + ': ' + formatRupiah(ctx.raw); } } }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 9.5 }, color: '#64748b' } },
+        y: { beginAtZero: true, grid: { color: '#eef2f7' }, ticks: { font: { size: 9.5 }, color: '#64748b', callback: function(value) { return formatCompactRupiah(value); } } }
+      }
+    };
+  }
+
+  function formatCompactRupiah(value) {
+    var n = parseCleanNumber(value);
+    if (n >= 1000000000) return 'Rp ' + (n / 1000000000).toFixed(1).replace('.0', '') + ' M';
+    if (n >= 1000000) return 'Rp ' + (n / 1000000).toFixed(1).replace('.0', '') + ' Jt';
+    if (n >= 1000) return 'Rp ' + (n / 1000).toFixed(0) + ' Rb';
+    return 'Rp ' + n.toLocaleString('id-ID');
+  }
+
+  function destroyChart(name) {
+    if (appState.charts[name]) {
+      try { appState.charts[name].destroy(); } catch (e) {}
+      appState.charts[name] = null;
+    }
+  }
+
+  function jsQuote(value) {
+    return String(value === null || value === undefined ? '' : value).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r/g, '\\r').replace(/\n/g, '\\n');
+  }
+
+  function csvEscape(value) {
+    var str = String(value === null || value === undefined ? '' : value);
+    if (/[",\n\r]/.test(str)) return '"' + str.replace(/"/g, '""') + '"';
+    return str;
+  }
+
+  function downloadTextFile(filename, content, mime) {
+    var blob = new Blob([content], { type: mime || 'text/plain;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+  }
+
+  function getLocalDateInputValue() {
+    var d = new Date();
+    var y = d.getFullYear();
+    var m = ('0' + (d.getMonth() + 1)).slice(-2);
+    var day = ('0' + d.getDate()).slice(-2);
+    return y + '-' + m + '-' + day;
+  }
+
+  function normalizePhone(phone) {
+    var str = String(phone || '').replace(/[^0-9+]/g, '');
+    if (str.indexOf('+62') === 0) return str.slice(1);
+    if (str.indexOf('62') === 0) return str;
+    if (str.indexOf('0') === 0) return '62' + str.slice(1);
+    return str;
+  }
+
+  function cssEscapeSimple(value) {
+    return String(value || '').replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+  }
+
+  function getValue(id) {
+    var el = document.getElementById(id);
+    return el ? el.value : '';
+  }
+
+  function setValue(id, value) {
+    var el = document.getElementById(id);
+    if (el) el.value = value === null || value === undefined ? '' : value;
+  }
+
+  function setText(id, value) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = value === null || value === undefined ? '' : value;
+  }
+
+  function setHtml(id, value) {
+    var el = document.getElementById(id);
+    if (el) el.innerHTML = value === null || value === undefined ? '' : value;
+  }
+
+  function setStyle(id, property, value) {
+    var el = document.getElementById(id);
+    if (el) el.style[property] = value;
+  }
+</script>

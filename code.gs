@@ -1,0 +1,2247 @@
+/**
+ * KALBE CONSUMER HEALTH - SALES MONITORING SYSTEM (CABANG LHOKSEUMAWE)
+ * File: code.gs
+ * Backend Logic: Unified Transaction Processing, Analytics & Dynamic Working Days (HK)
+ * Features:
+ *  - Dynamic Working Days: Auto-calculates active month workdays excluding Sundays & HOLIDAYS sheet
+ *  - Unified Table: SALES_TRANSACTIONS (sales_name, shj, subtotal_shj, created_at HH:mm:ss)
+ *  - High-Efficiency Grouping for Pagination & Metrics (with Total Modal & Total SHJ)
+ * Author: ZettBOT by Zettbos
+ */
+
+var TIMEZONE = 'Asia/Jakarta';
+var DATE_FORMAT = 'dd/MM/yyyy HH:mm:ss';
+
+var STANDARD_TEAMS = [
+  'Canvasser',
+  'Junior Canvasser',
+  'MPR',
+  'Asisten MPR',
+  'Motoris',
+  'MMTW',
+  'Motoris Ultimate',
+  'SPG Kelontong'
+];
+
+function isAttendanceOnlyTeam_(teamName) {
+  return normalizeKey(teamName) === 'SPR';
+}
+
+function doGet(e) {
+  var template = HtmlService.createTemplateFromFile('index');
+  return template.evaluate()
+    .setTitle('Kalbe Consumer Health - Cabang Lhokseumawe')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+function getCurrentUserInfo() {
+  var activeEmail = '';
+  try {
+    activeEmail = Session.getActiveUser().getEmail();
+  } catch (e) {}
+
+  var user = {
+    username: 'ryan',
+    fullName: 'Ryan Pratama',
+    shortName: 'Ryan',
+    role: 'Sales Coordinator',
+    email: activeEmail || 'ryan.coordinator@kalbe.co.id'
+  };
+
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var userSheet = ss.getSheetByName('USERS');
+    if (userSheet && userSheet.getLastRow() > 1) {
+      var uData = getSheetData('USERS').rows;
+      if (activeEmail) {
+        var foundByEmail = uData.find(function(u) {
+          return normalizeKey(u.username) === normalizeKey(activeEmail) || 
+                 (u.email && normalizeKey(u.email) === normalizeKey(activeEmail));
+        });
+        if (foundByEmail) {
+          var fullName = foundByEmail.full_name || foundByEmail.username;
+          var short = fullName.split(' ')[0];
+          user.username = foundByEmail.username;
+          user.fullName = fullName;
+          user.shortName = short.charAt(0).toUpperCase() + short.slice(1).toLowerCase();
+          user.role = foundByEmail.role || 'Sales Coordinator';
+          user.email = activeEmail;
+          return user;
+        }
+      }
+
+      var defaultRyan = uData.find(function(u) {
+        return normalizeKey(u.username) === 'RYAN';
+      });
+      if (defaultRyan) {
+        var rName = defaultRyan.full_name || 'Ryan Pratama';
+        var rShort = rName.split(' ')[0];
+        user.username = defaultRyan.username;
+        user.fullName = rName;
+        user.shortName = rShort.charAt(0).toUpperCase() + rShort.slice(1).toLowerCase();
+        user.role = defaultRyan.role || 'Sales Coordinator';
+      }
+    }
+  } catch (err) {}
+
+  return user;
+}
+
+function getSidebarLogoUrl() {
+  try {
+    var settingsRows = getSheetData('SETTINGS').rows;
+    for (var i = 0; i < settingsRows.length; i++) {
+      if (normalizeKey(settingsRows[i].setting_key) === 'SIDEBAR_LOGO_URL') {
+        var rawUrl = String(settingsRows[i].setting_value || '').trim();
+        return formatDrivePhotoUrl(rawUrl);
+      }
+    }
+  } catch (err) {}
+  return '';
+}
+
+function getIndividualDailyTargetRate(teamName) {
+  if (!teamName) return 0;
+  var t = String(teamName).toUpperCase().trim();
+  if (isAttendanceOnlyTeam_(t)) return 0;
+  if (t.indexOf('JUNIOR') > -1) return 0;
+  if (t.indexOf('ASISTEN MPR') > -1) return 0;
+  if (t === 'MPR' || t.indexOf('MPR ') === 0 || t.indexOf(' MPR') > -1) return 3500000;
+  if (t.indexOf('ULTIMATE') > -1) return 800000;
+  if (t.indexOf('MMTW') > -1) return 1200000;
+  if (t.indexOf('MOTORIS') > -1) return 1200000;
+  if (t.indexOf('SPG') > -1) return 800000;
+  if (t.indexOf('CANVASSER') > -1) return 3500000;
+  return 0;
+}
+
+function getIndividualMonthlyTarget(teamName, manualTarget) {
+  var parsedManual = parseCleanNumber(manualTarget);
+  if (!teamName) return (parsedManual > 0) ? parsedManual : 0;
+  
+  var t = String(teamName).toUpperCase().trim();
+  if (isAttendanceOnlyTeam_(t)) return 0;
+  if (t.indexOf('JUNIOR') > -1) return 0;
+  if (t.indexOf('ASISTEN MPR') > -1) return 0;
+  if (t === 'MPR' || t.indexOf('MPR ') === 0 || t.indexOf(' MPR') > -1) {
+    return (parsedManual > 0 && parsedManual !== 30000000 && parsedManual !== 27000000) ? parsedManual : 80000000;
+  }
+  if (t.indexOf('CANVASSER') > -1) {
+    return (parsedManual > 0 && parsedManual !== 30000000 && parsedManual !== 27000000) ? parsedManual : 80000000;
+  }
+  if (t.indexOf('ULTIMATE') > -1) return (parsedManual > 0) ? parsedManual : 20000000;
+  if (t.indexOf('MMTW') > -1) return (parsedManual > 0 && parsedManual !== 30000000) ? parsedManual : 27000000;
+  if (t.indexOf('MOTORIS') > -1) return (parsedManual > 0 && parsedManual !== 30000000) ? parsedManual : 27000000;
+  if (t.indexOf('SPG') > -1) return (parsedManual > 0) ? parsedManual : 20000000;
+  if (parsedManual > 0) return parsedManual;
+  return 0;
+}
+
+function normalizeKey(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).trim().toUpperCase();
+}
+
+function parseCleanNumber(val) {
+  if (val === null || val === undefined || val === '') return 0;
+  if (typeof val === 'number') return val;
+  var clean = String(val).replace(/Rp|\s/gi, '').trim();
+  if (clean.indexOf('.') > -1 && clean.indexOf(',') > -1) {
+    clean = clean.replace(/\./g, '').replace(',', '.');
+  } else if (clean.indexOf('.') > -1 && clean.indexOf(',') === -1) {
+    var parts = clean.split('.');
+    if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+      clean = clean.replace(/\./g, '');
+    }
+  } else if (clean.indexOf(',') > -1) {
+    clean = clean.replace(',', '.');
+  }
+  var n = parseFloat(clean);
+  return isNaN(n) ? 0 : n;
+}
+
+function normalizeDateString(dateVal) {
+  if (!dateVal) return '';
+  if (Object.prototype.toString.call(dateVal) === '[object Date]') {
+    return Utilities.formatDate(dateVal, TIMEZONE, 'yyyy-MM-dd');
+  }
+  var str = String(dateVal).trim();
+  if (str.indexOf(' ') > -1) str = str.split(' ')[0];
+
+  if (str.indexOf('/') > -1) {
+    var parts = str.split('/');
+    if (parts.length === 3) {
+      if (parts[0].length === 4) {
+        return parts[0] + '-' + ('0' + parts[1]).slice(-2) + '-' + ('0' + parts[2]).slice(-2);
+      }
+      var p0 = parseInt(parts[0], 10);
+      var p1 = parseInt(parts[1], 10);
+      var y = parts[2].length === 2 ? ('20' + parts[2]) : parts[2];
+      return y + '-' + ('0' + p1).slice(-2) + '-' + ('0' + p0).slice(-2);
+    }
+  } else if (str.indexOf('-') > -1) {
+    var dashParts = str.split('-');
+    if (dashParts.length === 3 && dashParts[0].length <= 2) {
+      var d2 = ('0' + dashParts[0]).slice(-2);
+      var m2 = ('0' + dashParts[1]).slice(-2);
+      var y2 = dashParts[2].length === 2 ? ('20' + dashParts[2]) : dashParts[2];
+      return y2 + '-' + m2 + '-' + d2;
+    }
+  }
+  return str.slice(0, 10);
+}
+
+function extractDriveFileId(url) {
+  if (!url) return '';
+  url = String(url).trim();
+  var matchFileD = url.match(/\/file\/d\/([a-zA-Z0-9_-]{20,})/i) || url.match(/\/d\/([a-zA-Z0-9_-]{20,})/i);
+  if (matchFileD && matchFileD[1]) return matchFileD[1];
+
+  var matchIdParam = url.match(/[?&]id=([a-zA-Z0-9_-]{20,})/i);
+  if (matchIdParam && matchIdParam[1]) return matchIdParam[1];
+
+  var matchLh3 = url.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]{20,})/i);
+  if (matchLh3 && matchLh3[1]) return matchLh3[1];
+
+  if (/^[a-zA-Z0-9_-]{25,50}$/.test(url)) return url;
+  return '';
+}
+
+function formatDrivePhotoUrl(url) {
+  if (!url) return '';
+  url = String(url).trim();
+  var fileId = extractDriveFileId(url);
+  if (fileId) {
+    return 'https://lh3.googleusercontent.com/d/' + fileId;
+  }
+  return url;
+}
+
+function formatVisitPhotoTime(value) {
+  if (!value) return '';
+  if (Object.prototype.toString.call(value) === '[object Date]') {
+    return Utilities.formatDate(value, TIMEZONE, 'HH:mm');
+  }
+  var timeText = String(value).trim();
+  var match = timeText.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*$/);
+  if (match) return ('0' + match[1]).slice(-2) + ':' + match[2];
+  return timeText;
+}
+
+function getSheetData(sheetName) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return { headers: [], rows: [] };
+  
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  if (lastRow <= 1 || lastCol === 0) {
+    var h = (lastCol > 0) ? sheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0] : [];
+    return { headers: h, rows: [] };
+  }
+  
+  var displayValues = sheet.getRange(1, 1, lastRow, lastCol).getDisplayValues();
+  var rawValues = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+  var headers = displayValues[0];
+  var rows = [];
+  
+  for (var i = 1; i < displayValues.length; i++) {
+    var rowObj = {};
+    var hasContent = false;
+    for (var c = 0; c < headers.length; c++) {
+      var hName = headers[c];
+      var cellDisp = displayValues[i][c] !== undefined ? displayValues[i][c] : '';
+      var cellRaw = rawValues[i][c];
+
+      if (Object.prototype.toString.call(cellRaw) === '[object Date]') {
+        rowObj[hName] = Utilities.formatDate(cellRaw, TIMEZONE, 'yyyy-MM-dd HH:mm:ss');
+      } else {
+        rowObj[hName] = cellDisp;
+      }
+
+      if (cellDisp !== '' || cellRaw !== '') hasContent = true;
+    }
+    if (hasContent) rows.push(rowObj);
+  }
+  return { headers: headers, rows: rows };
+}
+
+function getWorkDaysConfig() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var now = new Date();
+  var year = now.getFullYear();
+  var month = now.getMonth(); // 0 = Jan, 9 = Oct
+  var todayDate = now.getDate();
+  var daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  // 1. Baca daftar tanggal merah nasional & daerah dari sheet HOLIDAYS
+  var holidayMap = {};
+  var holidaySheetNames = ['HOLIDAYS', 'HARI_LIBUR', 'LIBUR'];
+  var holidaySheet = null;
+
+  for (var h = 0; h < holidaySheetNames.length; h++) {
+    var sh = ss.getSheetByName(holidaySheetNames[h]);
+    if (sh && sh.getLastRow() > 1) {
+      holidaySheet = sh;
+      break;
+    }
+  }
+
+  if (holidaySheet) {
+    try {
+      var hLastR = holidaySheet.getLastRow();
+      var hLastC = holidaySheet.getLastColumn();
+      var hHeaders = holidaySheet.getRange(1, 1, 1, hLastC).getDisplayValues()[0];
+      
+      var colDateIdx = -1;
+      var colDescIdx = -1;
+      for (var hc = 0; hc < hHeaders.length; hc++) {
+        var hName = String(hHeaders[hc] || '').toLowerCase().trim();
+        if (hName === 'date' || hName === 'holiday_date' || hName === 'tanggal' || hName === 'tgl') {
+          colDateIdx = hc;
+        } else if (hName === 'holiday_name' || hName === 'keterangan' || hName === 'nama_libur' || hName === 'description') {
+          colDescIdx = hc;
+        }
+      }
+      if (colDateIdx === -1) colDateIdx = 0;
+
+      var hVals = holidaySheet.getRange(2, 1, hLastR - 1, hLastC).getDisplayValues();
+      for (var r = 0; r < hVals.length; r++) {
+        var rawDate = hVals[r][colDateIdx];
+        var normDate = normalizeDateString(rawDate);
+        if (normDate) {
+          var desc = (colDescIdx !== -1 && hVals[r][colDescIdx]) ? String(hVals[r][colDescIdx]).trim() : 'Libur Nasional / Daerah';
+          holidayMap[normDate] = desc;
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 2. Baca SETTINGS untuk fleksibilitas override (opsional)
+  var settingSheet = ss.getSheetByName('SETTINGS');
+  var settingsMap = {};
+  if (settingSheet && settingSheet.getLastRow() > 1) {
+    try {
+      var sData = getSheetData('SETTINGS').rows;
+      sData.forEach(function(s) {
+        if (s.setting_key) settingsMap[normalizeKey(s.setting_key)] = s.setting_value;
+      });
+    } catch (err) {}
+  }
+
+  // 3. Kalkulasi Otomatis: Hari kalender bulan berjalan dikurangi hari Minggu & tanggal merah di sheet HOLIDAYS
+  var autoTotalWorkDays = 0;
+  var autoPassedWorkDays = 0;
+
+  for (var d = 1; d <= daysInMonth; d++) {
+    var dt = new Date(year, month, d);
+    var isSunday = (dt.getDay() === 0);
+    var dateStr = Utilities.formatDate(dt, TIMEZONE, 'yyyy-MM-dd');
+    var isHoliday = !isSunday && !!holidayMap[dateStr];
+
+    if (!isSunday && !isHoliday) {
+      autoTotalWorkDays++;
+      if (d <= todayDate) {
+        autoPassedWorkDays++;
+      }
+    }
+  }
+
+  var totalWorkDays = autoTotalWorkDays;
+  var passedWorkDays = autoPassedWorkDays;
+
+  // Manual override hanya jika ENABLE_MANUAL_WORK_DAYS diset TRUE di sheet SETTINGS
+  if (String(settingsMap['ENABLE_MANUAL_WORK_DAYS'] || '').toUpperCase() === 'TRUE') {
+    if (settingsMap['TOTAL_WORK_DAYS']) {
+      var parsedTotal = parseInt(settingsMap['TOTAL_WORK_DAYS'], 10);
+      if (!isNaN(parsedTotal) && parsedTotal > 0) totalWorkDays = parsedTotal;
+    }
+    if (settingsMap['WORK_DAYS_PASSED'] !== undefined && settingsMap['WORK_DAYS_PASSED'] !== '') {
+      var parsedPassed = parseInt(settingsMap['WORK_DAYS_PASSED'], 10);
+      if (!isNaN(parsedPassed) && parsedPassed >= 0) passedWorkDays = parsedPassed;
+    }
+  }
+
+  if (passedWorkDays > totalWorkDays) passedWorkDays = totalWorkDays;
+
+  return {
+    totalWorkDays: totalWorkDays,
+    workDaysPassed: passedWorkDays,
+    workDaysRemaining: Math.max(0, totalWorkDays - passedWorkDays)
+  };
+}
+
+function getHolidayDateMap() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var holidayMap = {};
+  var holidaySheetNames = ['HOLIDAYS', 'HARI_LIBUR', 'LIBUR'];
+  var holidaySheet = null;
+
+  for (var h = 0; h < holidaySheetNames.length; h++) {
+    var sh = ss.getSheetByName(holidaySheetNames[h]);
+    if (sh && sh.getLastRow() > 1) {
+      holidaySheet = sh;
+      break;
+    }
+  }
+
+  if (!holidaySheet) return holidayMap;
+
+  try {
+    var lastRow = holidaySheet.getLastRow();
+    var lastCol = holidaySheet.getLastColumn();
+    var headers = holidaySheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
+    var dateCol = -1;
+
+    for (var c = 0; c < headers.length; c++) {
+      var header = String(headers[c] || '').toLowerCase().trim();
+      if (header === 'date' || header === 'holiday_date' || header === 'tanggal' || header === 'tgl') {
+        dateCol = c;
+        break;
+      }
+    }
+    if (dateCol === -1) dateCol = 0;
+
+    var values = holidaySheet.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues();
+    for (var r = 0; r < values.length; r++) {
+      var dateStr = normalizeDateString(values[r][dateCol]);
+      if (dateStr) holidayMap[dateStr] = true;
+    }
+  } catch (err) {}
+
+  return holidayMap;
+}
+
+function getWorkDateRangeInfo(startDate, endDate, holidayMap) {
+  var startMatch = String(startDate || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  var endMatch = String(endDate || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!startMatch || !endMatch) return { workDays: 0, dates: [] };
+
+  var cursor = new Date(Date.UTC(Number(startMatch[1]), Number(startMatch[2]) - 1, Number(startMatch[3])));
+  var end = new Date(Date.UTC(Number(endMatch[1]), Number(endMatch[2]) - 1, Number(endMatch[3])));
+  if (isNaN(cursor.getTime()) || isNaN(end.getTime()) || cursor > end) return { workDays: 0, dates: [] };
+  if (cursor.getUTCFullYear() !== Number(startMatch[1]) || cursor.getUTCMonth() !== Number(startMatch[2]) - 1 || cursor.getUTCDate() !== Number(startMatch[3])) return { workDays: 0, dates: [] };
+  if (end.getUTCFullYear() !== Number(endMatch[1]) || end.getUTCMonth() !== Number(endMatch[2]) - 1 || end.getUTCDate() !== Number(endMatch[3])) return { workDays: 0, dates: [] };
+
+  var dates = [];
+  var workDays = 0;
+  var maxDays = 4000;
+  var scanned = 0;
+  holidayMap = holidayMap || {};
+
+  while (cursor <= end && scanned < maxDays) {
+    var year = cursor.getUTCFullYear();
+    var month = ('0' + (cursor.getUTCMonth() + 1)).slice(-2);
+    var day = ('0' + cursor.getUTCDate()).slice(-2);
+    var dateStr = year + '-' + month + '-' + day;
+    var isWorkDay = cursor.getUTCDay() !== 0 && !holidayMap[dateStr];
+
+    dates.push({ date: dateStr, isWorkDay: isWorkDay });
+    if (isWorkDay) workDays++;
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    scanned++;
+  }
+
+  return { workDays: workDays, dates: dates };
+}
+
+function generateSequentialId(prefix, sheetName, colIndex, isDaily) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(sheetName);
+  var lastRow = sheet ? sheet.getLastRow() : 1;
+  var now = new Date();
+  var dateStr = Utilities.formatDate(now, TIMEZONE, 'yyyyMMdd');
+  
+  if (isDaily) {
+    var searchPrefix = prefix + '-' + dateStr + '-';
+    var maxNum = 0;
+    if (lastRow > 1) {
+      var ids = sheet.getRange(2, colIndex, lastRow - 1, 1).getDisplayValues();
+      for (var i = 0; i < ids.length; i++) {
+        var id = ids[i][0];
+        if (id && id.indexOf(searchPrefix) === 0) {
+          var numPart = parseInt(id.replace(searchPrefix, ''), 10);
+          if (!isNaN(numPart) && numPart > maxNum) maxNum = numPart;
+        }
+      }
+    }
+    var next = maxNum + 1;
+    return searchPrefix + ('0000' + next).slice(-4);
+  } else {
+    var searchPrefixNonDaily = prefix + '-';
+    var maxNumNonDaily = 0;
+    if (lastRow > 1) {
+      var idsNonDaily = sheet.getRange(2, colIndex, lastRow - 1, 1).getDisplayValues();
+      for (var j = 0; j < idsNonDaily.length; j++) {
+        var curId = idsNonDaily[j][0];
+        if (curId && curId.indexOf(searchPrefixNonDaily) === 0) {
+          var num = parseInt(curId.replace(searchPrefixNonDaily, ''), 10);
+          if (!isNaN(num) && num > maxNumNonDaily) maxNumNonDaily = num;
+        }
+      }
+    }
+    return searchPrefixNonDaily + ('0000' + (maxNumNonDaily + 1)).slice(-4);
+  }
+}
+
+function logActivity(username, action, targetRef, details) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('ACTIVITY_LOGS');
+    if (!sheet) return;
+    
+    var logId = generateSequentialId('LOG', 'ACTIVITY_LOGS', 1, false);
+    var timestamp = Utilities.formatDate(new Date(), TIMEZONE, DATE_FORMAT);
+    sheet.appendRow([logId, timestamp, username || 'admin', action, targetRef, details]);
+    SpreadsheetApp.flush();
+  } catch (err) {}
+}
+
+function logClientActivity(action, targetRef, details, username) {
+  try {
+    logActivity(username || 'ryan', action, targetRef, details);
+    return { success: true };
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+}
+
+function getInitialAppMetadata() {
+  try {
+    SpreadsheetApp.flush();
+    var products = getSheetData('PRODUCTS').rows;
+    var rawSales = getSheetData('SALES').rows;
+    var priceMaster = getSheetData('PRICE_MASTER').rows;
+    var inventory = getSheetData('INVENTORY').rows;
+    var rawVisitPhotos = getSheetData('VISIT_PHOTOS').rows;
+    var kchNews = getActiveKchNews();
+    var weeklyMeetings = getWeeklyMeetings_();
+    var workDays = getWorkDaysConfig();
+    var currentUser = getCurrentUserInfo();
+
+    var rawDistributors = getSheetData('DISTRIBUTORS').rows;
+    var distributors = [];
+    if (rawDistributors && rawDistributors.length > 0) {
+      rawDistributors.forEach(function(d) {
+        var dName = d.distributor_name || d.name || '';
+        if (dName && String(d.status || 'ACTIVE').toUpperCase() === 'ACTIVE') {
+          distributors.push({
+            id: d.distributor_id || '',
+            name: dName,
+            type: d.distributor_type || d.type || 'Subdist'
+          });
+        }
+      });
+    }
+    if (distributors.length === 0) {
+      distributors = [
+        { id: 'DIST-01', name: 'PT. Global Mitra Prima (Subdist)', type: 'Subdist' },
+        { id: 'DIST-02', name: 'AP. Geubrina Rizki (Panel)', type: 'Panel' }
+      ];
+    }
+
+    var rawFiles = getSheetData('FILES').rows;
+    var files = [];
+    rawFiles.forEach(function(f) {
+      var fName = f.file_name || f.name || '';
+      var fCat = f.category || f.kategori || 'Google Drive';
+      var fUrl = f.drive_url || f.link_file || 'https://drive.google.com';
+      var fDate = f.update_date || f.updated_at || '';
+      if (fName || fUrl !== 'https://drive.google.com') {
+        files.push({
+          file_name: fName || 'Dokumen KCH',
+          category: fCat,
+          drive_url: fUrl,
+          update_date: fDate
+        });
+      }
+    });
+
+    var visitPhotos = rawVisitPhotos.filter(function(photo) {
+      return String(photo.status || 'ACTIVE').toUpperCase() !== 'INACTIVE';
+    }).map(function(photo) {
+      return {
+        visitId: photo.visit_id || '',
+        date: normalizeDateString(photo.visit_date || ''),
+        time: formatVisitPhotoTime(photo.visit_time),
+        salesId: photo.sales_id || '',
+        salesName: photo.sales_name || '',
+        teamName: photo.team_name || '',
+        area: photo.area || '',
+        photoUrl: formatDrivePhotoUrl(photo.photo_url || ''),
+        notes: photo.notes || ''
+      };
+    });
+
+    var sales = [];
+    var attendanceSales = [];
+    var teamMonthlyTargetMap = {};
+    STANDARD_TEAMS.forEach(function(st) { teamMonthlyTargetMap[normalizeKey(st)] = 0; });
+
+    rawSales.forEach(function(s) {
+      var sTeamRaw = s.team_name || s.team_id || 'Canvasser';
+      var finalTeam = sTeamRaw;
+      var teamKey = normalizeKey(sTeamRaw);
+
+      if (teamKey === 'CANVASSER' || teamKey === 'TEAM-01') finalTeam = 'Canvasser';
+      else if (teamKey === 'ASISTEN CANVASSER') finalTeam = 'Junior Canvasser';
+      else if (teamKey === 'MOTORIS' || teamKey === 'TEAM-02') finalTeam = 'Motoris';
+      else if (teamKey === 'ULTIMATE' || teamKey === 'MOTORIS ULTIMATE' || teamKey === 'TEAM-03') finalTeam = 'Motoris Ultimate';
+      else if (teamKey === 'SPG' || teamKey === 'SPG KELONTONG' || teamKey === 'TEAM-04') finalTeam = 'SPG Kelontong';
+
+      var rawTgt = s.target_monthly !== undefined ? s.target_monthly : s.target_amount;
+      var sOfficialMonthlyTarget = getIndividualMonthlyTarget(finalTeam, rawTgt);
+      var sDailyRate = getIndividualDailyTargetRate(finalTeam);
+
+      var normTeamKey = normalizeKey(finalTeam);
+      if (!isAttendanceOnlyTeam_(finalTeam)) {
+        if (teamMonthlyTargetMap[normTeamKey] === undefined) teamMonthlyTargetMap[normTeamKey] = 0;
+        teamMonthlyTargetMap[normTeamKey] += sOfficialMonthlyTarget;
+      }
+
+      var salesRecord = {
+        sales_id: s.sales_id || '',
+        full_name: s.full_name || '',
+        team_name: finalTeam,
+        area: s.area || 'Lhokseumawe',
+        daily_target: sDailyRate,
+        target_amount: sOfficialMonthlyTarget,
+        target_monthly: sOfficialMonthlyTarget,
+        photo_url: formatDrivePhotoUrl(s.photo_url),
+        phone: String(s.phone || '').trim(),
+        email: String(s.email || '').trim(),
+        status: s.status || 'ACTIVE'
+      };
+      attendanceSales.push(salesRecord);
+      if (!isAttendanceOnlyTeam_(finalTeam)) sales.push(salesRecord);
+    });
+
+    var teams = [];
+    STANDARD_TEAMS.forEach(function(st) {
+      var norm = normalizeKey(st);
+      teams.push({
+        team_id: st,
+        team_name: st,
+        monthly_target: teamMonthlyTargetMap[norm] || 0,
+        status: 'ACTIVE'
+      });
+    });
+
+    priceMaster.forEach(function(prc) {
+      prc.cost_price = parseCleanNumber(prc.cost_price);
+      prc.selling_price = parseCleanNumber(prc.selling_price);
+      prc.shj = parseCleanNumber(prc.shj);
+    });
+
+    inventory.forEach(function(inv) {
+      inv['PT. Global Mitra Prima'] = parseCleanNumber(inv['PT. Global Mitra Prima']);
+      inv['AP. Geubrina Rizki'] = parseCleanNumber(inv['AP. Geubrina Rizki']);
+    });
+
+    return {
+      success: true,
+      user: currentUser,
+      teams: teams,
+      distributors: distributors,
+      products: products,
+      sales: sales,
+      priceMaster: priceMaster,
+      inventory: inventory,
+      files: files,
+      attendanceSales: attendanceSales,
+      visitPhotos: visitPhotos,
+      kchNews: kchNews,
+      weeklyMeetings: weeklyMeetings,
+      canManageKchNews: isKchNewsManager_(),
+      canManageTodayPlan: isKchNewsManager_(),
+      canManageWeeklyMeetings: isWeeklyMeetingManager_(),
+      workDays: workDays
+    };
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+}
+
+function getDashboardMetrics(filters) {
+  try {
+    SpreadsheetApp.flush();
+    filters = filters || {};
+    var txData = getSheetData('SALES_TRANSACTIONS').rows;
+    var salesData = getSheetData('SALES').rows;
+    var workDays = getWorkDaysConfig();
+    var currentUser = getCurrentUserInfo();
+
+    var period = (filters.period || 'TODAY').toUpperCase();
+    var now = new Date();
+    var todayRealStr = Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd');
+    var currentYear = now.getFullYear();
+    var currentMonth = ('0' + (now.getMonth() + 1)).slice(-2);
+    var currentMonthPrefix = currentYear + '-' + currentMonth;
+
+    var weekAgo = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+    var defaultWeekStart = Utilities.formatDate(weekAgo, TIMEZONE, 'yyyy-MM-dd');
+
+    var startDate = filters.startDate || '';
+    var endDate = filters.endDate || '';
+
+    if (period === 'WEEK' || period === 'THIS WEEK') {
+      if (!startDate) startDate = defaultWeekStart;
+      if (!endDate) endDate = todayRealStr;
+    } else if (period === 'MONTH' || period === 'THIS MONTH') {
+      if (!startDate) startDate = currentMonthPrefix + '-01';
+      if (!endDate) {
+        var lastDay = new Date(currentYear, now.getMonth() + 1, 0).getDate();
+        endDate = currentMonthPrefix + '-' + ('0' + lastDay).slice(-2);
+      }
+    }
+
+    var chartStartDate = startDate || todayRealStr;
+    var chartEndDate = endDate || chartStartDate;
+    var workDateRange = getWorkDateRangeInfo(chartStartDate, chartEndDate, getHolidayDateMap());
+
+    var legacyMap = {
+      'TEAM-01': 'Canvasser',
+      'TEAM-02': 'MOTORIS',
+      'TEAM-03': 'MOTORIS ULTIMATE',
+      'TEAM-04': 'SPG KELONTONG',
+      'CANVASSER': 'Canvasser',
+      'ASISTEN CANVASSER': 'Junior Canvasser'
+    };
+
+    var teamMonthlyTargetMap = {};
+    var teamSalesMap = {};
+    var teamNameMap = {};
+    var teamsList = [];
+
+    STANDARD_TEAMS.forEach(function(st) {
+      var normSt = normalizeKey(st);
+      teamMonthlyTargetMap[normSt] = 0;
+      teamSalesMap[normSt] = 0;
+      teamNameMap[normSt] = st;
+      teamsList.push({ teamId: st, teamName: st, target: 0 });
+    });
+
+    var salesAchievementMap = {};
+    var salesNameMap = {};
+    var salesTeamMap = {};
+    var salesAreaMap = {};
+    var branchOfficialMonthlyTargetTotal = 0;
+    var branchDailyTargetTotal = 0;
+
+    salesData.forEach(function(s) {
+      var sIdRaw = String(s.sales_id || '').trim();
+      if (!sIdRaw) return;
+      var sIdNorm = normalizeKey(sIdRaw);
+      salesNameMap[sIdNorm] = s.full_name;
+
+      var sTeamRaw = s.team_name || 'Canvasser';
+      var sTeamNorm = normalizeKey(sTeamRaw);
+      if (legacyMap[sTeamNorm]) sTeamNorm = legacyMap[sTeamNorm];
+      var finalTeamName = teamNameMap[sTeamNorm] || sTeamRaw;
+      salesTeamMap[sIdNorm] = finalTeamName;
+
+      var sAreaVal = String(s.area || 'Lhokseumawe').trim();
+      salesAreaMap[sIdNorm] = sAreaVal;
+
+      if (isAttendanceOnlyTeam_(finalTeamName)) return;
+
+      var sOfficialMonthlyTarget = parseCleanNumber(s.target_monthly);
+      var sDailyRate = getIndividualDailyTargetRate(finalTeamName);
+
+      branchOfficialMonthlyTargetTotal += sOfficialMonthlyTarget;
+      branchDailyTargetTotal += sDailyRate;
+
+      var teamNormKey = normalizeKey(finalTeamName);
+      if (teamMonthlyTargetMap[teamNormKey] !== undefined) {
+        teamMonthlyTargetMap[teamNormKey] += sOfficialMonthlyTarget;
+      }
+
+      salesAchievementMap[sIdNorm] = {
+        salesId: sIdRaw,
+        name: s.full_name,
+        teamName: finalTeamName,
+        area: sAreaVal,
+        dailyRate: sDailyRate,
+        monthlyTarget: sOfficialMonthlyTarget,
+        target: sOfficialMonthlyTarget,
+        achieved: 0,
+        todayAchieved: 0
+      };
+    });
+
+    var defaultAreaDefs = [
+      { key: 'AREA_LHOKSEUMAWE', name: 'Lhokseumawe', color: '#2563eb' },
+      { key: 'AREA_BIREUEN', name: 'Bireuen', color: '#16a34a' },
+      { key: 'AREA_TAKENGON', name: 'Takengon', color: '#7c3aed' },
+      { key: 'AREA_LANGSA', name: 'Langsa', color: '#f97316' },
+      { key: 'AREA_BANDA_ACEH', name: 'Banda Aceh', color: '#0ea5e9' }
+    ];
+
+    var areaSalesAcc = {
+      'AREA_LHOKSEUMAWE': 0,
+      'AREA_BIREUEN': 0,
+      'AREA_TAKENGON': 0,
+      'AREA_LANGSA': 0,
+      'AREA_BANDA_ACEH': 0
+    };
+
+    var totalSales = 0;
+    var totalCost = 0;
+    var trendDateMap = {};
+
+    var recentInvoiceMap = {};
+    var recentInvoiceOrder = [];
+
+    for (var i = 0; i < txData.length; i++) {
+      var row = txData[i];
+      var rawDate = row.transaction_date || '';
+      var normalizedTxDate = normalizeDateString(rawDate);
+
+      var sVal = parseCleanNumber(row.subtotal_sales || row.total_sales);
+      var cVal = parseCleanNumber(row.subtotal_cost || row.total_cost);
+      var txSalesNorm = normalizeKey(row.sales_id);
+
+      if (normalizedTxDate === todayRealStr && salesAchievementMap[txSalesNorm]) {
+        salesAchievementMap[txSalesNorm].todayAchieved = (salesAchievementMap[txSalesNorm].todayAchieved || 0) + sVal;
+      }
+
+      if (period === 'TODAY') {
+        if (normalizedTxDate !== todayRealStr) continue;
+      } else if (period === 'WEEK' || period === 'THIS WEEK' || period === 'MONTH' || period === 'THIS MONTH' || period === 'CUSTOM') {
+        if (startDate && normalizedTxDate < startDate) continue;
+        if (endDate && normalizedTxDate > endDate) continue;
+      }
+
+      var rowTeamRaw = row.team_name || salesTeamMap[txSalesNorm] || '';
+      var rowTeamNorm = normalizeKey(rowTeamRaw);
+      if (legacyMap[rowTeamNorm]) rowTeamNorm = legacyMap[rowTeamNorm];
+      if (isAttendanceOnlyTeam_(rowTeamNorm)) continue;
+
+      if (filters.teamId && filters.teamId !== 'ALL') {
+        var filterNorm = normalizeKey(filters.teamId);
+        if (legacyMap[filterNorm]) filterNorm = legacyMap[filterNorm];
+        if (rowTeamNorm !== filterNorm) continue;
+      }
+
+      totalSales += sVal;
+      totalCost += cVal;
+
+      if (normalizedTxDate) {
+        trendDateMap[normalizedTxDate] = (trendDateMap[normalizedTxDate] || 0) + sVal;
+      }
+      if (teamSalesMap[rowTeamNorm] !== undefined) {
+        teamSalesMap[rowTeamNorm] += sVal;
+      }
+      if (salesAchievementMap[txSalesNorm]) {
+        salesAchievementMap[txSalesNorm].achieved += sVal;
+      }
+
+      var assignedArea = salesAreaMap[txSalesNorm] ? salesAreaMap[txSalesNorm].toUpperCase() : '';
+      var matchedAreaKey = 'AREA_LHOKSEUMAWE';
+      if (assignedArea.indexOf('BANDA') > -1 || assignedArea.indexOf('BNA') > -1) matchedAreaKey = 'AREA_BANDA_ACEH';
+      else if (assignedArea.indexOf('BIREUEN') > -1 || assignedArea.indexOf('BIREUN') > -1) matchedAreaKey = 'AREA_BIREUEN';
+      else if (assignedArea.indexOf('TAKENGON') > -1) matchedAreaKey = 'AREA_TAKENGON';
+      else if (assignedArea.indexOf('LANGSA') > -1) matchedAreaKey = 'AREA_LANGSA';
+      else if (assignedArea.indexOf('LHOKSEUMAWE') > -1) matchedAreaKey = 'AREA_LHOKSEUMAWE';
+
+      if (areaSalesAcc[matchedAreaKey] !== undefined) {
+        areaSalesAcc[matchedAreaKey] += sVal;
+      }
+
+      var curTxId = String(row.transaction_id || '').trim();
+      if (curTxId) {
+        if (!recentInvoiceMap[curTxId]) {
+          recentInvoiceMap[curTxId] = {
+            id: curTxId,
+            date: row.transaction_date,
+            salesName: row.sales_name || salesNameMap[txSalesNorm] || row.sales_id,
+            teamName: teamNameMap[rowTeamNorm] || rowTeamRaw,
+            distributor: row.distributor || 'PT. Global Mitra Prima (Subdist)',
+            totalSales: sVal
+          };
+          recentInvoiceOrder.push(curTxId);
+        } else {
+          recentInvoiceMap[curTxId].totalSales += sVal;
+        }
+      }
+    }
+
+    var salesPerformanceList = [];
+    var topCanvasser = null;
+    var topMotoris = null;
+
+    for (var normKey in salesAchievementMap) {
+      var sp = salesAchievementMap[normKey];
+      var curTeamName = sp.teamName || 'Sales';
+      var curTeamLower = curTeamName.toLowerCase();
+      if (curTeamLower.indexOf('junior') > -1 || curTeamLower.indexOf('asisten mpr') > -1) continue;
+
+      var sPct = sp.monthlyTarget > 0 ? Math.round((sp.achieved / sp.monthlyTarget) * 100) : 0;
+      sp.percentage = sPct;
+
+      salesPerformanceList.push({
+        salesId: sp.salesId,
+        name: sp.name,
+        teamName: curTeamName,
+        areaName: sp.area || 'Lhokseumawe',
+        dailyRate: sp.dailyRate,
+        periodTarget: sp.monthlyTarget,
+        monthlyTarget: sp.monthlyTarget,
+        target: sp.monthlyTarget,
+        achieved: sp.achieved,
+        todayAchieved: sp.todayAchieved || 0,
+        percentage: sPct
+      });
+
+      if ((curTeamLower.indexOf('canvasser') > -1 || curTeamLower === 'mpr') && curTeamLower.indexOf('junior') === -1 && curTeamLower.indexOf('asisten mpr') === -1) {
+        if (!topCanvasser || sp.achieved > topCanvasser.achieved) {
+          topCanvasser = { name: sp.name, achieved: sp.achieved, target: sp.monthlyTarget, pct: sPct, teamName: curTeamName };
+        }
+      }
+
+      if (curTeamLower.indexOf('motoris') > -1 && curTeamLower.indexOf('ultimate') === -1) {
+        if (!topMotoris || sp.achieved > topMotoris.achieved) {
+          topMotoris = { name: sp.name, achieved: sp.achieved, target: sp.monthlyTarget, pct: sPct, teamName: curTeamName };
+        }
+      }
+    }
+
+    salesPerformanceList.sort(function(a, b) { return b.achieved - a.achieved; });
+
+    var salesTrend = [];
+    workDateRange.dates.forEach(function(dayInfo) {
+      salesTrend.push({
+        date: dayInfo.date,
+        amount: trendDateMap[dayInfo.date] || 0,
+        targetAmount: period === 'TODAY' && dayInfo.isWorkDay ? branchDailyTargetTotal : null
+      });
+    });
+
+    var teamAchievements = [];
+    teamsList.forEach(function(t) {
+      var tLower = t.teamName.toLowerCase();
+      if (tLower.indexOf('junior') > -1) return;
+
+      var tNorm = normalizeKey(t.teamName);
+      var tAchieved = teamSalesMap[tNorm] || 0;
+      var tTarget = teamMonthlyTargetMap[tNorm] || 0;
+      var pct = tTarget > 0 ? Math.round((tAchieved / tTarget) * 100) : 0;
+      
+      var tColor = '#2563eb';
+      if (tLower.indexOf('motoris') > -1 && tLower.indexOf('ultimate') === -1) tColor = '#16a34a';
+      else if (tLower.indexOf('ultimate') > -1) tColor = '#7c3aed';
+      else if (tLower.indexOf('spg') > -1) tColor = '#f97316';
+
+      teamAchievements.push({
+        teamId: t.teamName,
+        teamName: t.teamName,
+        achieved: tAchieved,
+        target: tTarget,
+        percentage: pct,
+        color: tColor
+      });
+    });
+
+    var areaAchievements = [];
+    defaultAreaDefs.forEach(function(aDef) {
+      var aAchieved = areaSalesAcc[aDef.key] || 0;
+      areaAchievements.push({
+        areaId: aDef.key,
+        areaName: aDef.name,
+        target: 0,
+        achieved: aAchieved,
+        percentage: 0,
+        color: aDef.color
+      });
+    });
+
+    var attendanceSheetRows = getSheetData('ATTENDANCE').rows;
+    var todayAttendanceList = [];
+    var targetAttDate = filters.attendanceDate ? normalizeDateString(filters.attendanceDate) : todayRealStr;
+
+    for (var at = 0; at < attendanceSheetRows.length; at++) {
+      var aRow = attendanceSheetRows[at];
+      var rawAttDate = aRow.date || aRow.attendance_date || '';
+      var normAttDate = normalizeDateString(rawAttDate);
+
+      if (normAttDate && normAttDate === targetAttDate) {
+        var sIdKey = normalizeKey(aRow.sales_id);
+        var sName = aRow.sales_name || salesNameMap[sIdKey] || aRow.sales_id || 'Sales Personil';
+        var sTeam = aRow.team_name || salesTeamMap[sIdKey] || 'Canvasser';
+        if (normalizeKey(sTeam) === 'ASISTEN CANVASSER') sTeam = 'Junior Canvasser';
+
+        todayAttendanceList.push({
+          id: aRow.sales_id || ('SLS-' + (at + 1)),
+          date: normAttDate,
+          salesId: aRow.sales_id || '-',
+          salesName: sName,
+          teamName: sTeam,
+          time: formatVisitPhotoTime(aRow.time) || '-',
+          photoUrl: formatDrivePhotoUrl(aRow.photo_url),
+          status: aRow.status || 'Hadir Tepat Waktu',
+          location: aRow.location || 'Cabang Lhokseumawe',
+          notes: aRow.notes || 'Dokumentasi Absensi Lapangan'
+        });
+      }
+    }
+
+    var recentTxList = [];
+    for (var ro = recentInvoiceOrder.length - 1; ro >= 0 && recentTxList.length < 5; ro--) {
+      recentTxList.push(recentInvoiceMap[recentInvoiceOrder[ro]]);
+    }
+
+    var activityData = getSheetData('ACTIVITY_LOGS').rows;
+    var recentActivities = [];
+    for (var aIdx = activityData.length - 1; aIdx >= 0 && recentActivities.length < 8; aIdx--) {
+      var aRow = activityData[aIdx];
+      var aTime = '';
+      if (aRow.timestamp) {
+        var tParts = aRow.timestamp.split(' ');
+        aTime = tParts.length > 1 ? tParts[1].slice(0, 5) : aRow.timestamp;
+      }
+      recentActivities.push({
+        id: aRow.log_id,
+        time: aTime,
+        timestamp: aRow.timestamp,
+        username: aRow.username || 'admin',
+        action: aRow.action,
+        targetRef: aRow.target_ref,
+        details: aRow.details
+      });
+    }
+
+    var achievementPct = branchOfficialMonthlyTargetTotal > 0 ? (Math.round((totalSales / branchOfficialMonthlyTargetTotal) * 100 * 10) / 10) : 0;
+
+    return {
+      success: true,
+      user: currentUser,
+      currentServerDate: todayRealStr,
+      attendanceDate: targetAttDate,
+      kpi: {
+        totalSales: totalSales,
+        totalTarget: branchOfficialMonthlyTargetTotal,
+        cumulativeTarget: branchOfficialMonthlyTargetTotal,
+        achievementPct: achievementPct,
+        workDaysPassed: workDays.workDaysPassed,
+        workDaysRemaining: workDays.workDaysRemaining,
+        totalWorkDays: workDays.totalWorkDays,
+        topCanvasser: topCanvasser,
+        topSeniorCanvasser: topCanvasser,
+        topMotoris: topMotoris
+      },
+      teamAchievements: teamAchievements,
+      areaAchievements: areaAchievements,
+      salesTrend: salesTrend,
+      salesPerformance: salesPerformanceList,
+      todayAttendance: todayAttendanceList,
+      recentTransactions: recentTxList,
+      recentActivities: recentActivities
+    };
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+}
+
+function getAttendanceByDate(dateStr) {
+  try {
+    SpreadsheetApp.flush();
+    var targetDate = normalizeDateString(dateStr);
+    if (!targetDate) targetDate = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
+
+    var attendanceSheetRows = getSheetData('ATTENDANCE').rows;
+    var salesData = getSheetData('SALES').rows;
+    var salesNameMap = {};
+    var salesTeamMap = {};
+
+    salesData.forEach(function(s) {
+      var sIdNorm = normalizeKey(s.sales_id);
+      salesNameMap[sIdNorm] = s.full_name;
+      salesTeamMap[sIdNorm] = s.team_name || '';
+    });
+
+    var attendanceList = [];
+    for (var at = 0; at < attendanceSheetRows.length; at++) {
+      var aRow = attendanceSheetRows[at];
+      var rawAttDate = aRow.date || aRow.attendance_date || '';
+      var normAttDate = normalizeDateString(rawAttDate);
+
+      if (normAttDate && normAttDate === targetDate) {
+        var sIdKey = normalizeKey(aRow.sales_id);
+        var sName = aRow.sales_name || salesNameMap[sIdKey] || aRow.sales_id || 'Sales Personil';
+        var sTeam = aRow.team_name || salesTeamMap[sIdKey] || 'Canvasser';
+        if (normalizeKey(sTeam) === 'ASISTEN CANVASSER') sTeam = 'Junior Canvasser';
+
+        attendanceList.push({
+          id: aRow.sales_id || ('SLS-' + (at + 1)),
+          date: normAttDate,
+          salesId: aRow.sales_id || '-',
+          salesName: sName,
+          teamName: sTeam,
+          time: formatVisitPhotoTime(aRow.time) || '-',
+          photoUrl: formatDrivePhotoUrl(aRow.photo_url),
+          status: aRow.status || 'Hadir Tepat Waktu',
+          location: aRow.location || 'Cabang Lhokseumawe',
+          notes: aRow.notes || 'Dokumentasi Absensi Lapangan'
+        });
+      }
+    }
+
+    return { success: true, date: targetDate, attendance: attendanceList };
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+}
+
+function getVisitPhotosByDate(dateStr) {
+  try {
+    SpreadsheetApp.flush();
+    var targetDate = normalizeDateString(dateStr);
+    if (!targetDate) targetDate = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
+
+    var rows = getSheetData('VISIT_PHOTOS').rows;
+    var visitPhotos = rows.filter(function(photo) {
+      var photoDate = normalizeDateString(photo.visit_date || '');
+      var status = String(photo.status || 'ACTIVE').toUpperCase();
+      return photoDate === targetDate && status !== 'INACTIVE';
+    }).map(function(photo) {
+      return {
+        visitId: photo.visit_id || '',
+        date: normalizeDateString(photo.visit_date || ''),
+        time: formatVisitPhotoTime(photo.visit_time),
+        salesId: photo.sales_id || '',
+        salesName: photo.sales_name || '',
+        teamName: photo.team_name || '',
+        area: photo.area || '',
+        photoUrl: formatDrivePhotoUrl(photo.photo_url || ''),
+        notes: photo.notes || ''
+      };
+    });
+
+    return { success: true, date: targetDate, visitPhotos: visitPhotos };
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+}
+
+function getTodayPlans(dateStr) {
+  try {
+    var targetDate = normalizeDateString(dateStr);
+    if (!targetDate) targetDate = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
+    var planSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('TODAY_PLAN');
+    if (!planSheet) setupTodayPlanSheet();
+
+    var rows = getSheetData('TODAY_PLAN').rows;
+    var plans = rows.filter(function(row) {
+      return normalizeDateString(row.plan_date) === targetDate && normalizeKey(row.status || 'ACTIVE') === 'ACTIVE';
+    }).map(function(row) {
+      return {
+        id: row.plan_id || '',
+        date: normalizeDateString(row.plan_date),
+        salesId: row.sales_id || '',
+        salesName: row.sales_name || '',
+        teamName: row.team_name || '',
+        area: row.area || '',
+        destination: row.destination || '',
+        plannedTime: formatVisitPhotoTime(row.planned_time) || '',
+        notes: row.notes || ''
+      };
+    });
+    plans.sort(function(a, b) {
+      if (!a.plannedTime) return b.plannedTime ? 1 : 0;
+      if (!b.plannedTime) return -1;
+      return a.plannedTime.localeCompare(b.plannedTime);
+    });
+    return { success: true, date: targetDate, plans: plans, canManage: isKchNewsManager_() };
+  } catch (err) {
+    return { success: false, message: err.message || 'Gagal memuat Today’s Plan.' };
+  }
+}
+
+function saveTodayPlan(payload) {
+  try {
+    if (!isKchNewsManager_()) return { success: false, message: 'Akses input Today’s Plan hanya untuk admin/koordinator.' };
+    payload = payload || {};
+    var planDate = normalizeDateString(payload.date || '');
+    var salesId = String(payload.salesId || '').trim();
+    var destination = String(payload.destination || '').trim();
+    var plannedTime = String(payload.plannedTime || '').trim();
+    var notes = String(payload.notes || '').trim();
+    var planId = String(payload.planId || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(planDate)) return { success: false, message: 'Tanggal rencana tidak valid.' };
+    if (!salesId || !destination) return { success: false, message: 'Sales dan tujuan kunjungan wajib diisi.' };
+    if (plannedTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(plannedTime)) return { success: false, message: 'Format jam rencana tidak valid.' };
+    if (destination.length > 500 || notes.length > 2000) return { success: false, message: 'Tujuan maksimal 500 karakter dan keterangan maksimal 2.000 karakter.' };
+
+    var salesRows = getSheetData('SALES').rows;
+    var sales = null;
+    salesRows.some(function(row) {
+      if (normalizeKey(row.sales_id) === normalizeKey(salesId)) { sales = row; return true; }
+      return false;
+    });
+    if (!sales || normalizeKey(sales.status || 'ACTIVE') === 'INACTIVE') {
+      return { success: false, message: 'Sales tidak ditemukan atau statusnya tidak aktif.' };
+    }
+
+    var lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('TODAY_PLAN') || setupTodayPlanSheet();
+      var headerMap = {};
+      TODAY_PLAN_HEADERS.forEach(function(header, i) { headerMap[header] = i; });
+      var rowNumber = 0;
+      if (planId && sheet.getLastRow() > 1) {
+        var planRows = sheet.getRange(2, 1, sheet.getLastRow() - 1, TODAY_PLAN_HEADERS.length).getDisplayValues();
+        for (var i = 0; i < planRows.length; i++) {
+          if (String(planRows[i][headerMap.plan_id] || '').trim() === planId) { rowNumber = i + 2; break; }
+        }
+        if (!rowNumber) return { success: false, message: 'Rencana yang akan diedit tidak ditemukan.' };
+      }
+
+      if (!planId) planId = 'PLAN-' + Utilities.getUuid().slice(0, 10).toUpperCase();
+      var row = rowNumber
+        ? sheet.getRange(rowNumber, 1, 1, TODAY_PLAN_HEADERS.length).getValues()[0]
+        : new Array(TODAY_PLAN_HEADERS.length).fill('');
+      var now = new Date();
+      var planDateValue = new Date(Number(planDate.slice(0, 4)), Number(planDate.slice(5, 7)) - 1, Number(planDate.slice(8, 10)), 12, 0, 0);
+      var values = {
+        plan_id: planId,
+        plan_date: planDateValue,
+        sales_id: sales.sales_id,
+        sales_name: sales.full_name || sales.sales_id,
+        team_name: sales.team_name || '',
+        area: sales.area || '',
+        destination: destination,
+        planned_time: plannedTime,
+        notes: notes,
+        status: 'ACTIVE',
+        created_by: rowNumber ? row[headerMap.created_by] : getCurrentUserInfo().username,
+        created_at: rowNumber ? row[headerMap.created_at] : now,
+        updated_at: now
+      };
+      Object.keys(values).forEach(function(key) { row[headerMap[key]] = values[key]; });
+      if (rowNumber) sheet.getRange(rowNumber, 1, 1, TODAY_PLAN_HEADERS.length).setValues([row]);
+      else sheet.appendRow(row);
+      var savedRow = rowNumber || sheet.getLastRow();
+      sheet.getRange(savedRow, headerMap.plan_date + 1).setNumberFormat('dd/MM/yyyy');
+      sheet.getRange(savedRow, headerMap.created_at + 1, 1, 2).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+      SpreadsheetApp.flush();
+      logActivity(getCurrentUserInfo().username, rowNumber ? 'UPDATE_TODAY_PLAN' : 'CREATE_TODAY_PLAN', planId, sales.full_name + ' - ' + destination);
+      return { success: true, planId: planId, message: rowNumber ? 'Rencana berhasil diperbarui.' : 'Rencana berhasil disimpan.' };
+    } finally {
+      lock.releaseLock();
+    }
+  } catch (err) {
+    return { success: false, message: err.message || 'Gagal menyimpan Today’s Plan.' };
+  }
+}
+
+function archiveTodayPlan(planId) {
+  try {
+    if (!isKchNewsManager_()) return { success: false, message: 'Akses kelola Today’s Plan hanya untuk admin/koordinator.' };
+    planId = String(planId || '').trim();
+    if (!planId) return { success: false, message: 'ID rencana tidak valid.' };
+    var lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('TODAY_PLAN') || setupTodayPlanSheet();
+      if (sheet.getLastRow() < 2) return { success: false, message: 'Rencana tidak ditemukan.' };
+      var ids = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getDisplayValues();
+      for (var i = 0; i < ids.length; i++) {
+        if (String(ids[i][0] || '').trim() === planId) {
+          sheet.getRange(i + 2, 10).setValue('ARCHIVED');
+          sheet.getRange(i + 2, 13).setValue(new Date()).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+          SpreadsheetApp.flush();
+          logActivity(getCurrentUserInfo().username, 'ARCHIVE_TODAY_PLAN', planId, 'Rencana diarsipkan');
+          return { success: true, message: 'Rencana berhasil diarsipkan.' };
+        }
+      }
+      return { success: false, message: 'Rencana tidak ditemukan.' };
+    } finally {
+      lock.releaseLock();
+    }
+  } catch (err) {
+    return { success: false, message: err.message || 'Gagal mengarsipkan rencana.' };
+  }
+}
+
+function isWeeklyMeetingManager_() {
+  var role = normalizeKey(getCurrentUserInfo().role).replace(/[ -]+/g, '_');
+  return ['ADMIN', 'SUPER_ADMIN', 'SUPERADMIN', 'OWNER', 'SALES_COORDINATOR'].indexOf(role) > -1;
+}
+
+function getWeeklyMeetings_() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('WEEKLY_MEETINGS');
+  if (!sheet) return [];
+  return getSheetData('WEEKLY_MEETINGS').rows.filter(function(row) {
+    return normalizeKey(row.status || 'ACTIVE') === 'ACTIVE' && String(row.title || '').trim();
+  }).map(function(row) {
+    return {
+      id: row.meeting_id || '',
+      date: normalizeDateString(row.meeting_date || ''),
+      title: String(row.title || '').trim(),
+      summary: String(row.summary || '').trim(),
+      decisions: String(row.decisions || '').trim(),
+      followUp: String(row.follow_up || '').trim(),
+      createdBy: String(row.created_by || '').trim()
+    };
+  }).sort(function(a, b) {
+    return String(b.date || '').localeCompare(String(a.date || ''));
+  }).slice(0, 100);
+}
+
+function getWeeklyMeetings() {
+  try {
+    SpreadsheetApp.flush();
+    return { success: true, meetings: getWeeklyMeetings_(), canManage: isWeeklyMeetingManager_() };
+  } catch (err) {
+    return { success: false, message: err.message || 'Gagal memuat hasil meeting mingguan.' };
+  }
+}
+
+function saveWeeklyMeeting(payload) {
+  try {
+    if (!isWeeklyMeetingManager_()) return { success: false, message: 'Akses kelola hasil meeting hanya untuk admin/koordinator.' };
+    payload = payload || {};
+    var meetingId = String(payload.meetingId || '').trim();
+    var date = normalizeDateString(payload.date || '');
+    var title = String(payload.title || '').trim();
+    var summary = String(payload.summary || '').trim();
+    var decisions = String(payload.decisions || '').trim();
+    var followUp = String(payload.followUp || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { success: false, message: 'Tanggal meeting tidak valid.' };
+    if (!title || !summary) return { success: false, message: 'Judul meeting dan ringkasan hasil wajib diisi.' };
+    if (title.length > 180 || summary.length > 5000 || decisions.length > 5000 || followUp.length > 5000) {
+      return { success: false, message: 'Judul maksimal 180 karakter; ringkasan, keputusan, dan tindak lanjut maksimal 5.000 karakter.' };
+    }
+
+    var lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('WEEKLY_MEETINGS') || setupWeeklyMeetingsSheet();
+      var headerMap = {};
+      WEEKLY_MEETING_HEADERS.forEach(function(header, i) { headerMap[header] = i; });
+      var rowNumber = 0;
+      if (meetingId && sheet.getLastRow() > 1) {
+        var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, WEEKLY_MEETING_HEADERS.length).getDisplayValues();
+        for (var i = 0; i < rows.length; i++) {
+          if (String(rows[i][headerMap.meeting_id] || '').trim() === meetingId) { rowNumber = i + 2; break; }
+        }
+        if (!rowNumber) return { success: false, message: 'Hasil meeting yang akan diedit tidak ditemukan.' };
+      }
+      if (!meetingId) meetingId = 'MEET-' + Utilities.getUuid().slice(0, 10).toUpperCase();
+
+      var row = rowNumber
+        ? sheet.getRange(rowNumber, 1, 1, WEEKLY_MEETING_HEADERS.length).getValues()[0]
+        : new Array(WEEKLY_MEETING_HEADERS.length).fill('');
+      var now = new Date();
+      var dateValue = new Date(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)), 12, 0, 0);
+      var values = {
+        meeting_id: meetingId,
+        meeting_date: dateValue,
+        title: title,
+        summary: summary,
+        decisions: decisions,
+        follow_up: followUp,
+        status: 'ACTIVE',
+        created_by: rowNumber ? row[headerMap.created_by] : getCurrentUserInfo().username,
+        created_at: rowNumber ? row[headerMap.created_at] : now,
+        updated_at: now
+      };
+      Object.keys(values).forEach(function(key) { row[headerMap[key]] = values[key]; });
+      if (rowNumber) sheet.getRange(rowNumber, 1, 1, WEEKLY_MEETING_HEADERS.length).setValues([row]);
+      else sheet.appendRow(row);
+      var savedRow = rowNumber || sheet.getLastRow();
+      sheet.getRange(savedRow, headerMap.meeting_date + 1).setNumberFormat('dd/MM/yyyy');
+      sheet.getRange(savedRow, headerMap.created_at + 1, 1, 2).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+      SpreadsheetApp.flush();
+      logActivity(getCurrentUserInfo().username, rowNumber ? 'UPDATE_WEEKLY_MEETING' : 'CREATE_WEEKLY_MEETING', meetingId, title);
+      return { success: true, meetingId: meetingId, message: rowNumber ? 'Hasil meeting berhasil diperbarui.' : 'Hasil meeting berhasil disimpan.' };
+    } finally {
+      lock.releaseLock();
+    }
+  } catch (err) {
+    return { success: false, message: err.message || 'Gagal menyimpan hasil meeting.' };
+  }
+}
+
+function archiveWeeklyMeeting(meetingId) {
+  try {
+    if (!isWeeklyMeetingManager_()) return { success: false, message: 'Akses kelola hasil meeting hanya untuk admin/koordinator.' };
+    meetingId = String(meetingId || '').trim();
+    if (!meetingId) return { success: false, message: 'ID meeting tidak valid.' };
+    var lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('WEEKLY_MEETINGS');
+      if (!sheet || sheet.getLastRow() < 2) return { success: false, message: 'Hasil meeting tidak ditemukan.' };
+      var ids = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getDisplayValues();
+      for (var i = 0; i < ids.length; i++) {
+        if (String(ids[i][0] || '').trim() === meetingId) {
+          sheet.getRange(i + 2, 7).setValue('ARCHIVED');
+          sheet.getRange(i + 2, 10).setValue(new Date()).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+          SpreadsheetApp.flush();
+          logActivity(getCurrentUserInfo().username, 'ARCHIVE_WEEKLY_MEETING', meetingId, 'Hasil meeting diarsipkan');
+          return { success: true, message: 'Hasil meeting berhasil diarsipkan.' };
+        }
+      }
+      return { success: false, message: 'Hasil meeting tidak ditemukan.' };
+    } finally {
+      lock.releaseLock();
+    }
+  } catch (err) {
+    return { success: false, message: err.message || 'Gagal mengarsipkan hasil meeting.' };
+  }
+}
+
+function getActiveKchNews() {
+  var rows = getSheetData('KCH_NEWS').rows;
+  return rows.filter(function(row) {
+    return String(row.status || 'ACTIVE').trim().toUpperCase() === 'ACTIVE' &&
+      String(row.title || '').trim() !== '';
+  }).map(function(row) {
+    return {
+      newsId: row.news_id || '',
+      date: normalizeDateString(row.publish_date || ''),
+      title: String(row.title || '').trim(),
+      summary: String(row.summary || '').trim(),
+      bannerText: String(row.banner_text || '').trim(),
+      bannerKicker: String(row.banner_kicker || '').trim(),
+      bannerSubtitle: String(row.banner_subtitle || '').trim(),
+      imageUrl: formatDrivePhotoUrl(row.image_url || ''),
+      newsUrl: String(row.news_url || '').trim(),
+      content: String(row.article_content || row.content || '').trim(),
+      status: String(row.status || 'ACTIVE').trim().toUpperCase()
+    };
+  }).sort(function(a, b) {
+    return String(b.date || '').localeCompare(String(a.date || ''));
+  }).slice(0, 50);
+}
+
+function getKchNews() {
+  try {
+    SpreadsheetApp.flush();
+    return { success: true, news: getActiveKchNews(), canManage: isKchNewsManager_() };
+  } catch (err) {
+    return { success: false, message: err.message || 'Gagal memuat KCH News.' };
+  }
+}
+
+function isKchNewsManager_() {
+  var role = normalizeKey(getCurrentUserInfo().role).replace(/[ -]+/g, '_');
+  return ['ADMIN', 'SUPER_ADMIN', 'SUPERADMIN', 'OWNER', 'SALES_COORDINATOR'].indexOf(role) > -1;
+}
+
+function ensureKchNewsArticleColumn_(sheet) {
+  var lastCol = sheet.getLastColumn();
+  if (!lastCol) {
+    sheet.getRange(1, 1, 1, TABLE_SCHEMAS.KCH_NEWS.length).setValues([TABLE_SCHEMAS.KCH_NEWS]);
+    lastCol = TABLE_SCHEMAS.KCH_NEWS.length;
+  }
+  var headers = sheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
+  var headerMap = {};
+  headers.forEach(function(value, index) { headerMap[normalizeKey(value)] = index; });
+  ['banner_kicker', 'banner_subtitle', 'article_content'].forEach(function(header) {
+    var key = normalizeKey(header);
+    if (headerMap[key] === undefined) {
+      headers.push(header);
+      sheet.getRange(1, headers.length).setValue(header);
+      headerMap[key] = headers.length - 1;
+    }
+  });
+  return { headers: headers, map: headerMap };
+}
+
+function saveKchNewsArticle(payload) {
+  try {
+    if (!isKchNewsManager_()) return { success: false, message: 'Akses hanya untuk admin/pengelola KCH News.' };
+    payload = payload || {};
+    var title = String(payload.title || '').trim();
+    var dateText = String(payload.date || '').trim();
+    var summary = String(payload.summary || '').trim();
+    var content = String(payload.content || '').trim();
+    var bannerText = String(payload.bannerText || '').trim();
+    var bannerKicker = String(payload.bannerKicker || '').trim();
+    var bannerSubtitle = String(payload.bannerSubtitle || '').trim();
+    var imageUrl = String(payload.imageUrl || '').trim();
+    var newsUrl = String(payload.newsUrl || '').trim();
+    if (!title || !dateText || !summary || !content) {
+      return { success: false, message: 'Judul, tanggal, ringkasan, dan isi artikel wajib diisi.' };
+    }
+    if (content.length > 45000) return { success: false, message: 'Isi artikel maksimal 45.000 karakter.' };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText)) return { success: false, message: 'Format tanggal artikel tidak valid.' };
+    if (imageUrl && !/^https?:\/\//i.test(imageUrl)) return { success: false, message: 'URL gambar harus diawali http:// atau https://.' };
+    if (newsUrl && !/^https?:\/\//i.test(newsUrl)) return { success: false, message: 'Link selengkapnya harus diawali http:// atau https://.' };
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('KCH_NEWS');
+    if (!sheet) sheet = ss.insertSheet('KCH_NEWS');
+    var schema = ensureKchNewsArticleColumn_(sheet);
+    var idCol = schema.map.NEWS_ID;
+    var titleCol = schema.map.TITLE;
+    var dateCol = schema.map.PUBLISH_DATE;
+    if (idCol === undefined || titleCol === undefined || dateCol === undefined) {
+      return { success: false, message: 'Header utama sheet KCH_NEWS belum lengkap. Jalankan Siapkan Sheet KCH_NEWS.' };
+    }
+
+    var newsId = String(payload.newsId || '').trim();
+    var rowNumber = 0;
+    if (newsId && sheet.getLastRow() > 1) {
+      var ids = sheet.getRange(2, idCol + 1, sheet.getLastRow() - 1, 1).getDisplayValues();
+      for (var i = 0; i < ids.length; i++) {
+        if (String(ids[i][0]).trim() === newsId) { rowNumber = i + 2; break; }
+      }
+      if (!rowNumber) return { success: false, message: 'Artikel yang akan diedit tidak ditemukan.' };
+    }
+    if (!newsId) newsId = 'NEWS-' + Utilities.getUuid().slice(0, 8).toUpperCase();
+
+    var row = rowNumber ? sheet.getRange(rowNumber, 1, 1, schema.headers.length).getValues()[0] : new Array(schema.headers.length).fill('');
+    var values = {
+      NEWS_ID: newsId,
+      PUBLISH_DATE: new Date(Number(dateText.slice(0, 4)), Number(dateText.slice(5, 7)) - 1, Number(dateText.slice(8, 10)), 12, 0, 0),
+      TITLE: title,
+      SUMMARY: summary,
+      BANNER_TEXT: bannerText,
+      BANNER_KICKER: bannerKicker,
+      BANNER_SUBTITLE: bannerSubtitle,
+      IMAGE_URL: imageUrl,
+      NEWS_URL: newsUrl,
+      ARTICLE_CONTENT: content,
+      STATUS: 'ACTIVE'
+    };
+    Object.keys(values).forEach(function(key) {
+      var col = schema.map[key];
+      if (col !== undefined) row[col] = values[key];
+    });
+    if (rowNumber) sheet.getRange(rowNumber, 1, 1, row.length).setValues([row]);
+    else sheet.appendRow(row);
+    if (schema.map.PUBLISH_DATE !== undefined) {
+      sheet.getRange(rowNumber || sheet.getLastRow(), schema.map.PUBLISH_DATE + 1).setNumberFormat('dd/MM/yyyy');
+    }
+    SpreadsheetApp.flush();
+    logActivity(getCurrentUserInfo().username, rowNumber ? 'UPDATE_KCH_NEWS' : 'CREATE_KCH_NEWS', newsId, title);
+    return { success: true, newsId: newsId, message: rowNumber ? 'Artikel berhasil diperbarui.' : 'Artikel berhasil diterbitkan.' };
+  } catch (err) {
+    return { success: false, message: err.message || 'Gagal menyimpan artikel.' };
+  }
+}
+
+function archiveKchNewsArticle(newsId) {
+  try {
+    if (!isKchNewsManager_()) return { success: false, message: 'Akses hanya untuk admin/pengelola KCH News.' };
+    newsId = String(newsId || '').trim();
+    if (!newsId) return { success: false, message: 'ID artikel tidak valid.' };
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('KCH_NEWS');
+    if (!sheet || sheet.getLastRow() < 2) return { success: false, message: 'Artikel tidak ditemukan.' };
+    var schema = ensureKchNewsArticleColumn_(sheet);
+    var idCol = schema.map.NEWS_ID;
+    var statusCol = schema.map.STATUS;
+    if (idCol === undefined || statusCol === undefined) return { success: false, message: 'Kolom ID/status tidak ditemukan di KCH_NEWS.' };
+    var ids = sheet.getRange(2, idCol + 1, sheet.getLastRow() - 1, 1).getDisplayValues();
+    for (var i = 0; i < ids.length; i++) {
+      if (String(ids[i][0]).trim() === newsId) {
+        sheet.getRange(i + 2, statusCol + 1).setValue('ARCHIVED');
+        SpreadsheetApp.flush();
+        logActivity(getCurrentUserInfo().username, 'ARCHIVE_KCH_NEWS', newsId, 'Artikel diarsipkan');
+        return { success: true, message: 'Artikel berhasil diarsipkan.' };
+      }
+    }
+    return { success: false, message: 'Artikel tidak ditemukan.' };
+  } catch (err) {
+    return { success: false, message: err.message || 'Gagal mengarsipkan artikel.' };
+  }
+}
+
+function getPhotoUploadFolder_() {
+  var props = PropertiesService.getScriptProperties();
+  var savedId = props.getProperty('PHOTO_UPLOAD_FOLDER_ID');
+  if (savedId) {
+    try { return DriveApp.getFolderById(savedId); } catch (e) {}
+  }
+
+  var folderName = 'KCH Sales Monitoring Photos';
+  var folders = DriveApp.getFoldersByName(folderName);
+  var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+  props.setProperty('PHOTO_UPLOAD_FOLDER_ID', folder.getId());
+  return folder;
+}
+
+function createUploadedPhotoFile_(payload, kind, salesId, dateStr) {
+  var dataUrl = String(payload.imageDataUrl || '');
+  var match = dataUrl.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/i);
+  if (!match) throw new Error('File foto tidak valid. Pilih file gambar JPG, PNG, WEBP, atau GIF.');
+
+  var bytes = Utilities.base64Decode(match[2]);
+  if (!bytes.length || bytes.length > 5 * 1024 * 1024) {
+    throw new Error('Ukuran foto setelah kompresi harus maksimal 5 MB.');
+  }
+
+  var mimeType = match[1].toLowerCase();
+  var extension = mimeType === 'image/jpeg' ? 'jpg' : mimeType.split('/')[1];
+  var safeSalesId = String(salesId).replace(/[^a-zA-Z0-9_-]/g, '_');
+  var fileName = kind + '_' + safeSalesId + '_' + dateStr + '_' + Utilities.getUuid().slice(0, 8) + '.' + extension;
+  var blob = Utilities.newBlob(bytes, mimeType, fileName);
+  var file = getPhotoUploadFolder_().createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return file;
+}
+
+function saveSalesPhotoUpload(payload, photoType) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    return { success: false, message: 'Sistem sedang sibuk. Silakan coba sesaat lagi.' };
+  }
+
+  var uploadedFile = null;
+  try {
+    payload = payload || {};
+    var type = String(photoType || '').toLowerCase();
+    if (type !== 'attendance' && type !== 'visit') throw new Error('Jenis foto tidak dikenali.');
+
+    var salesId = String(payload.salesId || '').trim();
+    var dateStr = normalizeDateString(payload.date || '');
+    var notes = String(payload.notes || '').trim();
+    if (!salesId || !dateStr || !notes || !payload.imageDataUrl) {
+      throw new Error('Sales ID, tanggal, keterangan, dan foto wajib diisi.');
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) throw new Error('Tanggal tidak valid.');
+
+    var salesRows = getSheetData('SALES').rows;
+    var selectedSales = null;
+    for (var i = 0; i < salesRows.length; i++) {
+      if (normalizeKey(salesRows[i].sales_id) === normalizeKey(salesId)) {
+        selectedSales = salesRows[i];
+        break;
+      }
+    }
+    if (!selectedSales) throw new Error('Sales ID tidak ditemukan di sheet SALES.');
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheetName = type === 'attendance' ? 'ATTENDANCE' : 'VISIT_PHOTOS';
+    var sheet = ss.getSheetByName(sheetName);
+    if (!sheet) throw new Error('Sheet ' + sheetName + ' tidak ditemukan. Jalankan setup sheet terlebih dahulu.');
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
+    var valuesByHeader = {};
+    var now = new Date();
+    var dateParts = dateStr.split('-');
+    var dateValue = new Date(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2]));
+    var timeValue = Utilities.formatDate(now, TIMEZONE, 'HH:mm:ss');
+    var area = String(selectedSales.area || '').trim();
+
+    uploadedFile = createUploadedPhotoFile_(payload, type, salesId, dateStr);
+    if (type === 'attendance') {
+      valuesByHeader = {
+        sales_id: salesId,
+        sales_name: selectedSales.full_name || '',
+        team_name: selectedSales.team_name || '',
+        date: dateValue,
+        time: timeValue,
+        photo_url: uploadedFile.getUrl(),
+        status: 'Hadir Tepat Waktu',
+        location: area,
+        notes: notes
+      };
+    } else {
+      valuesByHeader = {
+        visit_id: 'VIS-' + Utilities.getUuid().slice(0, 8).toUpperCase(),
+        visit_date: dateValue,
+        visit_time: timeValue,
+        sales_id: salesId,
+        sales_name: selectedSales.full_name || '',
+        team_name: selectedSales.team_name || '',
+        area: area,
+        photo_url: uploadedFile.getUrl(),
+        notes: notes,
+        status: 'ACTIVE'
+      };
+    }
+
+    var row = headers.map(function(header) {
+      var key = String(header || '').trim().toLowerCase();
+      return Object.prototype.hasOwnProperty.call(valuesByHeader, key) ? valuesByHeader[key] : '';
+    });
+    sheet.appendRow(row);
+    SpreadsheetApp.flush();
+
+    return {
+      success: true,
+      type: type,
+      date: dateStr,
+      photoUrl: formatDrivePhotoUrl(uploadedFile.getUrl()),
+      message: type === 'attendance' ? 'Foto absensi berhasil disimpan.' : 'Foto kunjungan berhasil disimpan.'
+    };
+  } catch (err) {
+    if (uploadedFile) {
+      try { uploadedFile.setTrashed(true); } catch (cleanupError) {}
+    }
+    return { success: false, message: err.message || 'Gagal menyimpan foto.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function saveSalesTransaction(payload) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    return { success: false, message: 'Sistem sedang sibuk. Silakan coba sesaat lagi.' };
+  }
+
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var txSheet = ss.getSheetByName('SALES_TRANSACTIONS');
+    var invSheet = ss.getSheetByName('INVENTORY');
+    var movSheet = ss.getSheetByName('INVENTORY_MOVEMENTS');
+    var salesSheet = ss.getSheetByName('SALES');
+    var prodSheet = ss.getSheetByName('PRODUCTS');
+
+    if (!txSheet) {
+      txSheet = ss.insertSheet('SALES_TRANSACTIONS');
+    }
+
+    var txDate = payload.date;
+    var teamName = payload.teamName;
+    var salesId = String(payload.salesId || '').trim();
+    var distributor = payload.distributor || 'PT. Global Mitra Prima (Subdist)';
+    var items = payload.items;
+    var currentUser = getCurrentUserInfo();
+    var username = payload.username || currentUser.username || 'ryan';
+
+    if (!items || items.length === 0) {
+      return { success: false, message: 'Pilih minimal satu item produk!' };
+    }
+
+    var selectedSalesForTx = getSheetData('SALES').rows.filter(function(s) {
+      return normalizeKey(s.sales_id) === normalizeKey(salesId);
+    })[0];
+    if (selectedSalesForTx && isAttendanceOnlyTeam_(selectedSalesForTx.team_name)) {
+      return { success: false, message: 'Kategori SPR hanya digunakan untuk absensi.' };
+    }
+
+    var salesName = salesId;
+    if (salesSheet && salesSheet.getLastRow() > 1) {
+      var sH = salesSheet.getRange(1, 1, 1, salesSheet.getLastColumn()).getDisplayValues()[0];
+      var sidCol = sH.indexOf('sales_id');
+      var snameCol = sH.indexOf('full_name');
+      if (sidCol !== -1 && snameCol !== -1) {
+        var sVals = salesSheet.getRange(2, 1, salesSheet.getLastRow() - 1, sH.length).getDisplayValues();
+        for (var s = 0; s < sVals.length; s++) {
+          if (normalizeKey(sVals[s][sidCol]) === normalizeKey(salesId)) {
+            salesName = sVals[s][snameCol] || salesId;
+            break;
+          }
+        }
+      }
+    }
+
+    var prodNameMap = {};
+    if (prodSheet && prodSheet.getLastRow() > 1) {
+      var pH = prodSheet.getRange(1, 1, 1, prodSheet.getLastColumn()).getDisplayValues()[0];
+      var pidCol = pH.indexOf('product_id');
+      var pnameCol = pH.indexOf('product_name');
+      if (pidCol !== -1 && pnameCol !== -1) {
+        var pVals = prodSheet.getRange(2, 1, prodSheet.getLastRow() - 1, pH.length).getDisplayValues();
+        for (var p = 0; p < pVals.length; p++) {
+          prodNameMap[normalizeKey(pVals[p][pidCol])] = pVals[p][pnameCol];
+        }
+      }
+    }
+
+    var invLastR = invSheet ? invSheet.getLastRow() : 1;
+    var stockMap = {};
+
+    if (invSheet && invLastR > 1) {
+      var invHeaders = invSheet.getRange(1, 1, 1, invSheet.getLastColumn()).getValues()[0];
+      var hProdIdx = invHeaders.indexOf('product_id');
+      var hGlobalStockIdx = invHeaders.indexOf('PT. Global Mitra Prima');
+      var hGeubrinaStockIdx = invHeaders.indexOf('AP. Geubrina Rizki');
+
+      var invData = invSheet.getRange(2, 1, invLastR - 1, invHeaders.length).getValues();
+      for (var i = 0; i < invData.length; i++) {
+        var rowProd = normalizeKey(invData[i][hProdIdx !== -1 ? hProdIdx : 0]);
+        var globalStock = hGlobalStockIdx !== -1 ? (parseInt(invData[i][hGlobalStockIdx], 10) || 0) : 0;
+        var geubrinaStock = hGeubrinaStockIdx !== -1 ? (parseInt(invData[i][hGeubrinaStockIdx], 10) || 0) : 0;
+        stockMap[rowProd] = {
+          rowIndex: i + 2,
+          currentStock: globalStock + geubrinaStock,
+          globalStock: globalStock,
+          geubrinaStock: geubrinaStock
+        };
+      }
+    }
+
+    var isGeubrinaDistributor = String(distributor || '').toLowerCase().indexOf('ap. geubrina rizki') === 0;
+
+    for (var k = 0; k < items.length; k++) {
+      var item = items[k];
+      var key = normalizeKey(item.productId);
+      var invInfo = stockMap[key];
+      var reqQty = parseInt(item.qty, 10);
+
+      if (!invInfo) {
+        return { success: false, message: 'Stok produk [' + item.productId + '] belum terdaftar di sheet INVENTORY!' };
+      }
+      var selectedDistributorStock = isGeubrinaDistributor ? invInfo.geubrinaStock : invInfo.globalStock;
+      if (selectedDistributorStock < reqQty) {
+        return { 
+          success: false, 
+          message: 'Stok distributor tidak mencukupi untuk [' + item.productId + ']. Sisa: ' + selectedDistributorStock + ', Diminta: ' + reqQty 
+        };
+      }
+    }
+
+    var txId = generateSequentialId('TRX', 'SALES_TRANSACTIONS', 1, true);
+    var nowTimestamp = Utilities.formatDate(new Date(), TIMEZONE, DATE_FORMAT);
+
+    var totalSales = 0;
+    var totalCost = 0;
+    var txRowsToAppend = [];
+    var movRowsToAppend = [];
+
+    for (var m = 0; m < items.length; m++) {
+      var itm = items[m];
+      var qty = parseInt(itm.qty, 10) || 0;
+      var cPrice = parseCleanNumber(itm.costPrice);
+      var sPrice = parseCleanNumber(itm.sellingPrice);
+      var shjVal = sPrice - cPrice;
+
+      var subSales = sPrice * qty;
+      var subCost = cPrice * qty;
+      var subShj = shjVal * qty;
+
+      totalSales += subSales;
+      totalCost += subCost;
+
+      var productName = prodNameMap[normalizeKey(itm.productId)] || itm.productId;
+
+      txRowsToAppend.push([
+        txId,
+        txDate,
+        salesId,
+        salesName,
+        teamName,
+        distributor,
+        itm.productId,
+        productName,
+        qty,
+        cPrice,
+        sPrice,
+        shjVal,
+        subSales,
+        subCost,
+        subShj,
+        payload.notes || '',
+        username,
+        nowTimestamp
+      ]);
+
+      var targetInfo = stockMap[normalizeKey(itm.productId)];
+      var supplierStock = isGeubrinaDistributor ? targetInfo.geubrinaStock : targetInfo.globalStock;
+      var supplierStockAfter = supplierStock - qty;
+      if (isGeubrinaDistributor) {
+        targetInfo.geubrinaStock = supplierStockAfter;
+        if (hGeubrinaStockIdx !== -1) invSheet.getRange(targetInfo.rowIndex, hGeubrinaStockIdx + 1).setValue(supplierStockAfter);
+      } else {
+        targetInfo.globalStock = supplierStockAfter;
+        if (hGlobalStockIdx !== -1) invSheet.getRange(targetInfo.rowIndex, hGlobalStockIdx + 1).setValue(supplierStockAfter);
+      }
+      var stockBefore = targetInfo.currentStock;
+      var stockAfter = targetInfo.globalStock + targetInfo.geubrinaStock;
+      targetInfo.currentStock = stockAfter;
+
+      if (movSheet) {
+        movRowsToAppend.push([
+          txDate, itm.productId, 'OUT', qty, stockBefore, stockAfter, txId, username, nowTimestamp
+        ]);
+      }
+    }
+
+    if (txRowsToAppend.length > 0) {
+      var startRow = txSheet.getLastRow() + 1;
+      txSheet.getRange(startRow, 1, txRowsToAppend.length, txRowsToAppend[0].length).setValues(txRowsToAppend);
+      txSheet.getRange(startRow, 18, txRowsToAppend.length, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+      txSheet.getRange(startRow, 10, txRowsToAppend.length, 6).setNumberFormat('0');
+    }
+
+    if (movRowsToAppend.length > 0 && movSheet) {
+      movSheet.getRange(movSheet.getLastRow() + 1, 1, movRowsToAppend.length, movRowsToAppend[0].length).setValues(movRowsToAppend);
+    }
+
+    SpreadsheetApp.flush();
+    var formattedSalesAmt = 'Rp ' + Math.round(totalSales).toLocaleString('id-ID');
+    logActivity(username, 'CREATE_TRANSACTION', txId, 'Penjualan ' + formattedSalesAmt + ' oleh ' + salesName + ' (' + distributor + ')');
+
+    return {
+      success: true,
+      transactionId: txId,
+      totalSales: totalSales,
+      message: 'Transaksi berhasil disimpan dan stok otomatis terpotong!'
+    };
+  } catch (err) {
+    return { success: false, message: 'Gagal menyimpan transaksi: ' + err.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function getTransactionsPaginated(page, limit, searchKeyword, teamFilter, distFilter, dateFilter) {
+  try {
+    SpreadsheetApp.flush();
+    page = parseInt(page, 10) || 1;
+    limit = parseInt(limit, 10) || 10;
+    searchKeyword = (searchKeyword || '').toLowerCase().trim();
+    teamFilter = teamFilter || 'ALL';
+    distFilter = distFilter || 'ALL';
+    dateFilter = (dateFilter || '').trim();
+
+    var legacyMap = {
+      'TEAM-01': 'Canvasser',
+      'TEAM-02': 'MOTORIS',
+      'TEAM-03': 'MOTORIS ULTIMATE',
+      'TEAM-04': 'SPG KELONTONG',
+      'CANVASSER': 'Canvasser',
+      'ASISTEN CANVASSER': 'Junior Canvasser'
+    };
+
+    var txData = getSheetData('SALES_TRANSACTIONS').rows;
+    var invoiceMap = {};
+    var invoiceOrder = [];
+
+    for (var i = txData.length - 1; i >= 0; i--) {
+      var row = txData[i];
+      var txId = String(row.transaction_id || '').trim();
+      if (!txId) continue;
+
+      var teamName = row.team_name || 'Canvasser';
+      var rowTeamNorm = normalizeKey(teamName);
+      if (legacyMap[rowTeamNorm]) rowTeamNorm = legacyMap[rowTeamNorm];
+
+      var distributor = row.distributor || 'PT. Global Mitra Prima (Subdist)';
+      var salesName = row.sales_name || row.sales_id;
+      var subSales = parseCleanNumber(row.subtotal_sales || row.total_sales);
+      var subCost = parseCleanNumber(row.subtotal_cost || row.total_cost);
+      var subShj = (row.subtotal_shj !== undefined && row.subtotal_shj !== '') ? parseCleanNumber(row.subtotal_shj) : (subSales - subCost);
+
+      if (teamFilter !== 'ALL') {
+        var filterNorm = normalizeKey(teamFilter);
+        if (legacyMap[filterNorm]) filterNorm = legacyMap[filterNorm];
+        if (rowTeamNorm !== filterNorm) continue;
+      }
+      if (distFilter !== 'ALL') {
+        if (normalizeKey(distributor) !== normalizeKey(distFilter)) continue;
+      }
+      if (dateFilter && row.transaction_date !== dateFilter) continue;
+
+      if (searchKeyword) {
+        var matchId = txId.toLowerCase().indexOf(searchKeyword) > -1;
+        var matchSales = (salesName || '').toLowerCase().indexOf(searchKeyword) > -1;
+        var matchTeam = (teamName || '').toLowerCase().indexOf(searchKeyword) > -1;
+        var matchDist = (distributor || '').toLowerCase().indexOf(searchKeyword) > -1;
+        var matchProd = (row.product_name || row.product_id || '').toLowerCase().indexOf(searchKeyword) > -1;
+        if (!matchId && !matchSales && !matchTeam && !matchDist && !matchProd) continue;
+      }
+
+      if (!invoiceMap[txId]) {
+        invoiceMap[txId] = {
+          id: txId,
+          date: row.transaction_date,
+          salesId: row.sales_id,
+          salesName: salesName,
+          teamName: teamName,
+          distributor: distributor,
+          totalSales: subSales,
+          totalCost: subCost,
+          totalShj: subShj,
+          notes: row.notes || '-',
+          createdAt: row.created_at || ''
+        };
+        invoiceOrder.push(txId);
+      } else {
+        invoiceMap[txId].totalSales += subSales;
+        invoiceMap[txId].totalCost += subCost;
+        invoiceMap[txId].totalShj += subShj;
+      }
+    }
+
+    var filtered = invoiceOrder.map(function(id) { return invoiceMap[id]; });
+    var grandTotalSales = filtered.reduce(function(sum, item) { return sum + item.totalSales; }, 0);
+    var grandTotalCost = filtered.reduce(function(sum, item) { return sum + item.totalCost; }, 0);
+    var grandTotalShj = filtered.reduce(function(sum, item) { return sum + item.totalShj; }, 0);
+
+    var totalRows = filtered.length;
+    var totalPages = Math.ceil(totalRows / limit) || 1;
+    var offset = (page - 1) * limit;
+    var pagedRows = filtered.slice(offset, offset + limit);
+
+    return {
+      success: true,
+      data: pagedRows,
+      totalRows: totalRows,
+      totalPages: totalPages,
+      currentPage: page,
+      summary: {
+        totalSales: grandTotalSales,
+        totalCost: grandTotalCost,
+        totalShj: grandTotalShj
+      }
+    };
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+}
+
+function getAllTransactionsForExport(searchKeyword, teamFilter, distFilter, dateFilter) {
+  try {
+    SpreadsheetApp.flush();
+    var res = getTransactionsPaginated(1, 999999, searchKeyword, teamFilter, distFilter, dateFilter);
+    return {
+      success: true,
+      data: res.data || [],
+      totalSales: res.summary ? res.summary.totalSales : 0,
+      totalCost: res.summary ? res.summary.totalCost : 0,
+      totalShj: res.summary ? res.summary.totalShj : 0,
+      branch: 'Cabang Lhokseumawe',
+      exportedAt: Utilities.formatDate(new Date(), TIMEZONE, DATE_FORMAT)
+    };
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+}
+
+function getTransactionDetail(transactionId) {
+  try {
+    SpreadsheetApp.flush();
+    var txData = getSheetData('SALES_TRANSACTIONS').rows;
+    var matchingRows = txData.filter(function(r) {
+      return String(r.transaction_id || '').trim() === String(transactionId).trim();
+    });
+
+    if (matchingRows.length === 0) {
+      return { success: false, message: 'Faktur tidak ditemukan!' };
+    }
+
+    var first = matchingRows[0];
+    var totalSales = 0;
+    var totalCost = 0;
+    var totalShj = 0;
+    var items = [];
+
+    matchingRows.forEach(function(m) {
+      var qty = parseInt(m.quantity, 10) || 1;
+      var cPrice = parseCleanNumber(m.cost_price);
+      var sPrice = parseCleanNumber(m.selling_price);
+      var shjVal = (m.shj !== undefined && m.shj !== '') ? parseCleanNumber(m.shj) : (sPrice - cPrice);
+
+      var subSales = parseCleanNumber(m.subtotal_sales) || (sPrice * qty);
+      var subCost = parseCleanNumber(m.subtotal_cost) || (cPrice * qty);
+      var subShj = parseCleanNumber(m.subtotal_shj) || (shjVal * qty);
+
+      totalSales += subSales;
+      totalCost += subCost;
+      totalShj += subShj;
+
+      items.push({
+        productId: m.product_id || '-',
+        productName: m.product_name || m.product_id || '-',
+        qty: qty,
+        costPrice: cPrice,
+        sellingPrice: sPrice,
+        shj: shjVal,
+        subtotalSales: subSales,
+        subtotalCost: subCost,
+        subtotalShj: subShj
+      });
+    });
+
+    var header = {
+      id: first.transaction_id,
+      date: first.transaction_date,
+      salesName: first.sales_name || first.sales_id,
+      teamName: first.team_name,
+      distributor: first.distributor || 'PT. Global Mitra Prima (Subdist)',
+      totalSales: totalSales,
+      totalCost: totalCost,
+      totalShj: totalShj,
+      notes: first.notes || '-',
+      createdBy: first.created_by || 'ryan',
+      createdAt: first.created_at || '-'
+    };
+
+    return {
+      success: true,
+      header: header,
+      items: items
+    };
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+}
+
+function getMonthlyTeamReport(reportMonth, salesId) {
+  try {
+    reportMonth = String(reportMonth || '').trim();
+    salesId = String(salesId || '').trim();
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(reportMonth)) {
+      return { success: false, message: 'Pilih bulan laporan yang valid.' };
+    }
+    if (!salesId) return { success: false, message: 'Pilih sales terlebih dahulu.' };
+
+    var salesRows = getSheetData('SALES').rows;
+    var selectedSales = null;
+    for (var s = 0; s < salesRows.length; s++) {
+      if (normalizeKey(salesRows[s].sales_id) === normalizeKey(salesId)) {
+        selectedSales = salesRows[s];
+        break;
+      }
+    }
+
+    var totals = { sales: 0, shj: 0 };
+    var workDates = {};
+    var productMap = {};
+    var txRows = getSheetData('SALES_TRANSACTIONS').rows;
+
+    txRows.forEach(function(row) {
+      if (normalizeKey(row.sales_id) !== normalizeKey(salesId)) return;
+      var date = normalizeDateString(row.transaction_date);
+      if (!date || date.slice(0, 7) !== reportMonth) return;
+
+      workDates[date] = true;
+      var qty = parseInt(row.quantity, 10) || 0;
+      var unitCost = parseCleanNumber(row.cost_price);
+      var unitSales = parseCleanNumber(row.selling_price);
+      var unitShj = (row.shj !== undefined && row.shj !== '')
+        ? parseCleanNumber(row.shj)
+        : unitSales - unitCost;
+      var salesAmount = (row.subtotal_sales !== undefined && row.subtotal_sales !== '')
+        ? parseCleanNumber(row.subtotal_sales)
+        : unitSales * qty;
+      var shjAmount = (row.subtotal_shj !== undefined && row.subtotal_shj !== '')
+        ? parseCleanNumber(row.subtotal_shj)
+        : unitShj * qty;
+
+      totals.sales += salesAmount;
+      totals.shj += shjAmount;
+
+      var productId = String(row.product_id || '').trim();
+      var productName = String(row.product_name || productId || 'Produk tanpa nama').trim();
+      var key = normalizeKey(productId || productName);
+      if (!productMap[key]) {
+        productMap[key] = {
+          productId: productId || '-',
+          productName: productName,
+          quantity: 0,
+          totalSales: 0,
+          totalShj: 0
+        };
+      }
+      productMap[key].quantity += qty;
+      productMap[key].totalSales += salesAmount;
+      productMap[key].totalShj += shjAmount;
+    });
+
+    getSheetData('ATTENDANCE').rows.forEach(function(row) {
+      if (normalizeKey(row.sales_id) !== normalizeKey(salesId)) return;
+      var date = normalizeDateString(row.date || row.attendance_date || '');
+      if (date && date.slice(0, 7) === reportMonth) workDates[date] = true;
+    });
+
+    var products = Object.keys(productMap).map(function(key) { return productMap[key]; });
+    products.sort(function(a, b) {
+      if (b.quantity !== a.quantity) return b.quantity - a.quantity;
+      if (b.totalSales !== a.totalSales) return b.totalSales - a.totalSales;
+      return a.productName.localeCompare(b.productName);
+    });
+
+    var teamName = selectedSales ? (selectedSales.team_name || '') : '';
+    var rawTarget = selectedSales ? (selectedSales.target_monthly || selectedSales.target_amount || 0) : 0;
+    var targetMonthly = getIndividualMonthlyTarget(teamName, rawTarget);
+    var reportRows = products.length ? products : [{
+      productId: '', productName: 'Belum ada transaksi produk', quantity: 0, totalSales: 0, totalShj: 0
+    }];
+    var sheetRows = reportRows.map(function(product, index) {
+      return [
+        reportMonth,
+        salesId,
+        selectedSales ? selectedSales.full_name : (txRows.find(function(row) { return normalizeKey(row.sales_id) === normalizeKey(salesId); }) || {}).sales_name || salesId,
+        teamName,
+        selectedSales ? (selectedSales.area || '') : '',
+        totals.sales,
+        totals.shj,
+        Object.keys(workDates).length,
+        products.length ? index + 1 : 0,
+        product.productId,
+        product.productName,
+        product.quantity,
+        product.totalSales,
+        product.totalShj
+      ];
+    });
+
+    var lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      var reportSheet = setupMonthlyTeamReportSheet();
+      var existing = getSheetData('MONTHLY_TEAM_REPORT').rows;
+      var retainedRows = existing.filter(function(row) {
+        return !(String(row.report_month || '').trim() === reportMonth && normalizeKey(row.sales_id) === normalizeKey(salesId));
+      }).map(function(row) {
+        return MONTHLY_TEAM_REPORT_HEADERS.map(function(header) {
+          if (['total_sales', 'total_shj', 'total_hk', 'product_rank', 'quantity_sold', 'product_sales', 'product_shj'].indexOf(header) > -1) {
+            return parseCleanNumber(row[header]);
+          }
+          return row[header] === undefined ? '' : row[header];
+        });
+      });
+      var output = retainedRows.concat(sheetRows);
+      var oldDataRows = Math.max(0, reportSheet.getLastRow() - 1);
+      if (oldDataRows > 0) reportSheet.getRange(2, 1, oldDataRows, MONTHLY_TEAM_REPORT_HEADERS.length).clearContent();
+      if (output.length) reportSheet.getRange(2, 1, output.length, MONTHLY_TEAM_REPORT_HEADERS.length).setValues(output);
+      if (output.length) {
+        reportSheet.getRange(2, 6, output.length, 2).setNumberFormat('"Rp" #,##0');
+        reportSheet.getRange(2, 13, output.length, 2).setNumberFormat('"Rp" #,##0');
+        reportSheet.getRange(2, 8, output.length, 2).setNumberFormat('#,##0');
+        reportSheet.getRange(2, 12, output.length, 1).setNumberFormat('#,##0');
+      }
+      SpreadsheetApp.flush();
+    } finally {
+      lock.releaseLock();
+    }
+
+    return {
+      success: true,
+      reportMonth: reportMonth,
+      sales: {
+        salesId: salesId,
+        salesName: selectedSales ? selectedSales.full_name : salesId,
+        teamName: teamName,
+        area: selectedSales ? (selectedSales.area || '') : '',
+        targetMonthly: targetMonthly,
+        achievementPercent: targetMonthly > 0 ? totals.sales / targetMonthly * 100 : 0
+      },
+      summary: {
+        totalSales: totals.sales,
+        totalShj: totals.shj,
+        totalHK: Object.keys(workDates).length,
+        productCount: products.length
+      },
+      products: products
+    };
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+}
+
+/**
+ * Jalankan fungsi ini sekali dari editor Apps Script untuk meminta izin Drive
+ * sebelum memakai fitur unggah foto dari webapp.
+ */
+function authorizePhotoUploadDrive() {
+  getPhotoUploadFolder_();
+  return 'Akses Google Drive sudah diotorisasi dan folder unggahan siap digunakan.';
+}
