@@ -56,7 +56,15 @@ Pesan ini berasal dari kegagalan `UrlFetchApp.fetch` sebelum respons HTTP diteri
 3. **Sales**: gunakan browser/profil terpisah, masuk sebagai sales terdaftar. Dashboard, absensi dan transaksi hanya memuat miliknya. Menu pengelolaan akses tidak muncul.
 4. **Akun tak terdaftar**: login harus ditolak dan data aplikasi tidak tampil.
 5. **Nonaktifkan akses**: nonaktifkan sales dari admin, lalu lakukan permintaan data baru dari browser sales. Server harus menolak meskipun akun Google masih masuk.
-6. **Keluar**: pilih Keluar akun; data yang telah dimuat dibersihkan dengan pemuatan ulang halaman. Muat ulang juga mengharuskan login kembali karena sesi Firebase tidak disimpan permanen.
+6. **Keluar**: pilih Keluar akun; halaman langsung menampilkan login di dokumen yang sama. Data akun, formulir, modal, grafik dan menu admin sebelumnya dibersihkan tanpa reload iframe. Setelah Firebase berhasil sign out, tombol Masuk dengan Google aktif kembali. Muat ulang manual juga mengharuskan login kembali karena sesi Firebase tidak disimpan permanen.
+
+## Pembaruan logout agar tidak menjadi halaman putih
+
+Ganti seluruh isi `auth-client.html` dan `js.html` dengan versi terbaru dari cabang uji-login, lalu simpan. `auth-client.html` menampilkan login tanpa memuat ulang URL internal iframe Apps Script, menghapus data/tampilan sesi lama, serta membangun ulang menu sesuai peran akun berikutnya. `js.html` membatalkan kelanjutan unggah foto yang masih dikompres saat sesi berganti. Ini tidak menghapus data spreadsheet atau akun Firebase.
+
+Untuk `/dev`, simpan lalu muat ulang URL aplikasi melalui tab browser. Untuk `/exec`, perbarui deployment yang sudah ada lewat **Terapkan → Kelola deployment → ikon pensil → Versi baru → Terapkan**, lalu muat ulang URL yang sama.
+
+Uji: masuk sebagai admin → Keluar akun → pastikan layar login langsung muncul → masuk sebagai sales di tab yang sama → pastikan menu admin dan data akun lama tidak terbawa. Jika sign out Firebase gagal, halaman tetap terkunci dengan pesan untuk mencoba **Ganti akun** lagi, tanpa menyatakan logout berhasil.
 
 ## Pembaruan dropdown profil pada menu akses sales
 

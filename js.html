@@ -1819,7 +1819,9 @@
       submitButton.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Mengompres...';
     }
 
+    var uploadGeneration = kchAuthGeneration;
     compressPhotoFile(file, function(imageDataUrl, errorMessage) {
+      if (uploadGeneration !== kchAuthGeneration) return;
       if (errorMessage) {
         if (submitButton) {
           submitButton.disabled = false;

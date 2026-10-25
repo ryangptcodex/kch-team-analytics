@@ -4,6 +4,35 @@
   var kchFirebaseAuth = null;
   var kchAuthGeneration = 0;
   var kchAccessLoadVersion = 0;
+  var kchSigningOut = false;
+  var kchInitialAppState = null;
+  var kchInitialUi = [];
+
+  function captureKchInitialUi() {
+    if (kchInitialAppState !== null) return;
+    kchInitialAppState = JSON.stringify(appState);
+    var selector = '.app-layout, .modal-backdrop, #kchAccessPanel, #toastBox';
+    document.querySelectorAll(selector).forEach(function(node) {
+      // Capture each root once, without taking duplicate nested snapshots.
+      if (node.parentElement && node.parentElement.closest(selector)) return;
+      kchInitialUi.push({ current: node, template: node.cloneNode(true) });
+    });
+  }
+
+  function resetKchSessionUi() {
+    kchAccessLoadVersion++;
+    if (appState.txSearchTimer) clearTimeout(appState.txSearchTimer);
+    Object.keys(appState.charts || {}).forEach(function(name) {
+      try { appState.charts[name].destroy(); } catch (err) {}
+    });
+    if (kchInitialAppState !== null) appState = JSON.parse(kchInitialAppState);
+    kchInitialUi.forEach(function(snapshot) {
+      var clean = snapshot.template.cloneNode(true);
+      snapshot.current.replaceWith(clean);
+      snapshot.current = clean;
+    });
+    document.body.style.overflow = '';
+  }
 
   function showKchAuthError(message) {
     document.body.classList.add('kch-locked');
@@ -43,6 +72,7 @@
   }
 
   function initKchAuthentication() {
+    captureKchInitialUi();
     if (!window.firebase || !window.KCH_FIREBASE_CONFIG) {
       showKchAuthError('Komponen login gagal dimuat. Periksa koneksi lalu muat ulang halaman.');
       return;
@@ -54,9 +84,11 @@
     kchFirebaseAuth.setPersistence(firebase.auth.Auth.Persistence.NONE).then(function() {
       document.getElementById('kchGoogleLogin').disabled = false;
       kchFirebaseAuth.onAuthStateChanged(function(user) {
+        if (kchSigningOut) return;
         kchAuthGeneration++;
+        resetKchSessionUi();
         if (!user) { showKchAuthError('Silakan masuk dengan Google.'); return; }
-        document.getElementById('kchAuthMessage').textContent = 'Memeriksa akses akun…';
+        showKchAuthError('Memeriksa akses akun…');
         kchRun().withSuccessHandler(function(result) {
           appState.user = result.user;
           document.body.classList.remove('kch-locked');
@@ -69,7 +101,7 @@
   }
 
   function signInKchGoogle() {
-    if (!kchFirebaseAuth) return;
+    if (!kchFirebaseAuth || kchSigningOut) return;
     var provider = new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
     document.getElementById('kchGoogleLogin').disabled = true;
@@ -86,14 +118,32 @@
   }
 
   function signOutKch() {
+    if (kchSigningOut) return;
+    kchSigningOut = true;
     kchAuthGeneration++;
+    resetKchSessionUi();
     showKchAuthError('Keluar dari akun…');
-    if (!kchFirebaseAuth) { window.location.reload(); return; }
-    // Reload clears all previously fetched sales data, charts and forms.
-    kchFirebaseAuth.signOut().then(function() { window.location.reload(); }).catch(function() { window.location.reload(); });
+    document.getElementById('kchGoogleLogin').disabled = true;
+    if (!kchFirebaseAuth) {
+      kchSigningOut = false;
+      showKchAuthError('Komponen login belum siap. Muat ulang halaman aplikasi dari tab browser.');
+      return;
+    }
+    // Keep the Apps Script iframe in place. Reloading its internal URL can
+    // produce a blank page; auth state and account data are cleared locally.
+    return Promise.resolve().then(function() { return kchFirebaseAuth.signOut(); }).then(function() {
+      kchSigningOut = false;
+      showKchAuthError('Sudah keluar. Silakan masuk dengan Google.');
+      document.getElementById('kchGoogleLogin').disabled = false;
+    }).catch(function() {
+      kchSigningOut = false;
+      showKchAuthError('Belum berhasil keluar dari akun. Klik Ganti akun untuk mencoba lagi.');
+    });
   }
 
   function installKchAccountActions(user) {
+    var roleLabel = document.querySelector('.user-role-header');
+    if (roleLabel) roleLabel.textContent = user.role === 'ADMIN' ? 'Admin' : 'Sales';
     var menu = document.getElementById('userDropdownMenu');
     if (!menu || document.getElementById('kchLogoutAction')) return;
     if (user.role === 'ADMIN') {

@@ -106,3 +106,13 @@ Pengguna berhenti sementara untuk tidur dan ingin melanjutkan nanti.
 - Perbaikan: `listAccessUsers_` mengirim profil SALES yang diperlukan bersama daftar akun (tetap admin-only). Panel mengambil profil langsung, menampilkan status memuat/gagal/kosong, mencegah penyimpanan saat belum siap, mengabaikan respons lama, dan menyediakan tombol Ubah pada akun sales yang sudah terdaftar.
 - File yang perlu diganti bersama di Apps Script: `auth.gs`, `auth-client.html`, `auth-ui.html`. Perlu update versi deployment existing untuk `/exec`; `/dev` cukup simpan dan refresh.
 - 28 tes lokal lulus lewat `node --test tests/*.test.cjs`. Pemasangan perbaikan dropdown dan keberhasilan aktif kembali di browser pengguna masih menunggu.
+
+### Perbaikan logout halaman putih
+
+- Pengguna melaporkan klik Keluar akun menghasilkan halaman putih pada `/dev`, dan meminta langsung kembali ke login.
+- Kode sebelumnya memanggil `window.location.reload()` dalam iframe Apps Script. Diganti alur sign out di dokumen yang sama tanpa navigasi/reload iframe.
+- `auth-client.html` menyimpan template UI bersih sebelum login, lalu saat sesi berakhir membersihkan state akun, timer pencarian, grafik, formulir, modal, menu admin dan daftar akses. Respons RPC dari sesi lama diabaikan. Setelah sign out sukses layar login dan tombol login tersedia; kegagalan tetap terkunci dengan opsi mencoba lagi.
+- Pergantian akun membangun ulang menu dan memperbarui label peran menjadi Admin atau Sales.
+- `js.html` menambahkan pemeriksaan generasi sesi pada callback kompresi foto agar unggah yang dimulai sebelum logout tidak terkirim atas nama akun berikutnya.
+- Dua file yang perlu diganti: `auth-client.html`, `js.html`. Perlu update versi deployment existing untuk `/exec`; `/dev` cukup simpan dan refresh dari tab browser.
+- 35 tes lokal lolos, termasuk logout sukses/gagal, tanpa Firebase, klik berulang, admin ke sales dalam tab sama, respons lama dan kompresi foto lintas sesi. Perilaku nyata pada browser pengguna setelah pemasangan masih menunggu.
