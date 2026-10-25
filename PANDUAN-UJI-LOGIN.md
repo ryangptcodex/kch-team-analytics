@@ -116,3 +116,9 @@ Login hanya menampilkan satu tombol **Masuk dengan Google**. Tombol **Ganti akun
 Pratinjau lokal: [desktop](docs/login-desktop.png) dan [HP](docs/login-mobile.png). Ini hasil render browser lokal, bukan screenshot deployment Google.
 
 Simpan perubahan lalu refresh `/dev`. Untuk `/exec`, gunakan **Terapkan → Kelola deployment → ikon pensil → Versi baru → Terapkan**, lalu refresh URL yang sama.
+
+## Nama lengkap dan label TEAM LEADER pada tombol akun
+
+Ganti seluruh isi `js.html`, `auth-client.html`, dan `css.html` dari cabang uji-login. Nama pada tombol akun kini memakai nama tampilan lengkap; nama panjang dapat membungkus ke baris berikutnya dan tetap terlihat di layar HP. Label untuk akun dengan role ADMIN ditampilkan sebagai **TEAM LEADER**. Label akun SALES tetap Sales. Role otorisasi pada ACCESS_USERS harus tetap **ADMIN**, bukan TEAM LEADER. Ini perubahan tampilan tanpa perubahan hak akses.
+
+Simpan dan refresh `/dev`. Untuk `/exec`, perbarui versi deployment yang sama lalu refresh. Nama lengkap berasal dari profil KCH yang disimpan melalui Edit profil, atau sumber nama sebelumnya bila belum dikustomisasi.

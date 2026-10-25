@@ -151,7 +151,7 @@
 
   function installKchAccountActions(user) {
     var roleLabel = document.querySelector('.user-role-header');
-    if (roleLabel) roleLabel.textContent = user.role === 'ADMIN' ? 'Admin' : 'Sales';
+    if (roleLabel) roleLabel.textContent = user.role === 'ADMIN' ? 'TEAM LEADER' : 'Sales';
     var menu = document.getElementById('userDropdownMenu');
     if (!menu || document.getElementById('kchLogoutAction')) return;
     var profile = document.createElement('button');

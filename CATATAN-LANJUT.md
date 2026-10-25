@@ -149,3 +149,12 @@ Pengguna berhenti sementara untuk tidur dan ingin melanjutkan nanti.
 - Pesan backend terbaru membedakan role tidak valid dan status tidak aktif; tes membuktikan perubahan displayName Google tidak mengubah otorisasi email/UID yang sama. Jangan menghapus akun Firebase/UID atau mengubah API key untuk pesan role/status ini.
 
 - Jawaban pengguna akhirnya diterima: role/status yang ada adalah TEAM LEADER ACTIVE dan SALES ACTIVE. Penyebab penolakan pada akun TEAM LEADER sudah jelas: role tersebut belum didukung. Instruksikan mengembalikan akun admin ke ADMIN/ACTIVE. Jangan otomatis menganggap TEAM LEADER sama dengan admin; jika dibutuhkan, tetapkan kewenangannya sebagai fitur terpisah.
+
+### Nama lengkap pada tombol akun dan label TEAM LEADER
+
+- Pengguna meminta nama pada tombol akun kanan atas tampil lengkap dan label Admin menjadi TEAM LEADER.
+- `js.html`: nama tombol kini menggunakan fullName, sedangkan sapaan tetap memakai nama pendek.
+- `auth-client.html`: role ADMIN ditampilkan dengan label TEAM LEADER; otorisasi tetap ADMIN. Role SALES tetap berlabel Sales. Jangan mengubah nilai role ACCESS_USERS menjadi TEAM LEADER.
+- `css.html`: nama membungkus tanpa ellipsis, metadata nama tetap terlihat di HP, header menyesuaikan baris dan tinggi agar kontrol tidak bertumpuk.
+- File yang perlu diganti: js.html, auth-client.html, css.html. `/exec` memerlukan pembaruan versi deployment existing; `/dev` simpan dan refresh.
+- 52 tes regresi lokal lulus. Chromium memeriksa nama 13 dan 80 karakter pada 1920, 1440, 1024, 820, 390, 320px; tampilan penuh dan label diperiksa setelah transisi layout selesai. Pemasangan di Google masih menunggu pengguna.
