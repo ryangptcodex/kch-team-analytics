@@ -194,3 +194,11 @@ Pengguna berhenti sementara untuk tidur dan ingin melanjutkan nanti.
 - Alat review-repro sekarang menjelaskan bahwa ia historis ketika dijalankan terhadap implementasi baru; bukti JSONL lama dipertahankan. Tidak mengklaim semua review selesai.
 - Tidak ada perubahan spreadsheet/deploymentGoogle nyata. Pengguna perlu memasang lalu uji API pada salinan. Manual stok/proyeklain tidak terlindungi ScriptLock proyek ini. Edit/cancel, stokmasuk/koreksi, laporan, absensi lanjutan tetap backlog.
 - Hasil akhir lokal: `node --test tests/*.test.cjs` → 104 lulus/0 gagal (40 tes transaksi/client baru); Chromium memeriksa disabled fieldset, tombol Periksa hasil di luar fieldset, retry ID sama, pembukaan form setelah COMMITTED serta lebar1440/390/320px. `git diff --check` dengan toleransi CRLF lolos. Tidak membuktikan aktivasi API/dataGoogle aktual.
+
+### Jeda setelah panduan pemasangan paket transaksi
+
+- Pengguna meminta menyimpan progres untuk dilanjutkan nanti.
+- Kode paket transaksi sudah di-push ke uji-login, commit ef80dcfcd0ff4e93d147734fc2716c5c09ee6312; tujuh tautan file dan cara Copy raw file sudah diberikan.
+- Pengguna tidak menemukan Google Sheets API di daftar Layanan. Diberikan alternatif lewat Setelan proyek: tampilkan manifes appsscript.json, salin manifest berisi enabledAdvancedServices Sheets v4, simpan dan refresh editor; layanan tampil sebagai Sheets. Belum ada konfirmasi/screenshot bahwa aktivasi berhasil.
+- Pertanyaan terakhir apakah perlu menekan Perbarui di sheet: dijawab tidak perlu, karena itu maintenance bukan update kode webapp. Berikutnya pilih checkKchTransactionSetup di editor lalu Jalankan, izinkan akses bila diminta, periksa log success:true. Untuk /exec perlu versi deployment baru.
+- Jangan menganggap tujuh file, pemeriksaan API, deployment atau uji transaksi Google sudah selesai: pengguna belum mengirim hasil pemeriksaan. Saat lanjut, mulai dengan memastikan hasil log checkKchTransactionSetup, kemudian uji kecil pada salinan UJI COBA mengikuti panduan. Jangan memakai data asli atau menjalankan repair hanya untuk memasang paket.
