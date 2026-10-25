@@ -1,0 +1,22 @@
+{"case":"duplicate product qty6+6 against stock10","success":true,"stock":-2,"txRows":2,"totals":1200,"message":"Transaksi berhasil disimpan dan stok otomatis terpotong!"}
+{"case":"negative qty -2","success":true,"stock":12,"txRows":1,"totals":-200,"message":"Transaksi berhasil disimpan dan stok otomatis terpotong!"}
+{"case":"zero qty","success":true,"stock":10,"txRows":1,"totals":0,"message":"Transaksi berhasil disimpan dan stok otomatis terpotong!"}
+{"case":"browser prices override master60/100","success":true,"stock":9,"txRows":1,"totals":1,"message":"Transaksi berhasil disimpan dan stok otomatis terpotong!"}
+{"case":"persisted tampered prices","cost":0,"sell":1}
+{"case":"transaction write fails after stock update","success":false,"stock":8,"txRows":0,"message":"Gagal menyimpan transaksi: SIMULATED_WRITE_FAILURE"}
+{"case":"movement write fails after transaction saved","success":false,"stock":8,"txRows":1,"message":"Gagal menyimpan transaksi: SIMULATED_WRITE_FAILURE"}
+{"case":"retry after previous failure","success":true,"stock":6,"txRows":2,"totals":200,"message":"Transaksi berhasil disimpan dan stok otomatis terpotong!"}
+{"case":"same request submitted twice","success":true,"stock":6,"txRows":2,"totals":200,"message":"Transaksi berhasil disimpan dan stok otomatis terpotong!"}
+{"case":"invalid date accepted","success":true,"stock":9,"txRows":1,"totals":100,"message":"Transaksi berhasil disimpan dan stok otomatis terpotong!"}
+{"case":"unknown distributor reduces global stock","success":true,"stock":9,"txRows":1,"totals":100,"message":"Transaksi berhasil disimpan dan stok otomatis terpotong!"}
+{"case":"inactive product accepted","success":true,"stock":9,"txRows":1,"totals":100,"message":"Transaksi berhasil disimpan dan stok otomatis terpotong!"}
+{"case":"formula text forwarded unchanged into notes cell","notes":"=SUM(1,2)"}
+{"case":"date filter with formatted Date cell","withoutFilter":1,"withFilter":0}
+{"case":"SHJ master differs from saved","masterShj":10,"savedShj":40}
+{"case":"same Canvasser target30000000 interpreted differently","metadataSuccess":true,"metadataTarget":80000000,"dashboardSuccess":true,"dashboardTarget":30000000}
+{"case":"future attendance accepted and marked on time at23:59","success":true,"status":"Hadir Tepat Waktu","time":"23:59:00"}
+{"case":"impossible attendance date accepted","success":true,"storedDate":"2026-03-03T00:00:00.000Z"}
+{"case":"photo failure after row append","success":false,"savedAttendanceRows":1,"fileTrashed":true}
+{"case":"Canvasser chart total differs from branch sales","success":true,"branchSales":100,"canvasserSales":0}
+{"case":"export hides upstream read failure","result":{"success":true,"data":[],"totalSales":0,"totalCost":0,"totalShj":0,"branch":"Cabang Lhokseumawe","exportedAt":"25/10/2026 12:00:00"}}
+{"case":"missing movement sheet still allows sale","success":true,"stock":9,"txRows":1,"totals":100,"message":"Transaksi berhasil disimpan dan stok otomatis terpotong!"}
