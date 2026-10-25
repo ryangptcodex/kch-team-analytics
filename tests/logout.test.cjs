@@ -75,7 +75,7 @@ test('logout failure remains on login with an actionable retry and no false succ
   c.kchFirebaseAuth = { signOut: () => Promise.reject(new Error('offline')) };
   await c.signOutKch();
   assert.match(e.get('kchAuthMessage').textContent, /Belum berhasil keluar/);
-  assert.equal(e.get('kchAuthScreen').hidden, false); assert.equal(e.get('kchGoogleLogin').disabled, true);
+  assert.equal(e.get('kchAuthScreen').hidden, false); assert.equal(e.get('kchGoogleLogin').disabled, false);
   assert.equal(c.kchSigningOut, false);
 });
 
@@ -135,3 +135,20 @@ test('photo compression started before logout cannot submit under the next accou
   c.kchAuthGeneration++; compressionDone('data:image/jpeg;base64,ABC', null);
   assert.equal(rpcCount, 0);
 });
+
+for (const emitStateEvent of [false, true]) {
+  test('Google login rechecks access exactly once ' + (emitStateEvent ? 'with' : 'without') + ' an auth-state event', async () => {
+    const e = browser(); const c = e.context; c.captureKchInitialUi(); let requests = 0;
+    c.firebase = { auth: { GoogleAuthProvider: class { setCustomParameters(value) { assert.equal(value.prompt, 'select_account'); } } } };
+    c.kchFirebaseAuth = { signInWithPopup: async () => {
+      if (emitStateEvent) c.handleKchAuthState({ uid: 'same-user' });
+      return { user: { uid: 'same-user' } };
+    } };
+    c.kchRun = () => { const r = { withSuccessHandler(fn) { r.success = fn; return r; }, withFailureHandler() { return r; },
+      getAuthProfile() { requests++; r.success({ user: { role: 'SALES', email: 'sales@gmail.com' } }); } }; return r; };
+    c.initApp = () => {};
+    await c.signInKchGoogle();
+    assert.equal(requests, 1); assert.equal(e.get('kchAuthScreen').hidden, true);
+    assert.equal(c.appState.user.role, 'SALES'); assert.equal(e.get('kchGoogleLogin').disabled, false);
+  });
+}

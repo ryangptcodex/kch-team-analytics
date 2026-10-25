@@ -83,21 +83,23 @@
     // No Firebase refresh token is persisted to browser storage by this app.
     kchFirebaseAuth.setPersistence(firebase.auth.Auth.Persistence.NONE).then(function() {
       document.getElementById('kchGoogleLogin').disabled = false;
-      kchFirebaseAuth.onAuthStateChanged(function(user) {
-        if (kchSigningOut) return;
-        kchAuthGeneration++;
-        resetKchSessionUi();
-        if (!user) { showKchAuthError('Silakan masuk dengan Google.'); return; }
-        showKchAuthError('Memeriksa akses akun…');
-        kchRun().withSuccessHandler(function(result) {
-          appState.user = result.user;
-          document.body.classList.remove('kch-locked');
-          document.getElementById('kchAuthScreen').hidden = true;
-          installKchAccountActions(result.user);
-          initApp();
-        }).withFailureHandler(function(err) { showKchAuthError(err.message); }).getAuthProfile();
-      });
+      kchFirebaseAuth.onAuthStateChanged(handleKchAuthState);
     }).catch(function(err) { showKchAuthError('Login belum dapat disiapkan: ' + err.message); });
+  }
+
+  function handleKchAuthState(user) {
+    if (kchSigningOut) return;
+    kchAuthGeneration++;
+    resetKchSessionUi();
+    if (!user) { showKchAuthError('Silakan masuk dengan Google.'); return; }
+    showKchAuthError('Memeriksa akses akun…');
+    kchRun().withSuccessHandler(function(result) {
+      appState.user = result.user;
+      document.body.classList.remove('kch-locked');
+      document.getElementById('kchAuthScreen').hidden = true;
+      installKchAccountActions(result.user);
+      initApp();
+    }).withFailureHandler(function(err) { showKchAuthError(err.message); }).getAuthProfile();
   }
 
   function signInKchGoogle() {
@@ -105,8 +107,13 @@
     var provider = new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
     document.getElementById('kchGoogleLogin').disabled = true;
+    var attemptGeneration = kchAuthGeneration;
     // Open directly from the click gesture so browsers can allow the popup.
-    kchFirebaseAuth.signInWithPopup(provider).catch(function(err) {
+    return kchFirebaseAuth.signInWithPopup(provider).then(function(result) {
+      // Selecting the same Firebase user may not emit an auth-state event.
+      // Recheck access without requiring a separate account-switch button.
+      if (attemptGeneration === kchAuthGeneration) handleKchAuthState(result.user);
+    }).catch(function(err) {
       var message = err.message || 'Login Google gagal.';
       if (err.code === 'auth/unauthorized-domain') {
         message = 'Domain aplikasi belum diizinkan di Firebase Authentication → Settings → Authorized domains. Tambahkan hostname: ' + window.location.hostname;
@@ -137,7 +144,8 @@
       document.getElementById('kchGoogleLogin').disabled = false;
     }).catch(function() {
       kchSigningOut = false;
-      showKchAuthError('Belum berhasil keluar dari akun. Klik Ganti akun untuk mencoba lagi.');
+      showKchAuthError('Belum berhasil keluar. Silakan masuk kembali dengan Google untuk memilih akun.');
+      document.getElementById('kchGoogleLogin').disabled = false;
     });
   }
 

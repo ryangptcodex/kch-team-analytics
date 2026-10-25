@@ -64,7 +64,7 @@ Ganti seluruh isi `auth-client.html` dan `js.html` dengan versi terbaru dari cab
 
 Untuk `/dev`, simpan lalu muat ulang URL aplikasi melalui tab browser. Untuk `/exec`, perbarui deployment yang sudah ada lewat **Terapkan → Kelola deployment → ikon pensil → Versi baru → Terapkan**, lalu muat ulang URL yang sama.
 
-Uji: masuk sebagai admin → Keluar akun → pastikan layar login langsung muncul → masuk sebagai sales di tab yang sama → pastikan menu admin dan data akun lama tidak terbawa. Jika sign out Firebase gagal, halaman tetap terkunci dengan pesan untuk mencoba **Ganti akun** lagi, tanpa menyatakan logout berhasil.
+Uji: masuk sebagai admin → Keluar akun → pastikan layar login langsung muncul → masuk sebagai sales di tab yang sama → pastikan menu admin dan data akun lama tidak terbawa. Jika sign out Firebase gagal, halaman tetap terkunci tanpa menyatakan logout berhasil. Pengguna dapat memilih akun lagi melalui tombol **Masuk dengan Google**.
 
 ## Pembaruan dropdown profil pada menu akses sales
 
@@ -82,3 +82,13 @@ Pengujian lokal: `node --test tests/*.test.cjs` menggunakan tiruan layanan Googl
 Ini paket **uji login**, belum versi siap launch. Fungsi edit transaksi belum ditambahkan. Validasi jumlah/harga, gabungan produk ganda dan pemulihan penyimpanan transaksi saat gagal masih memerlukan perbaikan tahap berikutnya. Jangan gunakan paket ini untuk transaksi operasional atau menganggap stok sudah terverifikasi. Data salinan dapat berubah bila fungsi tulis dijalankan.
 
 Saat menyalin proyek lagi, perbarui ID spreadsheet uji dalam `firebase-config.gs`; kode sengaja menggunakan ID eksplisit agar deployment tidak memilih spreadsheet yang tidak jelas.
+
+## Tampilan login dengan ilustrasi dashboard
+
+Ganti seluruh isi `auth-ui.html` dan `auth-client.html` dengan versi terbaru di cabang uji-login. Halaman memakai kartu putih dua kolom, latar pastel dan ilustrasi dashboard SVG yang tertanam di HTML; tidak memerlukan gambar Drive atau pengaturan domain tambahan untuk ilustrasinya. Pada HP, kedua panel tersusun vertikal dan tombol login tetap berada dekat bagian atas.
+
+Login hanya menampilkan satu tombol **Masuk dengan Google**. Tombol **Ganti akun** dihapus; pemilihan akun tetap melalui popup Google. Pemilihan ulang akun yang sama juga memicu pemeriksaan akses baru meskipun Firebase tidak mengirim event perubahan pengguna. Menu **Keluar akun** di dalam aplikasi tetap tersedia.
+
+Pratinjau lokal: [desktop](docs/login-desktop.png) dan [HP](docs/login-mobile.png). Ini hasil render browser lokal, bukan screenshot deployment Google.
+
+Simpan perubahan lalu refresh `/dev`. Untuk `/exec`, gunakan **Terapkan → Kelola deployment → ikon pensil → Versi baru → Terapkan**, lalu refresh URL yang sama.

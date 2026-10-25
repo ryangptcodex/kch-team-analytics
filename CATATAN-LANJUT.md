@@ -116,3 +116,12 @@ Pengguna berhenti sementara untuk tidur dan ingin melanjutkan nanti.
 - `js.html` menambahkan pemeriksaan generasi sesi pada callback kompresi foto agar unggah yang dimulai sebelum logout tidak terkirim atas nama akun berikutnya.
 - Dua file yang perlu diganti: `auth-client.html`, `js.html`. Perlu update versi deployment existing untuk `/exec`; `/dev` cukup simpan dan refresh dari tab browser.
 - 35 tes lokal lolos, termasuk logout sukses/gagal, tanpa Firebase, klik berulang, admin ke sales dalam tab sama, respons lama dan kompresi foto lintas sesi. Perilaku nyata pada browser pengguna setelah pemasangan masih menunggu.
+
+### Desain ulang login sesuai referensi pengguna
+
+- Pengguna merespons perbaikan logout dengan "oke, mantap", lalu meminta tombol Ganti akun di login dihapus dan desain menyerupai referensi kartu putih dua kolom dengan latar pastel. Gambar orang diminta diganti ikon/ilustrasi dashboard.
+- `auth-ui.html` didesain ulang: branding KCH Team Analytics, satu tombol Google, panel kanan lavender dengan ilustrasi dashboard SVG tertanam, dan layout satu kolom pada HP. Tidak menambahkan form password atau pendaftaran karena autentikasi yang disepakati memakai Google.
+- `auth-client.html` menyesuaikan pesan pemulihan karena tombol Ganti akun dihapus, serta memeriksa ulang akses jika akun Google yang sama dipilih ulang tanpa event onAuthStateChanged. Logout tanpa reload dan pembersihan data akun tetap dipertahankan.
+- 37 tes lokal lolos. Chromium juga memverifikasi layout 1440px, 390px, 320px tanpa overflow horizontal; tepat satu tombol login; tombol dapat diklik; pesan error panjang tidak melebarkan layout; halaman login tersembunyi saat status hidden aktif. Ini tidak mengulangi login Google nyata.
+- Pratinjau desktop dan HP disimpan di `docs/login-desktop.png` dan `docs/login-mobile.png`.
+- File yang perlu diganti pengguna: `auth-ui.html`, `auth-client.html`. `/dev` cukup simpan dan refresh; `/exec` perlu update versi deployment existing. Pemasangan desain baru pada Google masih menunggu pengguna.
