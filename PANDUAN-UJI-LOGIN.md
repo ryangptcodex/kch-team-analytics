@@ -20,7 +20,7 @@ Belum ada deployment atau perubahan pada spreadsheet Google yang dilakukan dari 
 1. Buka spreadsheet **UJI COBA** → **Ekstensi → Apps Script**. Pastikan ini proyek salinan.
 2. Ganti seluruh isi empat file berikut menggunakan file dalam paket: `code.gs`, `setup.gs`, `index.html`, `js.html`. Perubahan harus dipasang bersama karena fungsi server dan pemanggilan browser saling bergantung.
 3. Buat dua file **Script** melalui tombol **+**: `auth` dan `firebase-config`. Isi dari `auth.gs` dan `firebase-config.gs`. Editor menambahkan ekstensi `.gs`.
-4. Buat dua file **HTML**: `auth` dan `auth-client`. Isi dari `auth.html` dan `auth-client.html`. File Script `auth.gs` dan HTML `auth.html` berbeda.
+4. Buat dua file **HTML**: `auth-ui` dan `auth-client`. Isi dari `auth-ui.html` dan `auth-client.html`. Gunakan nama lengkap ini agar file halaman login mudah dibedakan dari file Script `auth.gs`.
 5. `css.html` dan `appsscript.json` tetap sama dengan kiriman awal. Paket memuat keduanya untuk kelengkapan.
 6. Klik **Simpan**. Jangan memasukkan folder `tests`, folder `config`, atau panduan ini ke editor Apps Script.
 
