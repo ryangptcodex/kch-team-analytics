@@ -153,6 +153,75 @@ test('deactivating access takes effect on the next RPC', () => {
   e.sheets.get('ACCESS_USERS').rows[2][4] = 'INACTIVE';
   assert.throws(() => e.call('getAuthProfile'), /tidak aktif/);
 });
+test('legacy seven-column access sheets still log in without a schema write', () => {
+  const e = environment();
+  assert.equal(e.call('getAuthProfile').user.fullName, 'Sales One');
+  assert.equal(e.sheets.get('ACCESS_USERS').rows[0].length, 7);
+});
+test('admin can save a display name and read it again on the next login', () => {
+  const e = environment({ identity: { email: 'admin@gmail.com', localId: 'admin-uid', displayName: 'Abangda' } });
+  const saved = e.call('saveMyProfile', [{ displayName: '  Ryan Pratama  ' }]);
+  assert.equal(saved.user.fullName, 'Ryan Pratama'); assert.equal(saved.user.shortName, 'Ryan');
+  assert.equal(e.call('getAuthProfile').user.fullName, 'Ryan Pratama');
+  const access = e.sheets.get('ACCESS_USERS').rows;
+  assert.equal(access[0][7], 'display_name'); assert.equal(access[1][7], 'Ryan Pratama');
+  assert.equal(access[1][3], 'ADMIN'); assert.equal(access[1][1], 'admin-uid');
+});
+test('changing a Google profile name leaves the same email and UID authorized as admin', () => {
+  const e = environment({ identity: { email: 'admin@gmail.com', localId: 'admin-uid', displayName: 'Abangda' } });
+  assert.equal(e.call('getAuthProfile').user.fullName, 'Abangda');
+  e.identity.displayName = 'Ryan Pratama';
+  const user = e.call('getAuthProfile').user;
+  assert.equal(user.fullName, 'Ryan Pratama'); assert.equal(user.role, 'ADMIN');
+  assert.equal(user.email, 'admin@gmail.com'); assert.equal(user.uid, 'admin-uid');
+});
+test('invalid role is distinguished from inactive account status', () => {
+  const e = environment(); e.sheets.get('ACCESS_USERS').rows[2][3] = 'Sales Coordinator';
+  assert.throws(() => e.call('getAuthProfile'), /Role akun tidak valid/);
+  e.sheets.get('ACCESS_USERS').rows[2][3] = 'SALES'; e.sheets.get('ACCESS_USERS').rows[2][4] = 'INACTIVE';
+  assert.throws(() => e.call('getAuthProfile'), /Akses akun tidak aktif/);
+});
+test('profile updates cannot target another email or change role, UID, or sales mapping', () => {
+  const e = environment(); const access = e.sheets.get('ACCESS_USERS').rows;
+  const adminBefore = [...access[1]]; const ownBefore = access[2].slice(0, 5);
+  const saved = e.call('saveMyProfile', [{ displayName: 'Nickname Sales', email: 'admin@gmail.com', role: 'ADMIN', salesId: 'S2', uid: 'admin-uid' }]);
+  assert.equal(saved.user.role, 'SALES'); assert.equal(saved.user.email, 'sales@gmail.com');
+  assert.equal(saved.user.salesId, 'S1'); assert.equal(saved.user.uid, 'sales-uid');
+  assert.deepEqual(access[1], adminBefore); assert.deepEqual(access[2].slice(0, 5), ownBefore);
+  assert.equal(access[2][7], 'Nickname Sales');
+  assert.equal(e.sheets.get('SALES').rows[1][1], 'Sales One');
+});
+test('display-name column appends after unrelated columns without overwriting them', () => {
+  const e = environment(); const rows = e.sheets.get('ACCESS_USERS').rows;
+  rows[0][7] = 'notes'; rows[2][7] = 'keep this';
+  e.call('saveMyProfile', [{ displayName: 'Ryan' }]);
+  assert.equal(rows[0][7], 'notes'); assert.equal(rows[2][7], 'keep this');
+  assert.equal(rows[0][8], 'display_name'); assert.equal(rows[2][8], 'Ryan');
+  assert.equal(e.call('getAuthProfile').user.fullName, 'Ryan');
+});
+test('invalid names are rejected before adding a column or changing account identity', () => {
+  for (const displayName of ['', 'A', 'A'.repeat(81), '=IMPORTXML("example")', 'New\nLine', null]) {
+    const e = environment(); const rows = e.sheets.get('ACCESS_USERS').rows;
+    const before = JSON.stringify(rows);
+    assert.throws(() => e.call('saveMyProfile', [{ displayName }]), /Nama tampilan tidak valid/);
+    assert.equal(JSON.stringify(rows), before);
+  }
+});
+test('profile save rechecks deactivation and UID changes under its write lock', () => {
+  for (const change of [row => { row[4] = 'INACTIVE'; }, row => { row[1] = 'different-uid'; }]) {
+    const e = environment(); e.context.KCH_REQUEST_USER_ = e.call('getAuthProfile').user;
+    change(e.sheets.get('ACCESS_USERS').rows[2]);
+    assert.throws(() => e.context.saveMyProfile_({ displayName: 'New Name' }), /ACCESS_DENIED/);
+    assert.equal(e.sheets.get('ACCESS_USERS').rows[0].length, 7);
+  }
+});
+test('access status edits retain an existing custom display name', () => {
+  const e = environment({ identity: { email: 'admin@gmail.com', localId: 'admin-uid' } });
+  const rows = e.sheets.get('ACCESS_USERS').rows;
+  rows[0][7] = 'display_name'; rows[2][7] = 'Sales Nickname';
+  e.call('saveAccessUser', [{ email: 'sales@gmail.com', salesId: 'S1', status: 'INACTIVE' }]);
+  assert.equal(rows[2][7], 'Sales Nickname');
+});
 test('sales cannot access admin operations, others uploads, transactions or reports', () => {
   const e = environment();
   for (const method of ['listAccessUsers', 'saveAccessUser', 'saveTodayPlan', 'saveWeeklyMeeting', 'saveKchNewsArticle']) {

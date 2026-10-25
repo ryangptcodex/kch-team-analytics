@@ -138,6 +138,32 @@
     </aside>
   </div>
 </section>
+<div class="modal-backdrop" id="modalKchProfile" style="display:none;" onclick="closeKchProfile()">
+  <div class="modal-dialog" style="max-width:460px;" role="dialog" aria-modal="true" aria-labelledby="kchProfileTitle" onclick="event.stopPropagation()">
+    <form onsubmit="saveKchProfile(event)">
+      <div class="modal-header">
+        <h2 class="modal-title" id="kchProfileTitle">Edit profil</h2>
+        <button type="button" class="btn-modal-close" aria-label="Tutup profil" onclick="closeKchProfile()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="kchProfileName">Nama tampilan</label>
+          <input class="form-control" id="kchProfileName" type="text" minlength="2" maxlength="80" autocomplete="nickname" required>
+          <p style="font-size:12px;color:#64748b;margin-top:8px;">Nama ini digunakan pada profil dan sapaan di aplikasi KCH.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="kchProfileEmail">Akun Google</label>
+          <input class="form-control" id="kchProfileEmail" type="email" readonly>
+        </div>
+        <p id="kchProfileMessage" role="status" aria-live="polite" style="font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere;"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeKchProfile()">Batal</button>
+        <button type="submit" class="btn btn-primary" id="kchSaveProfile">Simpan nama</button>
+      </div>
+    </form>
+  </div>
+</div>
 <section id="kchAccessPanel" hidden aria-labelledby="kchAccessTitle">
   <button type="button" class="btn btn-secondary" onclick="document.getElementById('kchAccessPanel').hidden=true">Tutup</button>
   <h2 id="kchAccessTitle">Akses akun sales</h2>

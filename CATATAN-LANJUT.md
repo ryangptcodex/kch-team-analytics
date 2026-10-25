@@ -135,3 +135,15 @@ Pengguna berhenti sementara untuk tidur dan ingin melanjutkan nanti.
 - Penghubung baru mengunci operasi, membuat salinan backup spreadsheet sebelum menjalankan pembaruan lama, dan membatalkan pembaruan jika backup gagal. Log memuat URL backup sebelum perubahan; kegagalan migrasi menyertakan URL itu. Backup tidak otomatis mengembalikan perubahan izin foto Drive yang dilakukan routine lama.
 - File yang perlu diganti: `setup.gs`, lalu simpan dan refresh sheet. Tidak perlu deployment web baru untuk tombol native spreadsheet.
 - 43 tes lokal lolos, termasuk admin/konteks/ID, backup sebelum mutasi, pembatalan bila backup gagal dan pelepasan lock. Migrasi penuh data Google belum dieksekusi dari workspace ini atau dikonfirmasi pengguna.
+
+### Nama tampilan dan masalah login terbaru
+
+- Pengguna bertanya apakah role di ACCESS_USERS bisa diubah manual. Dijelaskan bahwa ADMIN/SALES dibaca pada permintaan berikutnya, sementara menu sebaiknya diperbarui dengan logout/login; pemeliharaan sheet tetap hanya Gmail admin utama.
+- Pengguna ingin mengubah nama "Abangda" pada tombol akun. Nama itu sebelumnya berasal dari displayName Google untuk admin. Pengguna memilih pembahasan opsi nama khusus aplikasi, lalu bertanya caranya.
+- Ditambahkan fitur Edit profil: endpoint privat `saveMyProfile_` melalui gateway login, menu dan modal Edit profil untuk setiap akun. Menyimpan hanya nama tampilan milik pengguna terverifikasi dan updated_at; email/UID/role/sales_id tidak bisa diganti melalui payload ini. Nama personel di SALES tetap dipertahankan.
+- Kolom opsional `display_name` ditambahkan di akhir ACCESS_USERS hanya saat nama pertama kali disimpan. Sheet tujuh kolom lama tetap dapat login; kolom tambahan lain dipertahankan. Nama khusus dipakai pada login berikutnya.
+- File yang perlu diganti bersama: auth.gs, auth-client.html, auth-ui.html. Tidak perlu menjalankan repair/setup untuk menambah kolom ini. Belum dipasang di Google oleh agen.
+- 52 tes lokal lolos. Chromium menguji modal, email read-only, perubahan header langsung, layout HP, penanganan gagal simpan dan penghapusan input profil saat logout dengan backend tiruan. Belum menguji penyimpanan profil nyata pada Google.
+- Saat pengerjaan ini pengguna melaporkan tidak bisa login setelah mengubah nama di pengaturan Gmail; screenshot `/exec` menampilkan ACCESS_DENIED: Akses akun tidak aktif. Di kode yang telah terpasang, pesan itu meliputi status bukan ACTIVE ATAU role bukan ADMIN/SALES. Perubahan nama Google sendiri tidak mengubah role/status; penyebab spesifik belum terkonfirmasi.
+- Sudah diminta secara async nilai role dan status pada baris Gmail yang dipilih login, tanpa meminta UID. Jawaban belum diterima saat catatan ini ditulis. Prioritaskan memulihkan akses admin, cek akun Google yang dipilih dan row yang sesuai.
+- Pesan backend terbaru membedakan role tidak valid dan status tidak aktif; tes membuktikan perubahan displayName Google tidak mengubah otorisasi email/UID yang sama. Jangan menghapus akun Firebase/UID atau mengubah API key untuk pesan role/status ini.

@@ -83,6 +83,20 @@ Ini paket **uji login**, belum versi siap launch. Fungsi edit transaksi belum di
 
 Saat menyalin proyek lagi, perbarui ID spreadsheet uji dalam `firebase-config.gs`; kode sengaja menggunakan ID eksplisit agar deployment tidak memilih spreadsheet yang tidak jelas.
 
+## Nama tampilan khusus aplikasi: Edit profil
+
+Ganti seluruh isi **tiga file** dari cabang uji-login: `auth.gs`, `auth-client.html`, `auth-ui.html`. Simpan lalu refresh `/dev`; untuk `/exec`, perbarui versi deployment yang sama lalu refresh. Tidak perlu menjalankan Perbarui Sheet untuk fitur profil ini.
+
+Setelah login, buka tombol akun kanan atas → **Edit profil** → isi **Nama tampilan** (2–80 karakter) → **Simpan nama**. Sapaan, inisial dan nama pada menu akun berubah langsung. Nama akun Google, email, Firebase UID, role, sales_id dan nama personel pada master SALES tidak diubah. Admin dan sales masing-masing hanya dapat mengubah nama tampilannya sendiri.
+
+Pada penyimpanan pertama, kolom tambahan `display_name` otomatis ditambahkan di akhir `ACCESS_USERS` bila belum ada. Tujuh kolom lama tetap dipertahankan, dan kolom tambahan lain tidak ditimpa. Login ke sheet lama tanpa `display_name` tetap berfungsi menggunakan nama Google untuk admin atau nama master SALES untuk sales. Setelah nama khusus disimpan, nama itu diprioritaskan pada login berikutnya.
+
+## Tidak bisa masuk setelah mengganti nama Google
+
+Nama Google bukan dasar penentuan akses. Server memakai email dan UID terverifikasi, lalu role/status di ACCESS_USERS. Pada versi lama, pesan **Akses akun tidak aktif** juga dipakai untuk role tidak valid. Versi `auth.gs` terbaru membedakan role tidak valid dari status tidak aktif.
+
+Periksa **baris email akun yang benar-benar dipilih pada popup Google**: role hanya `ADMIN` atau `SALES`, dan status harus `ACTIVE`. Untuk akun admin utama, gunakan `ADMIN` dan `ACTIVE`. Pastikan perubahan sel sudah tersimpan, refresh tab aplikasi, lalu pilih Gmail admin yang tepat saat login. Tidak perlu menghapus akun Firebase, mengosongkan UID atau mengganti API key untuk menangani pesan ini. Jika nilai itu sudah benar tetapi masih ditolak, kirim nilai role/status dan teks pesan terbaru untuk diagnosis; jangan menganggap perubahan nama pasti penyebabnya.
+
 ## Tombol spreadsheet: fungsi repairAndOptimizeSpreadsheet tidak ditemukan
 
 Tombol/menu spreadsheet lama dapat masih memanggil `repairAndOptimizeSpreadsheet`, sedangkan implementasi internal telah diberi nama privat `repairAndOptimizeSpreadsheet_`. Perbarui seluruh isi `setup.gs` dari cabang uji-login, simpan, kemudian refresh tab spreadsheet UJI COBA agar menu dibangun ulang. Nama callback lama sekarang kembali tersedia melalui penghubung yang dibatasi ke akun admin dan konteks spreadsheet aktif dengan ID salinan uji yang dikonfigurasi.

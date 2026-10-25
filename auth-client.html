@@ -154,6 +154,10 @@
     if (roleLabel) roleLabel.textContent = user.role === 'ADMIN' ? 'Admin' : 'Sales';
     var menu = document.getElementById('userDropdownMenu');
     if (!menu || document.getElementById('kchLogoutAction')) return;
+    var profile = document.createElement('button');
+    profile.type = 'button'; profile.className = 'dropdown-menu-item';
+    profile.textContent = 'Edit profil'; profile.onclick = openKchProfile;
+    menu.appendChild(profile);
     if (user.role === 'ADMIN') {
       var access = document.createElement('button');
       access.type = 'button'; access.className = 'dropdown-menu-item';
@@ -163,6 +167,45 @@
     var logout = document.createElement('button');
     logout.type = 'button'; logout.className = 'dropdown-menu-item'; logout.id = 'kchLogoutAction';
     logout.textContent = 'Keluar akun'; logout.onclick = signOutKch; menu.appendChild(logout);
+  }
+
+  function openKchProfile() {
+    if (!appState.user) return;
+    document.getElementById('kchProfileName').value = appState.user.fullName || '';
+    document.getElementById('kchProfileEmail').value = appState.user.email || '';
+    document.getElementById('kchProfileMessage').textContent = '';
+    document.getElementById('kchSaveProfile').disabled = false;
+    document.getElementById('userDropdownMenu').style.display = 'none';
+    document.getElementById('modalKchProfile').style.display = 'flex';
+    document.getElementById('kchProfileName').focus();
+  }
+
+  function closeKchProfile() {
+    document.getElementById('modalKchProfile').style.display = 'none';
+  }
+
+  function saveKchProfile(event) {
+    event.preventDefault();
+    var button = document.getElementById('kchSaveProfile');
+    if (button.disabled) return;
+    var name = document.getElementById('kchProfileName').value.trim();
+    var message = document.getElementById('kchProfileMessage');
+    if (name.length < 2 || name.length > 80) { message.textContent = 'Isi nama tampilan sepanjang 2–80 karakter.'; return; }
+    button.disabled = true;
+    message.textContent = 'Menyimpan nama tampilan…';
+    kchRun().withSuccessHandler(function(result) {
+      button.disabled = false;
+      if (!result || !result.success || !result.user) {
+        message.textContent = result && result.message || 'Nama tampilan belum berhasil disimpan.'; return;
+      }
+      appState.user = result.user;
+      updateDynamicGreeting();
+      closeKchProfile();
+      showToast('Nama tampilan berhasil disimpan.', 'success');
+    }).withFailureHandler(function(err) {
+      button.disabled = false;
+      message.textContent = err.message || 'Nama tampilan gagal disimpan. Silakan coba lagi.';
+    }).saveMyProfile({ displayName: name });
   }
 
   function openKchAccessPanel() {

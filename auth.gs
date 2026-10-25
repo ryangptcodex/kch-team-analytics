@@ -106,6 +106,52 @@ function accessRows_(sheet) {
   return sheet.getRange(2, 1, sheet.getLastRow() - 1, KCH_ACCESS_HEADERS_.length).getDisplayValues();
 }
 
+function accessDisplayNameColumn_(sheet, create) {
+  var lastColumn = sheet.getLastColumn();
+  var headers = sheet.getRange(1, 1, 1, lastColumn).getDisplayValues()[0];
+  var columns = [];
+  headers.forEach(function(header, i) {
+    if (String(header).trim().toLowerCase() === 'display_name') columns.push(i + 1);
+  });
+  if (columns.length > 1) throw new Error('Kolom display_name terdaftar ganda. Periksa ACCESS_USERS.');
+  if (columns.length) return columns[0];
+  if (!create) return 0;
+  var column = Math.max(lastColumn, KCH_ACCESS_HEADERS_.length) + 1;
+  sheet.getRange(1, column).setValue('display_name');
+  return column;
+}
+
+function saveMyProfile_(payload) {
+  var user = getCurrentUserInfo_();
+  var name = payload && typeof payload.displayName === 'string' ? payload.displayName.trim() : '';
+  if (name.length < 2 || name.length > 80 || /[\u0000-\u001f\u007f]/.test(name) || /^[=+@-]/.test(name)) {
+    throw new Error('Nama tampilan tidak valid. Gunakan 2–80 karakter dalam satu baris.');
+  }
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sheet = getAccessSheet_(false);
+    var rows = accessRows_(sheet);
+    var matches = [];
+    rows.forEach(function(row, i) {
+      if (String(row[0]).trim().toLowerCase() === user.email) matches.push({ row: row, number: i + 2 });
+    });
+    if (matches.length !== 1 || matches[0].row[1] !== user.uid || normalizeKey_(matches[0].row[4]) !== 'ACTIVE' ||
+        ['ADMIN', 'SALES'].indexOf(normalizeKey_(matches[0].row[3])) < 0) {
+      throw new Error('ACCESS_DENIED: Akses akun berubah. Silakan masuk kembali.');
+    }
+    var entry = matches[0];
+    var column = accessDisplayNameColumn_(sheet, true);
+    sheet.getRange(entry.number, column).setNumberFormat('@').setValue(name);
+    sheet.getRange(entry.number, 7).setValue(new Date());
+    SpreadsheetApp.flush();
+    user.fullName = name;
+    user.shortName = name.split(/\s+/)[0];
+    logActivity_(user.email, 'UPDATE_PROFILE', user.email, 'Nama tampilan diperbarui.');
+    return { success: true, user: user, message: 'Nama tampilan berhasil disimpan.' };
+  } finally { lock.releaseLock(); }
+}
+
 function resolveAccessUser_(identity) {
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
@@ -128,8 +174,11 @@ function resolveAccessUser_(identity) {
     if (!matches.length) throw new Error('ACCESS_DENIED: Akun belum terdaftar. Hubungi admin.');
     var entry = matches[0];
     var role = normalizeKey_(entry.row[3]);
-    if (normalizeKey_(entry.row[4]) !== 'ACTIVE' || ['ADMIN', 'SALES'].indexOf(role) < 0) {
+    if (normalizeKey_(entry.row[4]) !== 'ACTIVE') {
       throw new Error('ACCESS_DENIED: Akses akun tidak aktif. Hubungi admin.');
+    }
+    if (['ADMIN', 'SALES'].indexOf(role) < 0) {
+      throw new Error('ACCESS_DENIED: Role akun tidak valid. Hubungi admin.');
     }
     if (entry.row[1] && entry.row[1] !== identity.uid) throw new Error('ACCESS_DENIED: Identitas akun berubah. Hubungi admin.');
     var salesId = String(entry.row[2] || '').trim();
@@ -149,10 +198,12 @@ function resolveAccessUser_(identity) {
       sheet.getRange(entry.number, 7).setValue(new Date());
     }
     SpreadsheetApp.flush();
-    var fullName = sales ? (sales.full_name || identity.name) : identity.name;
+    var displayColumn = accessDisplayNameColumn_(sheet, false);
+    var customName = displayColumn ? String(sheet.getRange(entry.number, displayColumn).getDisplayValues()[0][0] || '').trim() : '';
+    var fullName = customName || (sales ? (sales.full_name || identity.name) : identity.name);
     return { email: identity.email, username: identity.email, uid: identity.uid, role: role,
       salesId: salesId, teamName: sales ? sales.team_name : '', fullName: fullName,
-      shortName: String(fullName).split(' ')[0] };
+      shortName: String(fullName).split(/\s+/)[0] };
   } finally { lock.releaseLock(); }
 }
 
@@ -225,6 +276,7 @@ function saveAccessUser_(payload) {
 function kchApi(token, method, args) {
   var handlers = {
     getAuthProfile: function() { return { success: true, user: getCurrentUserInfo_() }; },
+    saveMyProfile: saveMyProfile_,
     listAccessUsers: listAccessUsers_, saveAccessUser: saveAccessUser_,
     getInitialAppMetadata: getInitialAppMetadata_, getDashboardMetrics: getDashboardMetrics_,
     getAttendanceByDate: getAttendanceByDate_, getVisitPhotosByDate: getVisitPhotosByDate_,
