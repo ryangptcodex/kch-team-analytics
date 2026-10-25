@@ -122,3 +122,19 @@ Simpan perubahan lalu refresh `/dev`. Untuk `/exec`, gunakan **Terapkan → Kelo
 Ganti seluruh isi `js.html`, `auth-client.html`, dan `css.html` dari cabang uji-login. Nama pada tombol akun kini memakai nama tampilan lengkap; nama panjang dapat membungkus ke baris berikutnya dan tetap terlihat di layar HP. Label untuk akun dengan role ADMIN ditampilkan sebagai **TEAM LEADER**. Label akun SALES tetap Sales. Role otorisasi pada ACCESS_USERS harus tetap **ADMIN**, bukan TEAM LEADER. Ini perubahan tampilan tanpa perubahan hak akses.
 
 Simpan dan refresh `/dev`. Untuk `/exec`, perbarui versi deployment yang sama lalu refresh. Nama lengkap berasal dari profil KCH yang disimpan melalui Edit profil, atau sumber nama sebelumnya bila belum dikustomisasi.
+
+## HK profil sales berdasarkan absensi
+
+Ganti seluruh isi **`code.gs`** (file backend di editor pengguna dapat bernama `Kode.gs`) dan **`js.html`** dari cabang uji-login. Ganti isi file backend yang sudah ada; jangan membuat salinan kedua berisi fungsi yang sama. Simpan lalu refresh `/dev`, atau perbarui versi deployment yang sama untuk `/exec`.
+
+Ikon kalender pada kartu Profil Sales sekarang menampilkan misalnya **8 HK · Okt 2026**. Aturannya:
+
+- Satu HK adalah satu tanggal absensi hadir unik untuk satu sales. Absen berulang pada tanggal sama tetap satu HK. Absensi yang diinput admin untuk sales tersebut juga dihitung.
+- Profil menampilkan bulan berjalan berdasarkan Asia/Jakarta. Data bulan lama tetap tersimpan; hitungan profil bulan baru dimulai dari absensi pada bulan baru.
+- Hadir, hadir tepat waktu/terlambat dan status kehadiran yang didukung dihitung. Baris lama tanpa status tetapi memiliki sales_id dan tanggal valid tetap dianggap absensi. Izin, sakit, alpa, cuti, tidak hadir, arsip, batal dan status yang tidak dikenali tidak menambah HK.
+- Tanggal tidak valid atau masa depan tidak dihitung. Minggu/libur tetap dihitung jika benar-benar ada absensi hadir, karena ini HK kehadiran aktual, terpisah dari perhitungan hari kerja kalender untuk target.
+- Belum ada absensi menghasilkan 0 HK. Bila frontend baru dipasang tanpa backend baru, label HK belum dimuat menunjukkan bahwa data hitungan belum tersedia; angka nol tidak dibuat-buat.
+- Setelah unggah absensi sukses, metadata profil dimuat ulang. Perubahan manual di sheet ATTENDANCE terlihat setelah Sinkronisasi Live atau refresh/login ulang.
+- TOTAL HK pada laporan bulanan memakai aturan absensi unik yang sama untuk bulan yang dipilih. Tanggal transaksi tanpa absensi tidak menambah HK; total penjualan dan SHJ tetap dihitung dari transaksi.
+
+Tidak perlu menjalankan Perbarui Sheet atau menambahkan kolom manual untuk fitur ini. Pemrosesan absensi mengikuti pembatasan akun: admin dapat melihat semua profil, sales hanya profil/data miliknya.

@@ -463,6 +463,28 @@ function logClientActivity_(action, targetRef, details, username) {
   }
 }
 
+// Actual attendance days, independently from calendar workdays and sales dates.
+function getAttendanceWorkDatesBySales_(month, today) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(month || ''))) throw new Error('Bulan absensi tidak valid.');
+  today = today || Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
+  var daysBySales = Object.create(null);
+  getSheetData_('ATTENDANCE').rows.forEach(function(row) {
+    var salesId = normalizeKey_(row.sales_id);
+    var date = normalizeDateString_(row.date || row.attendance_date || '');
+    if (!salesId || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date.slice(0, 7) !== month || date > today) return;
+    var year = Number(date.slice(0, 4));
+    var monthNumber = Number(date.slice(5, 7));
+    var day = Number(date.slice(8, 10));
+    if (day < 1 || day > new Date(Date.UTC(year, monthNumber, 0)).getUTCDate()) return;
+    var status = normalizeKey_(row.status).replace(/[\s_-]+/g, ' ');
+    var present = ['', 'ACTIVE', 'PRESENT', 'TERLAMBAT', 'LATE', 'MASUK', 'CHECK IN', 'CHECKIN'].indexOf(status) > -1 || /^HADIR(?: |$)/.test(status);
+    if (!present) return;
+    if (!daysBySales[salesId]) daysBySales[salesId] = Object.create(null);
+    daysBySales[salesId][date] = true;
+  });
+  return daysBySales;
+}
+
 function getInitialAppMetadata_() {
   try {
     SpreadsheetApp.flush();
@@ -475,6 +497,9 @@ function getInitialAppMetadata_() {
     var weeklyMeetings = getWeeklyMeetings_();
     var workDays = getWorkDaysConfig_();
     var currentUser = getCurrentUserInfo_();
+    var attendanceToday = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
+    var attendanceMonth = attendanceToday.slice(0, 7);
+    var attendanceDays = getAttendanceWorkDatesBySales_(attendanceMonth, attendanceToday);
 
     var rawDistributors = getSheetData_('DISTRIBUTORS').rows;
     var distributors = [];
@@ -567,7 +592,9 @@ function getInitialAppMetadata_() {
         photo_url: formatDrivePhotoUrl_(s.photo_url),
         phone: String(s.phone || '').trim(),
         email: String(s.email || '').trim(),
-        status: s.status || 'ACTIVE'
+        status: s.status || 'ACTIVE',
+        attendance_hk: Object.keys(attendanceDays[normalizeKey_(s.sales_id)] || {}).length,
+        attendance_month: attendanceMonth
       };
       attendanceSales.push(salesRecord);
       if (!isAttendanceOnlyTeam_(finalTeam)) sales.push(salesRecord);
@@ -2055,7 +2082,7 @@ function getMonthlyTeamReport_(reportMonth, salesId) {
     }
 
     var totals = { sales: 0, shj: 0 };
-    var workDates = {};
+    var workDates = getAttendanceWorkDatesBySales_(reportMonth)[normalizeKey_(salesId)] || {};
     var productMap = {};
     var txRows = getSheetData_('SALES_TRANSACTIONS').rows;
 
@@ -2064,7 +2091,6 @@ function getMonthlyTeamReport_(reportMonth, salesId) {
       var date = normalizeDateString_(row.transaction_date);
       if (!date || date.slice(0, 7) !== reportMonth) return;
 
-      workDates[date] = true;
       var qty = parseInt(row.quantity, 10) || 0;
       var unitCost = parseCleanNumber_(row.cost_price);
       var unitSales = parseCleanNumber_(row.selling_price);
@@ -2096,12 +2122,6 @@ function getMonthlyTeamReport_(reportMonth, salesId) {
       productMap[key].quantity += qty;
       productMap[key].totalSales += salesAmount;
       productMap[key].totalShj += shjAmount;
-    });
-
-    getSheetData_('ATTENDANCE').rows.forEach(function(row) {
-      if (normalizeKey_(row.sales_id) !== normalizeKey_(salesId)) return;
-      var date = normalizeDateString_(row.date || row.attendance_date || '');
-      if (date && date.slice(0, 7) === reportMonth) workDates[date] = true;
     });
 
     var products = Object.keys(productMap).map(function(key) { return productMap[key]; });

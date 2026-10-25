@@ -158,3 +158,14 @@ Pengguna berhenti sementara untuk tidur dan ingin melanjutkan nanti.
 - `css.html`: nama membungkus tanpa ellipsis, metadata nama tetap terlihat di HP, header menyesuaikan baris dan tinggi agar kontrol tidak bertumpuk.
 - File yang perlu diganti: js.html, auth-client.html, css.html. `/exec` memerlukan pembaruan versi deployment existing; `/dev` simpan dan refresh.
 - 52 tes regresi lokal lulus. Chromium memeriksa nama 13 dan 80 karakter pada 1920, 1440, 1024, 820, 390, 320px; tampilan penuh dan label diperiksa setelah transisi layout selesai. Pemasangan di Google masih menunggu pengguna.
+
+### HK profil sales dari absensi
+
+- Pengguna bertanya ikon kalender dengan tanda minus pada Profil Sales. Sumber sebelumnya memakai nilai tetap `hk = '-'`. Pengguna meminta data HK dihitung ketika sales melakukan absensi.
+- Ditambahkan helper privat `getAttendanceWorkDatesBySales_` di code.gs: hitung tanggal hadir unik per sales/bulan, format tanggal divalidasi, tanggal masa depan diabaikan, deduplikasi tanggal dan sales_id dinormalisasi. Memakai pembatasan getSheetData_ sehingga sales tidak dapat membaca absensi pengguna lain.
+- Hadir/terlambat dan format status kehadiran yang didukung dihitung. Izin, sakit, alpa, cuti, tidak hadir, status nonaktif/arsip/batal dan status tidak dikenal tidak dihitung. Baris legacy dengan status kosong masih dihitung bila ID dan tanggal valid. Minggu/libur dengan absensi hadir tetap menambah HK aktual.
+- Metadata tiap profil memuat attendance_hk dan attendance_month. Profil menampilkan bulan berjalan menurut Asia/Jakarta, misalnya 8 HK · Okt 2026, dan 0 HK bila belum absen.
+- Setelah unggah absensi berhasil, client memuat ulang metadata profil. Entri manual ATTENDANCE memerlukan Sinkronisasi Live/refresh agar tampilan diperbarui.
+- TOTAL HK pada laporan bulanan disamakan dengan absensi hadir unik untuk bulan yang dipilih, menggantikan gabungan tanggal transaksi/semua status absensi. Total transaksi/SHJ tidak diubah.
+- File yang perlu diganti: code.gs (di editor mungkin Kode.gs) dan js.html. Tidak perlu update struktur sheet. `/exec` perlu update versi deployment existing; `/dev` simpan dan refresh.
+- 64 tes lokal lolos, termasuk duplikasi, status, tanggal invalid/future, Jakarta saat pergantian bulan, batas akses, konsistensi laporan dan pemuatan ulang setelah unggah. Chromium memverifikasi badge HK di 1440, 390, 320px. Belum dipasang atau diuji terhadap data Google nyata oleh agen.

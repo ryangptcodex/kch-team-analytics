@@ -1845,6 +1845,7 @@
           showToast(res.message || 'Foto berhasil disimpan.', 'success');
           if (type === 'attendance') {
             handleAttendanceDateChange(date);
+            loadMetadata();
           } else {
             handleVisitPhotosDateChange(date);
             reloadVisitPhotosOnly();
@@ -2583,7 +2584,10 @@
       var initial = String(s.full_name || 'S').trim().charAt(0).toUpperCase() || 'S';
       var photo = s.photo_url || '';
       var target = getSalesMonthlyTarget(s.team_name, s.target_monthly);
-      var hk = '-';
+      var hkKnown = typeof s.attendance_hk === 'number' && isFinite(s.attendance_hk) && s.attendance_hk >= 0;
+      var hk = hkKnown ? s.attendance_hk + ' HK' : 'HK belum dimuat';
+      var hkMonth = String(s.attendance_month || '').match(/^(\d{4})-(0[1-9]|1[0-2])$/);
+      if (hkMonth) hk += ' · ' + ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'][Number(hkMonth[2]) - 1] + ' ' + hkMonth[1];
       var img = photo ? '<img src="' + escapeHtml(photo) + '" class="profile-avatar-img" alt="Foto Sales" onerror="this.style.display=\'none\';">' : '<div class="profile-avatar-fallback">' + escapeHtml(initial) + '</div>';
       var waHref = s.phone ? 'https://wa.me/' + normalizePhone(s.phone) : '#';
       var mailHref = s.email ? 'mailto:' + encodeURIComponent(s.email) : '#';
@@ -2607,7 +2611,7 @@
             '<a class="profile-contact-btn btn-wa-action" href="' + escapeHtml(waHref) + '" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i></a>' +
             '<a class="profile-contact-btn btn-email-action" href="' + escapeHtml(mailHref) + '"><i class="fa-regular fa-envelope"></i></a>' +
           '</div>' +
-          '<div class="profile-attendance-status"><i class="fa-regular fa-calendar-check"></i> ' + hk + '</div>' +
+          '<div class="profile-attendance-status" title="Jumlah tanggal absensi hadir yang berbeda pada bulan ini"><i class="fa-regular fa-calendar-check" aria-hidden="true"></i> ' + escapeHtml(hk) + '</div>' +
         '</div>' +
       '</div>';
     }).join('');

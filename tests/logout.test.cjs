@@ -136,6 +136,21 @@ test('photo compression started before logout cannot submit under the next accou
   assert.equal(rpcCount, 0);
 });
 
+test('a successful attendance upload requests fresh profile metadata for its HK count', () => {
+  const e = browser(); const c = e.context; let refreshed = 0, dateReloaded = '';
+  const input = { files: [{}] }; const get = e.document.getElementById;
+  e.document.getElementById = id => id === 'photoUploadFile' ? input : get(id);
+  c.getValue = id => ({ photoUploadSalesId: 'S1', photoUploadDate: '2026-10-25', photoUploadNotes: 'Check-in' })[id];
+  c.appState.photoUploadType = 'attendance';
+  c.compressPhotoFile = (file, callback) => callback('data:image/jpeg;base64,ABC', null);
+  c.loadMetadata = () => { refreshed++; }; c.handleAttendanceDateChange = date => { dateReloaded = date; };
+  c.closePhotoUploadForm = () => {}; c.showToast = () => {};
+  c.kchRun = () => { const r = { withSuccessHandler(fn) { r.ok = fn; return r; }, withFailureHandler() { return r; },
+    saveSalesPhotoUpload(payload, type) { assert.equal(payload.salesId, 'S1'); assert.equal(type, 'attendance'); r.ok({ success: true }); } }; return r; };
+  c.submitPhotoUploadForm({ preventDefault() {} });
+  assert.equal(refreshed, 1); assert.equal(dateReloaded, '2026-10-25');
+});
+
 for (const emitStateEvent of [false, true]) {
   test('Google login rechecks access exactly once ' + (emitStateEvent ? 'with' : 'without') + ' an auth-state event', async () => {
     const e = browser(); const c = e.context; c.captureKchInitialUi(); let requests = 0;
