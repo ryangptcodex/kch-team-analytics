@@ -43,6 +43,7 @@ function environment(options = {}) {
   const ss = { getSheetByName: name => sheets.get(name) || null, insertSheet: name => sheet(name) };
   const context = {
     Date, console,
+    Session: { getActiveUser: () => ({ getEmail: () => options.editorEmail || '' }) },
     SpreadsheetApp: { openById: () => ss, flush() {} },
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
     Utilities: {
@@ -80,6 +81,17 @@ test('editor diagnostic expects an invalid token response without reading sales 
   const e = environment({ access: false, lookupCode: 400, lookupBody: { error: { message: 'INVALID_ID_TOKEN' } } });
   const report = e.context.checkKchGoogleConnection_();
   assert.equal(report.connectionOk, true); assert.equal(report.httpStatus, 400);
+  assert.equal(e.sheets.has('ACCESS_USERS'), false);
+});
+test('visible editor diagnostic requires the active Google admin account', () => {
+  for (const editorEmail of ['', 'sales@gmail.com']) {
+    const e = environment({ editorEmail });
+    assert.throws(() => e.context.checkKchGoogleConnection(), /ACCESS_DENIED/);
+    assert.equal(e.lookupCalls(), 0);
+  }
+  const e = environment({ editorEmail: 'mhmdryyan7@gmail.com', access: false,
+    lookupCode: 400, lookupBody: { error: { message: 'INVALID_ID_TOKEN' } } });
+  assert.equal(e.context.checkKchGoogleConnection().connectionOk, true);
   assert.equal(e.sheets.has('ACCESS_USERS'), false);
 });
 test('diagnostic distinguishes API and fetch errors and redacts API key', () => {
@@ -185,7 +197,7 @@ test('only intended entry points remain public and template includes exist', () 
     for (const match of source.matchAll(/^function (\w+)\(/gm)) names.push(match[1]);
   }
   assert.equal(new Set(names).size, names.length, 'No duplicate server function declarations');
-  assert.deepEqual(names.filter(n => !n.endsWith('_')).sort(), ['doGet', 'kchApi', 'onOpen']);
+  assert.deepEqual(names.filter(n => !n.endsWith('_')).sort(), ['checkKchGoogleConnection', 'doGet', 'kchApi', 'onOpen']);
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   for (const match of html.matchAll(/include_\('([^']+)'\)/g)) assert.ok(fs.existsSync(path.join(root, match[1] + '.html')));
 });

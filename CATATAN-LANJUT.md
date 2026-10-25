@@ -55,6 +55,7 @@ Pengguna berhenti sementara untuk tidur dan ingin melanjutkan nanti.
 - Setelah itu muncul `AUTH_UNAVAILABLE: Verifikasi Google belum dapat dihubungi`. Ini terjadi dalam catch `UrlFetchApp.fetch`; penyebab spesifik belum diketahui. Izin OAuth external_request yang belum diotorisasi merupakan kemungkinan, bukan diagnosis terkonfirmasi.
 - Ditambahkan `checkKchGoogleConnection_()` ke `auth.gs`. Jalankan manual di editor untuk memicu otorisasi yang diperlukan dan memperoleh laporan aman dengan token palsu. HTTP 400 INVALID_ID_TOKEN adalah hasil koneksi yang diharapkan, bukan login berhasil.
 - Pengujian lokal kini 20 tes lolos. Belum ada hasil diagnostik dari lingkungan Apps Script pengguna; lanjutkan dari langkah ini.
+- Dropdown editor pengguna hanya menampilkan fungsi publik. Ditambahkan pembungkus `checkKchGoogleConnection` TANPA underscore; helper privat tetap `checkKchGoogleConnection_`. Pembungkus memeriksa `Session.getActiveUser().getEmail()` terhadap Gmail admin dan menolak akun kosong/akun lain sebelum request. Jangan mengubah semua helper menjadi publik. Tes kini 21 lolos; hasil pemeriksaan di Google masih ditunggu.
 
 ## Langkah berikutnya
 

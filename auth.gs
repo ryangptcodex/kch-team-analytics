@@ -1,6 +1,15 @@
-// The only browser RPC entry point is kchApi. All implementation helpers end in _.
+// Application RPC uses kchApi. The editor diagnostic also checks the active
+// Google account; all implementation helpers end in _.
 var KCH_REQUEST_USER_ = null;
 var KCH_ACCESS_HEADERS_ = ['email', 'firebase_uid', 'sales_id', 'role', 'status', 'created_at', 'updated_at'];
+
+function checkKchGoogleConnection() {
+  var email = String(Session.getActiveUser().getEmail() || '').trim().toLowerCase();
+  if (email !== KCH_BOOTSTRAP_ADMIN_EMAIL_) {
+    throw new Error('ACCESS_DENIED: Jalankan pemeriksaan dari editor memakai Gmail admin.');
+  }
+  return checkKchGoogleConnection_();
+}
 
 // Run manually in the Apps Script editor. Uses a deliberately invalid token;
 // never reads a user's token, spreadsheet data, or changes access permissions.
