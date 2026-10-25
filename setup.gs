@@ -1273,6 +1273,7 @@ function repairAndOptimizeSpreadsheet() {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
+    if (typeof assertNoPendingTransactions_ === 'function') assertNoPendingTransactions_();
     SpreadsheetApp.flush();
     var backup;
     try {

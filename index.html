@@ -855,7 +855,14 @@
           </div>
 
           <div class="form-container-card">
+            <div id="txRequestStatus" style="display:none;padding:14px;border:1px solid #fed7aa;background:#fff7ed;border-radius:12px;margin-bottom:16px;">
+              <p id="txRequestStatusText" role="status" aria-live="polite" style="margin:0 0 8px;white-space:pre-wrap;overflow-wrap:anywhere;"></p>
+              <code id="txRequestCode" style="display:block;font-size:11px;overflow-wrap:anywhere;margin-bottom:10px;"></code>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnCheckTxRequest" onclick="checkPendingSalesTransaction()">Periksa hasil</button>
+              <button type="button" class="btn btn-primary btn-sm" id="btnRetryTxRequest" style="display:none;" onclick="retryPendingSalesTransaction()">Coba simpan lagi</button>
+            </div>
             <form onsubmit="submitSalesTransaction(event)">
+              <fieldset id="txFormFields" style="border:0;padding:0;margin:0;min-width:0;">
               <div class="form-grid-4">
                 <div class="form-group">
                   <label class="form-label required">Tanggal Penjualan</label>
@@ -947,6 +954,7 @@
                   </button>
                 </div>
               </div>
+            </fieldset>
             </form>
           </div>
         </section>

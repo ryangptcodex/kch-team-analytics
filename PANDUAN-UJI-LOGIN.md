@@ -21,7 +21,7 @@ Belum ada deployment atau perubahan pada spreadsheet Google yang dilakukan dari 
 2. Ganti seluruh isi empat file berikut menggunakan file dalam paket: `code.gs`, `setup.gs`, `index.html`, `js.html`. Perubahan harus dipasang bersama karena fungsi server dan pemanggilan browser saling bergantung.
 3. Buat dua file **Script** melalui tombol **+**: `auth` dan `firebase-config`. Isi dari `auth.gs` dan `firebase-config.gs`. Editor menambahkan ekstensi `.gs`.
 4. Buat dua file **HTML**: `auth-ui` dan `auth-client`. Isi dari `auth-ui.html` dan `auth-client.html`. Gunakan nama lengkap ini agar file halaman login mudah dibedakan dari file Script `auth.gs`.
-5. `css.html` dan `appsscript.json` tetap sama dengan kiriman awal. Paket memuat keduanya untuk kelengkapan.
+5. Gunakan `css.html` terbaru dan `appsscript.json` terbaru. Untuk paket transaksi, buat juga file Script `transactions` dari `transactions.gs`; manifest sekarang mengaktifkan Google Sheets API. Lihat langkah paket transaksi di bawah.
 6. Klik **Simpan**. Jangan memasukkan folder `tests`, folder `config`, atau panduan ini ke editor Apps Script.
 
 File `firebase-config.gs` berisi konfigurasi web publik, Gmail admin, dan ID spreadsheet uji. Jangan memasukkan private key atau file service account.
@@ -138,3 +138,50 @@ Ikon kalender pada kartu Profil Sales sekarang menampilkan misalnya **8 HK · Ok
 - TOTAL HK pada laporan bulanan memakai aturan absensi unik yang sama untuk bulan yang dipilih. Tanggal transaksi tanpa absensi tidak menambah HK; total penjualan dan SHJ tetap dihitung dari transaksi.
 
 Tidak perlu menjalankan Perbarui Sheet atau menambahkan kolom manual untuk fitur ini. Pemrosesan absensi mengikuti pembatasan akun: admin dapat melihat semua profil, sales hanya profil/data miliknya.
+
+## Paket perbaikan transaksi dan stok — 25 Oktober 2026
+
+Paket ini memperbaiki pembuatan transaksi; **edit/pembatalan transaksi dan stok masuk/koreksi belum ditambahkan**. Jangan memakai fungsi repair/setup massal untuk memasang paket ini.
+
+### Pasang tujuh file bersama di proyek UJI COBA
+
+1. Buat file **Script** baru bernama **transactions**, salin seluruh `transactions.gs` ke sana.
+2. Ganti seluruh isi `code.gs` (bisa bernama `Kode.gs` di editor), `auth.gs`, `setup.gs`, `js.html`, dan `index.html` dengan versi cabang `uji-login` yang sama. Jangan membuat dua file code/Kode berisi fungsi duplikat.
+3. Ganti `appsscript.json` dengan versi terbaru. Jika belum terlihat, buka **Setelan proyek → tampilkan file manifes appsscript.json**. Manifest menambahkan layanan Sheets v4. Alternatifnya, pada **Layanan → + → Google Sheets API → Tambahkan**, dengan identifier `Sheets`. Ini API spreadsheet, bukan pengaturan Firebase.
+4. Simpan semuanya. Jalankan **checkKchTransactionSetup** dari dropdown fungsi editor memakai akun admin utama. Setujui izin Google yang diminta oleh proyek salinan. Pemeriksaan ini membaca koneksi, ketersediaan sheet master dan kiriman tertunda; tidak menyimpan transaksi atau mengubah stok.
+5. Hasil normal: `success:true`, `missingSheets:[]`, `pendingRequests:[]`. Ini pemeriksaan koneksi, **bukan bukti validitas seluruh data master**. Jika ada HTTP 403/API belum aktif: pastikan layanan Google Sheets API telah ditambahkan. Bila proyek memakai Google Cloud project khusus, aktifkan Google Sheets API di Cloud Console proyek tersebut. Jalankan pemeriksaan lagi.
+6. Untuk `/dev`: simpan lalu refresh webapp. Untuk `/exec`: **Terapkan → Kelola deployment → pilih deployment → Edit → Versi baru → Terapkan**, kemudian refresh URL yang biasa digunakan. Browser dengan versi lama perlu refresh sebelum menyimpan transaksi.
+
+Cara salin sekali klik: buka file di GitHub cabang `uji-login`, klik ikon **Copy raw file** di area kanan atas kode. Di file tujuan Apps Script: **Ctrl+A → Ctrl+V**. Jangan menyalin teks panduan atau pembatas Markdown ke editor.
+
+### Perilaku yang berubah
+
+- Qty harus bilangan bulat positif; produk yang sama pada beberapa baris dijumlahkan sebelum memeriksa stok distributor. Baris produk yang sama disimpan sebagai satu baris gabungan.
+- Harga modal/jual berasal dari PRICE_MASTER untuk tim sales; harga form yang sudah berbeda ditolak agar total tidak berubah diam-diam. Sinkronkan data dan periksa ulang harga sebelum mengirim ulang. Produk, harga dan distributor nonaktif ditolak.
+- Distributor harus cocok dengan master dan satu kolom stok yang jelas. Nilai stok setiap kolom distributor harus angka bulat nonnegatif; isi angka `0` bila stok kosong. Nama kolom master ganda/ambigu akan ditolak, bukan ditebak.
+- Tanggal harus benar dan tidak di masa depan. Tanggal historis tetap boleh; penutupan bulan belum diterapkan. Catatan maksimal 2.000 karakter dan ditulis sebagai teks literal, termasuk jika diawali `=`.
+- Transaksi, pengurangan stok, mutasi keluar, audit dan bukti berhasil disimpan dalam satu batch atomik. Kegagalan satu bagian mencegah seluruh batch keuangan tersimpan. SHJ per unit memakai harga jual dikurangi modal, sesuai perhitungan penyimpanan sebelumnya; preview form disamakan. Nilai uang maksimal dua desimal.
+- Kiriman memiliki kode unik. Respons berhasil yang hilang dapat diperiksa kembali tanpa memotong stok ulang. Browser mengambil stok terbaru dari server setelah berhasil; tidak mengurangi salinan stok lokal sendiri.
+- Sheet tersembunyi `_KCH_TX_REQUESTS` mencatat status kiriman dan pelakunya. Jangan diedit/dihapus/diurutkan manual. Sheet finansial yang belum ada dibuat dalam batch pertama; transaksi dan saldo lama tidak dihitung ulang atau diperbaiki otomatis oleh paket ini.
+
+### Bila koneksi putus / hasil belum pasti
+
+Gunakan **Periksa hasil**. Bila hasil sudah COMMITTED, transaksi sebelumnya ditampilkan sebagai berhasil tanpa mengirim batch finansial lagi. Bila belum ada kiriman tercatat, aplikasi memakai kode yang sama untuk mencoba lagi. Bila ditolak secara pasti, form dibuka kembali agar dapat dikoreksi; kiriman koreksi mendapatkan kode baru.
+
+Jika sudah ada catatan PENDING tetapi hasil penulisan belum pasti, form tetap terkunci dan **penyimpanan transaksi baru seluruh pengguna serta pemeliharaan sheet ditahan**. Sistem tidak melakukan rollback atau pengiriman ulang yang berisiko bertabrakan dengan batch yang terlambat selesai. Periksa hasil lagi setelah koneksi pulih; jalankan `checkKchTransactionSetup` sebagai admin untuk melihat kode kiriman, ID transaksi, email pelaku dan waktu. Jika PENDING tidak selesai, pengelola perlu menelusuri eksekusi serta isi ledger sebelum pemulihan; tidak tersedia tombol pembatalan PENDING otomatis. Jangan menghapus jurnal, membuat kode baru, atau mengubah saldo manual untuk melewati penguncian ini.
+
+Tab browser hanya menyimpan kode kiriman di sessionStorage, dipisahkan menurut akun dan hostname; payload transaksi/token tidak dipersistenkan. Jangan menutup tab atau membersihkan data browser saat hasil belum pasti. Jika refresh dan status belum tercatat, detail perlu diisi kembali dengan kode yang dipertahankan. Pemblokiran penyimpanan sesi browser mencegah pengiriman dimulai. Pengiriman ulang dengan kode sama dilindungi; transaksi yang sengaja dimasukkan lagi di tab lain dengan kode baru tetap dianggap transaksi baru.
+
+ScriptLock mengurutkan transaksi dari proyek Apps Script yang sama. Perubahan manual stok atau penulis dari proyek lain tidak ikut lock tersebut; hindari perubahan itu ketika transaksi sedang berjalan. Paket ini belum menambahkan fitur penerimaan/koreksi stok yang diaudit.
+
+### Uji kecil sebelum dibagikan ke tim
+
+Lakukan hanya di salinan UJI COBA dengan data uji yang bisa dikenali:
+
+1. Catat stok distributor dan harga master satu produk. Simpan qty kecil; pastikan ID yang sama muncul pada SALES_TRANSACTIONS, INVENTORY_MOVEMENTS dan ACTIVITY_LOGS, stok distributor berkurang tepat satu kali dan jurnal COMMITTED. Coba sebagai sales sendiri dan admin membantu sales.
+2. Isi produk sama dua baris hingga total melebihi stok: harus ditolak tanpa perubahan finansial. Qty nol/negatif/pecahan dan tanggal masa depan juga harus ditolak.
+3. Uji harga form yang sudah lama setelah master diubah: harus ditolak, lalu sinkronkan dan ulang dengan harga yang benar.
+4. Klik simpan berulang: satu kiriman tetap satu transaksi. Bila ada gangguan jaringan, gunakan Periksa hasil dan cocokkan ID/qty/stok sebelum meneruskan. Jangan memaksakan simulasi kegagalan Google pada data asli.
+5. Refresh/logout/login kembali; konfirmasi login, nama lengkap/TEAM LEADER, HK dan pembatasan sales masih berfungsi.
+
+Validasi otomatis lokal memakai workbook dan layanan Google tiruan, termasuk penolakan batch, respons hilang, penulisan terlambat, retry, batas akses serta perhitungan desimal. Chromium memeriksa penguncian form/tombol pemeriksaan, retry dengan kode sama dan tampilan 1440/390/320px. Belum ada pemasangan atau pengujian Sheets API terhadap akun/data Google nyata dari workspace ini.

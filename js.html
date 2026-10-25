@@ -49,6 +49,7 @@
     isLoadingDashboard: false,
     isLoadingMetadata: false,
     isSubmittingTransaction: false,
+    pendingTransaction: null,
     mockPreview: false
   };
 
@@ -121,7 +122,7 @@
 
   function formatRupiah(value) {
     var n = parseCleanNumber(value);
-    return 'Rp ' + Math.round(n).toLocaleString('id-ID');
+    return 'Rp ' + n.toLocaleString('id-ID', { maximumFractionDigits: 2 });
   }
 
   function parseCleanNumber(val) {
@@ -358,6 +359,7 @@
     setupAttendanceDateControls();
     setupVisitPhotoDateControls();
     renderVisitPhotos();
+    restorePendingSalesTransaction();
     loadMetadata();
   }
 
@@ -416,6 +418,7 @@
         renderWeeklyMeetings(appState.weeklyMeetings || []);
         loadTodayPlans(getLocalDateInputValue());
         ensureTransactionRows();
+        if (appState.pendingTransaction) txClientLock(true);
         loadDashboardMetrics();
         if (typeof callback === 'function') callback();
       })
@@ -2116,7 +2119,7 @@
   function updateProductRowUI(tr, product) {
     var cost = product ? parseCleanNumber(product.cost_price || product.costPrice) : 0;
     var sell = product ? parseCleanNumber(product.selling_price || product.sellingPrice) : 0;
-    var shj = product ? parseCleanNumber(product.shj || (sell - cost)) : (sell - cost);
+    var shj = sell - cost;
     var stockInfo = product ? findInventory(product.product_id || product.productId) : null;
     var productMaster = product ? (appState.products || []).find(function(item) {
       return normalizeKey(item.product_id || item.productId) === normalizeKey(product.product_id || product.productId);
@@ -2200,7 +2203,7 @@
       var product = findPriceProduct(productId, teamName);
       var cost = product ? parseCleanNumber(product.cost_price || product.costPrice) : 0;
       var sell = product ? parseCleanNumber(product.selling_price || product.sellingPrice) : 0;
-      var shj = product ? parseCleanNumber(product.shj || (sell - cost)) : 0;
+      var shj = sell - cost;
       var subtotal = sell * qty;
       totalSales += subtotal;
       totalCost += cost * qty;
@@ -2217,6 +2220,138 @@
   function setDefaultTransactionDate() {
     var input = document.getElementById('inputTxDate');
     if (input && !input.value) input.value = getLocalDateInputValue();
+  }
+
+  function txClientStorageKey() {
+    if (!appState.user || !appState.user.uid) throw new Error('Silakan masuk ulang sebelum menyimpan transaksi.');
+    return 'kch.tx.pending.v1:' + window.location.hostname + ':' + appState.user.uid;
+  }
+
+  function txClientNewId() {
+    if (window.crypto && window.crypto.randomUUID) return 'REQ-' + window.crypto.randomUUID();
+    var bytes = new Uint8Array(16);
+    if (!window.crypto || !window.crypto.getRandomValues) throw new Error('Browser belum mendukung kode kiriman aman. Gunakan browser yang diperbarui.');
+    window.crypto.getRandomValues(bytes);
+    return 'REQ-' + Array.from(bytes).map(function(byte) { return ('0' + byte.toString(16)).slice(-2); }).join('');
+  }
+
+  function txClientStore(pending) {
+    var key = txClientStorageKey();
+    if (!pending) { window.sessionStorage.removeItem(key); return; }
+    // Only the opaque request ID is retained across refresh/logout. No token,
+    // transaction notes, prices or customer data is stored in browser storage.
+    var text = JSON.stringify({ requestId: pending.requestId });
+    window.sessionStorage.setItem(key, text);
+    if (window.sessionStorage.getItem(key) !== text) throw new Error('Penyimpanan sesi browser belum tersedia.');
+  }
+
+  function txClientLock(locked) {
+    var fields = document.getElementById('txFormFields');
+    if (fields) fields.disabled = !!locked;
+  }
+
+  function txClientStatus(message, showRetry) {
+    var box = document.getElementById('txRequestStatus');
+    var text = document.getElementById('txRequestStatusText');
+    var code = document.getElementById('txRequestCode');
+    var retry = document.getElementById('btnRetryTxRequest');
+    if (box) box.style.display = message ? 'block' : 'none';
+    if (text) text.textContent = message || '';
+    if (code) code.textContent = appState.pendingTransaction ? appState.pendingTransaction.requestId : '';
+    if (retry) { retry.style.display = showRetry ? 'inline-flex' : 'none'; retry.disabled = !!appState.isSubmittingTransaction; }
+    var check = document.getElementById('btnCheckTxRequest');
+    if (check) check.disabled = !!appState.isSubmittingTransaction;
+  }
+
+  function restorePendingSalesTransaction() {
+    var saved;
+    try {
+      saved = JSON.parse(window.sessionStorage.getItem(txClientStorageKey()) || 'null');
+      if (!saved || !/^[A-Za-z0-9_-]{16,96}$/.test(saved.requestId || '')) return;
+    } catch (err) { return; }
+    appState.pendingTransaction = { requestId: saved.requestId, payload: null };
+    txClientLock(true);
+    txClientStatus('Ada kiriman sebelumnya. Memeriksa hasil sebelum menerima transaksi baru…', false);
+    checkPendingSalesTransaction();
+  }
+
+  function txClientClear() {
+    // Keep the current session locked if removing the recovery ID fails.
+    txClientStore(null);
+    appState.pendingTransaction = null;
+    txClientLock(false);
+    txClientStatus('', false);
+  }
+
+  function txClientHandleResult(result) {
+    appState.isSubmittingTransaction = false;
+    var btn = document.getElementById('btnSubmitTx');
+    if (btn) { btn.disabled = false; btn.textContent = 'Simpan Transaksi Penjualan'; }
+    if (result && result.success && result.state === 'COMMITTED') {
+      try { txClientClear(); }
+      catch (err) { txClientStatus('Transaksi ' + result.transactionId + ' sudah tersimpan, tetapi browser belum dapat membersihkan status kiriman. Periksa hasil lagi sebelum transaksi baru.', false); return; }
+      showToast(result.message + ' ' + result.transactionId + ' — ' + formatRupiah(result.totalSales), 'success');
+      resetSalesTransactionForm();
+      // Read authoritative balances; never subtract again on an idempotent replay.
+      loadMetadata();
+      if (appState.currentView === 'riwayat') loadTransactions(1);
+      return;
+    }
+    if (result && result.terminal && result.state === 'FAILED') {
+      try { txClientClear(); }
+      catch (err) { txClientStatus('Kiriman ditolak tanpa perubahan stok. Browser belum dapat membersihkan status; periksa hasil lagi.', false); return; }
+      showToast(result.message || 'Transaksi ditolak. Periksa isian sebelum mencoba lagi.', 'error');
+      return;
+    }
+    txClientLock(true);
+    txClientStatus(result && result.message || 'Hasil kiriman belum pasti. Periksa hasil sebelum mencoba transaksi baru.', false);
+  }
+
+  function txClientSend(payload) {
+    appState.isSubmittingTransaction = true;
+    txClientLock(true);
+    txClientStatus('Menyimpan transaksi dan stok…', false);
+    var btn = document.getElementById('btnSubmitTx');
+    if (btn) { btn.disabled = true; btn.textContent = 'Menyimpan…'; }
+    kchRun().withSuccessHandler(txClientHandleResult).withFailureHandler(function(err) {
+      appState.isSubmittingTransaction = false;
+      txClientLock(true);
+      txClientStatus('Belum dapat memastikan hasil kiriman. Klik Periksa hasil. ' + (err && err.message || ''), false);
+    }).saveSalesTransaction(payload);
+  }
+
+  function retryPendingSalesTransaction() {
+    var pending = appState.pendingTransaction;
+    if (appState.isSubmittingTransaction || !pending || !pending.payload) return;
+    // Same payload and same request ID, never a new invoice on retry.
+    txClientSend(pending.payload);
+  }
+
+  function checkPendingSalesTransaction() {
+    var pending = appState.pendingTransaction;
+    if (!pending || appState.isSubmittingTransaction) return;
+    appState.isSubmittingTransaction = true;
+    txClientStatus('Memeriksa hasil kiriman…', false);
+    kchRun().withSuccessHandler(function(result) {
+      if (result && result.state === 'NOT_FOUND' && !result.blocked) {
+        appState.isSubmittingTransaction = false;
+        if (pending.payload) {
+          txClientLock(true);
+          txClientStatus('Kiriman belum tercatat. Klik Coba simpan lagi untuk mengirim detail yang sama dengan kode yang sama.', true);
+        } else {
+          txClientLock(false);
+          var btn = document.getElementById('btnSubmitTx');
+          if (btn) btn.disabled = false;
+          txClientStatus('Kiriman belum tercatat. Isi kembali detail transaksi; kode kiriman sebelumnya tetap digunakan.', false);
+        }
+        return;
+      }
+      txClientHandleResult(result);
+    }).withFailureHandler(function(err) {
+      appState.isSubmittingTransaction = false;
+      txClientLock(true);
+      txClientStatus('Status kiriman belum dapat diperiksa. ' + (err && err.message || 'Coba lagi sebentar.'), false);
+    }).getSalesTransactionRequestStatus(pending.requestId);
   }
 
   function submitSalesTransaction(event) {
@@ -2257,7 +2392,7 @@
         var productIdEl = tr.querySelector('.item-product-select');
         var qtyEl = tr.querySelector('[data-role="qty"]');
         var productId = productIdEl ? String(productIdEl.value || '').trim() : '';
-        var qty = parseInt(qtyEl ? qtyEl.value : 0, 10) || 0;
+        var qty = Number(qtyEl ? qtyEl.value : 0);
         if (!productId) return;
         var product = findPriceProduct(productId, teamName);
         if (!product) return;
@@ -2277,67 +2412,37 @@
       showToast('Pilih minimal satu produk.', 'error');
       return;
     }
-    if (items.some(function(item) { return item.qty <= 0; })) {
-      showToast('Qty produk harus lebih besar dari 0.', 'error');
+    if (items.some(function(item) { return !Number.isSafeInteger(item.qty) || item.qty <= 0; })) {
+      showToast('Qty produk harus bilangan bulat lebih besar dari 0.', 'error');
       return;
     }
 
-    appState.isSubmittingTransaction = true;
-    var btn = document.getElementById('btnSubmitTx');
-    var originalBtn = btn ? btn.innerHTML : '';
-    if (btn) {
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...';
+    var pending = appState.pendingTransaction;
+    if (pending && pending.payload) {
+      showToast('Periksa hasil kiriman sebelumnya sebelum membuat transaksi baru.', 'info');
+      return;
     }
-
     var payload = {
-      date: date,
-      salesId: salesId,
-      teamName: teamName,
-      distributor: distributor,
-      items: items,
-      notes: notes,
-      username: appState.user && appState.user.username ? appState.user.username : 'ryan'
+      date: date, teamName: teamName, salesId: salesId, distributor: distributor,
+      items: items, notes: notes
     };
-
-    kchRun()
-      .withSuccessHandler(function(res) {
-        appState.isSubmittingTransaction = false;
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = originalBtn || '<i class="fa-solid fa-floppy-disk"></i> Simpan Transaksi Penjualan';
-        }
-        if (!res || !res.success) {
-          showToast(res && res.message ? res.message : 'Transaksi gagal disimpan.', 'error');
-          return;
-        }
-        var stockField = String(distributor || '').toLowerCase().indexOf('ap. geubrina rizki') === 0
-          ? 'AP. Geubrina Rizki'
-          : 'PT. Global Mitra Prima';
-        items.forEach(function(item) {
-          var inventoryItem = findInventory(item.productId);
-          if (inventoryItem) {
-            inventoryItem[stockField] = Math.max(0, parseCleanNumber(inventoryItem[stockField]) - item.qty);
-          }
-        });
-        showToast(res.message || ('Transaksi ' + res.transactionId + ' berhasil disimpan.'), 'success');
-        resetSalesTransactionForm();
-        loadDashboardMetrics();
-        renderInventoryTable();
-        if (appState.currentView === 'riwayat') loadTransactions(1);
-      })
-      .withFailureHandler(function(err) {
-        appState.isSubmittingTransaction = false;
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = originalBtn || '<i class="fa-solid fa-floppy-disk"></i> Simpan Transaksi Penjualan';
-        }
-        showToast('Gagal menyimpan transaksi: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
-      })
-      .saveSalesTransaction(payload);
+    try {
+      payload.requestId = pending ? pending.requestId : txClientNewId();
+      appState.pendingTransaction = { requestId: payload.requestId, payload: payload };
+      txClientStore(appState.pendingTransaction);
+    } catch (err) {
+      appState.pendingTransaction = pending || null;
+      showToast('Pengiriman belum dimulai. Browser perlu mengizinkan penyimpanan sesi agar kiriman aman saat diulang. ' + err.message, 'error');
+      return;
+    }
+    txClientSend(payload);
   }
 
   function resetSalesTransactionForm() {
+    if (appState.pendingTransaction) {
+      showToast('Periksa hasil kiriman sebelumnya sebelum mengosongkan form.', 'info');
+      return;
+    }
     setDefaultTransactionDate();
     setValue('inputTxDistributor', '');
     setValue('inputTxTeam', '');

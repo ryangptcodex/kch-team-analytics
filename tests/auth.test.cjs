@@ -61,7 +61,7 @@ function environment(options = {}) {
     } }
   };
   vm.createContext(context);
-  for (const file of ['firebase-config.gs', 'code.gs', 'setup.gs', 'auth.gs']) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
+  for (const file of ['firebase-config.gs', 'code.gs', 'setup.gs', 'transactions.gs', 'auth.gs']) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
   context.KCH_TEST_SPREADSHEET_ID_ = 'test-only';
   const now = Math.floor(Date.now() / 1000);
   const claims = { aud: context.KCH_FIREBASE_WEB_CONFIG_.projectId, iss: 'https://securetoken.google.com/' + context.KCH_FIREBASE_WEB_CONFIG_.projectId,
@@ -270,7 +270,7 @@ test('only intended entry points remain public and template includes exist', () 
     for (const match of source.matchAll(/^function (\w+)\(/gm)) names.push(match[1]);
   }
   assert.equal(new Set(names).size, names.length, 'No duplicate server function declarations');
-  assert.deepEqual(names.filter(n => !n.endsWith('_')).sort(), ['checkKchGoogleConnection', 'doGet', 'kchApi', 'onOpen', 'repairAndOptimizeSpreadsheet']);
+  assert.deepEqual(names.filter(n => !n.endsWith('_')).sort(), ['checkKchGoogleConnection', 'checkKchTransactionSetup', 'doGet', 'kchApi', 'onOpen', 'repairAndOptimizeSpreadsheet']);
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   for (const match of html.matchAll(/include_\('([^']+)'\)/g)) assert.ok(fs.existsSync(path.join(root, match[1] + '.html')));
 });

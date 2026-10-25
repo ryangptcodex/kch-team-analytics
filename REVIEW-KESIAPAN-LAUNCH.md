@@ -1,3 +1,5 @@
+> Pembaruan implementasi: paket pembuatan transaksi/stok tersedia di cabang `uji-login` melalui `transactions.gs`. Validasi qty/harga/master/tanggal, penulisan finansial atomik, kode kiriman untuk retry dan teks literal telah ditambahkan dan diuji lokal. Pemasangan Google serta pengujian API nyata masih diperlukan; lihat [panduan paket](PANDUAN-UJI-LOGIN.md#paket-perbaikan-transaksi-dan-stok--25-oktober-2026). Status PENDING ambigu menahan transaksi baru sampai hasil dipastikan. Edit/cancel transaksi serta temuan laporan/absensi di bawah belum ditangani. Laporan berikut tetap merupakan bukti historis kode sebelum perbaikan.
+
 **Review kesiapan KCH Team Analytics — 25 Oktober 2026**
 
 Kesimpulan: fondasi login dan pembatasan akun sudah tersedia, tetapi transaksi dan stok belum layak dianggap siap operasional. Prioritas berikutnya adalah integritas transaksi, fitur edit yang sudah diminta pengguna, dan ketepatan laporan.

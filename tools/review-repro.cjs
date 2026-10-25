@@ -5,6 +5,10 @@
 const fs=require('fs'),vm=require('vm');
 const path=require('node:path');
 const root=path.resolve(__dirname, '..')+path.sep;
+if (fs.readFileSync(root+'code.gs','utf8').includes('return saveSalesTransactionAtomic_(payload)')) {
+ console.log('Reproduksi historis untuk commit 0d564397388c1d7279413d53df84e8726a1fc318. Hasil lama: docs/review-observations-2026-10-25.jsonl. Untuk kode saat ini jalankan node --test tests/*.test.cjs.');
+ process.exit(0);
+}
 function app(opts={}){
  const sheets={};let failed=opts.failSheet;
  function create(name,rows){sheets[name]={rows,getLastRow:()=>rows.length,getLastColumn:()=>Math.max(...rows.map(r=>r.length),0),appendRow:r=>rows.push([...r]),getRange(r,c,h=1,w=1){const range={getValues:()=>Array.from({length:h},(_,y)=>Array.from({length:w},(_,x)=>rows[r-1+y]?.[c-1+x]??'')),getDisplayValues:()=>range.getValues().map(r=>r.map(v=>String(v))),setValue:v=>range.setValues([[v]]),setValues(values){if(failed===name)throw Error('SIMULATED_WRITE_FAILURE');values.forEach((row,y)=>row.forEach((v,x)=>{rows[r-1+y]??=[];rows[r-1+y][c-1+x]=v}));return range;},setNumberFormat(){return range}};return range;}};}
