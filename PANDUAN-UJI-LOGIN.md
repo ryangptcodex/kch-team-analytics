@@ -39,6 +39,16 @@ File `firebase-config.gs` berisi konfigurasi web publik, Gmail admin, dan ID spr
 
 Jangan menganggap login sudah bekerja sebelum pengujian browser nyata berhasil. Kebijakan browser terkait iframe, popup, dan penyimpanan pihak ketiga dapat memengaruhi login Firebase dalam Apps Script.
 
+## Jika muncul AUTH_UNAVAILABLE saat verifikasi Google
+
+Pesan ini berasal dari kegagalan `UrlFetchApp.fetch` sebelum respons HTTP diterima. Penyebabnya belum tentu koneksi internet: izin OAuth Apps Script yang belum diberikan juga dapat menghasilkan pesan ini.
+
+1. Salin versi terbaru `auth.gs` ke Apps Script salinan lalu simpan.
+2. Di dropdown fungsi editor, pilih `checkKchGoogleConnection_`, lalu klik **Run / Jalankan**.
+3. Jika diminta otorisasi, pilih akun pemilik deployment dan periksa serta berikan izin yang diperlukan. Pengujian ini tidak membaca atau mengubah spreadsheet, tidak menjalankan setup dan tidak memakai token login pengguna.
+4. Baca **Execution log / Log eksekusi**. Hasil HTTP 400 `INVALID_ID_TOKEN` dengan `connectionOk: true` diharapkan: kode sengaja memakai token palsu untuk membuktikan layanan dapat dihubungi. Hasil itu belum membuktikan login pengguna berhasil.
+5. Jika koneksi lolos, refresh halaman `/dev` lalu coba masuk lagi. Jika tidak lolos atau login tetap gagal, kirim laporan diagnostik atau teks error terbaru; jangan menebak masalah atau mengubah pembatasan API key sebelum hasilnya diketahui.
+
 ## Pemeriksaan penerimaan
 
 1. **Admin**: masuk dengan Gmail admin, pastikan profil berperan ADMIN dan sheet `ACCESS_USERS` terbentuk hanya di spreadsheet uji.

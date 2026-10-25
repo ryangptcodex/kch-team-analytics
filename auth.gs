@@ -2,6 +2,34 @@
 var KCH_REQUEST_USER_ = null;
 var KCH_ACCESS_HEADERS_ = ['email', 'firebase_uid', 'sales_id', 'role', 'status', 'created_at', 'updated_at'];
 
+// Run manually in the Apps Script editor. Uses a deliberately invalid token;
+// never reads a user's token, spreadsheet data, or changes access permissions.
+function checkKchGoogleConnection_() {
+  var apiKey = KCH_FIREBASE_WEB_CONFIG_.apiKey;
+  var report;
+  try {
+    var response = UrlFetchApp.fetch(
+      'https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=' + encodeURIComponent(apiKey),
+      { method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+        payload: JSON.stringify({ idToken: 'KCH_DIAGNOSTIC_INVALID_TOKEN' }) }
+    );
+    var status = response.getResponseCode();
+    var body;
+    try { body = JSON.parse(response.getContentText()); } catch (err) { body = {}; }
+    var message = String(body.error && body.error.message || 'Tidak ada rincian error.');
+    message = message.split(apiKey).join('[REDACTED]').slice(0, 1000);
+    var reachable = status === 400 && /^INVALID_ID_TOKEN(?:\s|:|$)/.test(message);
+    report = { connectionOk: reachable, httpStatus: status, message: reachable
+      ? 'Koneksi verifikasi Google berhasil. INVALID_ID_TOKEN memang diharapkan untuk tes ini; login pengguna belum diuji.'
+      : message };
+  } catch (err) {
+    report = { connectionOk: false, stage: 'FETCH',
+      message: String(err && err.message || 'Permintaan HTTPS gagal.').split(apiKey).join('[REDACTED]').slice(0, 1000) };
+  }
+  console.log(JSON.stringify(report));
+  return report;
+}
+
 function verifyFirebaseIdentity_(token) {
   if (typeof token !== 'string' || token.length > 16000 || token.split('.').length !== 3) {
     throw new Error('AUTH_REQUIRED: Silakan masuk dengan Google.');

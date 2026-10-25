@@ -47,6 +47,15 @@ Pengguna diarahkan membuka cabang uji-login, lalu **Code → Download ZIP** dan 
 Belum ada konfirmasi bahwa pengguna sudah mengunduh, mengganti file atau melakukan deployment.
 Pengguna berhenti sementara untuk tidur dan ingin melanjutkan nanti.
 
+### Pembaruan setelah pengguna melanjutkan
+
+- File halaman login diganti namanya menjadi `auth-ui.html` agar berbeda dari server `auth.gs`; `index.html` dan panduan sudah diperbarui di GitHub.
+- Pengguna sudah memasang kode dan membuka deployment `/dev`.
+- Error pertama `auth/unauthorized-domain` ditangani pengguna dengan menambahkan hostname iframe ke Firebase Authorized domains.
+- Setelah itu muncul `AUTH_UNAVAILABLE: Verifikasi Google belum dapat dihubungi`. Ini terjadi dalam catch `UrlFetchApp.fetch`; penyebab spesifik belum diketahui. Izin OAuth external_request yang belum diotorisasi merupakan kemungkinan, bukan diagnosis terkonfirmasi.
+- Ditambahkan `checkKchGoogleConnection_()` ke `auth.gs`. Jalankan manual di editor untuk memicu otorisasi yang diperlukan dan memperoleh laporan aman dengan token palsu. HTTP 400 INVALID_ID_TOKEN adalah hasil koneksi yang diharapkan, bukan login berhasil.
+- Pengujian lokal kini 20 tes lolos. Belum ada hasil diagnostik dari lingkungan Apps Script pengguna; lanjutkan dari langkah ini.
+
 ## Langkah berikutnya
 
 1. Tanyakan apakah ZIP sudah diunduh dan kode sudah dipasang di Apps Script salinan; jangan menganggap sudah.

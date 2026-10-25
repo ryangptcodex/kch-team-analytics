@@ -54,9 +54,9 @@ function environment(options = {}) {
       lookupCalls++;
       assert.match(url, /^https:\/\/identitytoolkit\.googleapis\.com\/v1\/accounts:lookup\?key=/);
       assert.equal(typeof JSON.parse(request.payload).idToken, 'string');
-      if (options.networkError) throw new Error('offline');
+      if (options.networkError) throw new Error(typeof options.networkError === 'string' ? options.networkError : 'offline');
       return { getResponseCode: () => options.lookupCode || 200,
-        getContentText: () => JSON.stringify({ users: [identity] }) };
+        getContentText: () => JSON.stringify(options.lookupBody || { users: [identity] }) };
     } }
   };
   vm.createContext(context);
@@ -75,6 +75,21 @@ test('rejects missing token without querying Google or creating access sheet', (
   const e = environment({ access: false });
   assert.throws(() => e.context.kchApi('', 'getAuthProfile', []), /AUTH_REQUIRED/);
   assert.equal(e.lookupCalls(), 0); assert.equal(e.sheets.has('ACCESS_USERS'), false);
+});
+test('editor diagnostic expects an invalid token response without reading sales data', () => {
+  const e = environment({ access: false, lookupCode: 400, lookupBody: { error: { message: 'INVALID_ID_TOKEN' } } });
+  const report = e.context.checkKchGoogleConnection_();
+  assert.equal(report.connectionOk, true); assert.equal(report.httpStatus, 400);
+  assert.equal(e.sheets.has('ACCESS_USERS'), false);
+});
+test('diagnostic distinguishes API and fetch errors and redacts API key', () => {
+  const e = environment({ lookupCode: 403, lookupBody: { error: { message: 'API_KEY_HTTP_REFERRER_BLOCKED' } } });
+  assert.equal(e.context.checkKchGoogleConnection_().connectionOk, false);
+  const key = e.context.KCH_FIREBASE_WEB_CONFIG_.apiKey;
+  const failed = environment({ networkError: 'Required permission: script.external_request; key=' + key });
+  const report = failed.context.checkKchGoogleConnection_();
+  assert.equal(report.stage, 'FETCH'); assert.match(report.message, /script.external_request/);
+  assert.ok(!report.message.includes(key));
 });
 test('rejects expired, wrong-project and non-Google tokens', () => {
   for (const claims of [{ exp: 1 }, { aud: 'another-project' }, { iss: 'wrong-issuer' }, { firebase: { sign_in_provider: 'password' } }]) {
