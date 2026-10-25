@@ -87,3 +87,12 @@ Pengguna berhenti sementara untuk tidur dan ingin melanjutkan nanti.
 - Akun sales, penolakan akun tak terdaftar dan pencabutan akses BELUM diuji di browser nyata.
 - Langkah berikutnya: admin mendaftarkan satu Gmail sales lewat menu akun → Kelola akses sales, menghubungkan sales_id yang benar, kemudian menyiapkan deployment uji `/exec` untuk akun sales tanpa membagikan akses editor spreadsheet. `/dev` hanya ditujukan bagi editor proyek.
 - Perbaikan transaksi/stok dan fitur edit tetap belum selesai; hindari transaksi operasional.
+
+### Login sales terverifikasi pada /exec
+
+- Pengguna mendaftarkan satu Gmail ke profil Muhammad Ryan, role SALES dan status ACTIVE, melalui menu Kelola akses sales.
+- Pengguna kemudian mengonfirmasi login sales berhasil pada deployment `/exec`; screenshot memperlihatkan nama Muhammad Ryan dan menu akun tanpa Kelola akses sales.
+- Belum ada konfirmasi pilihan sales hanya dirinya, riwayat/ekspor hanya miliknya, akun tak terdaftar ditolak, atau akses nonaktif ditolak dalam pengujian browser nyata. Itu langkah verifikasi berikutnya.
+- Screenshot memperlihatkan label Sales Coordinator pada akun sales. Pemeriksaan sumber membuktikan `.user-role-header` masih teks statis di `index.html`; fungsi `updateDynamicGreeting()` belum memperbarui label role. Ini masalah tampilan, bukan bukti role ADMIN. Perlu diperbaiki di pembaruan berikutnya.
+- Screenshot memperlihatkan target Rp147.000.000 dan hari kerja 0/26. Sumber membuktikan nilai-nilai tersebut adalah placeholder HTML awal. Grafik dan metrik belum terbukti selesai dimuat saat screenshot; jangan menafsirkan angka ini sebagai hasil server atau memastikan penyebab grafik kosong tanpa hasil permintaan/error.
+- Tahap berikutnya: verifikasi form Input Penjualan (hanya diri sendiri), riwayat transaksi sendiri, lalu uji pencabutan akses menggunakan dua akun yang tersedia. Jangan membuat transaksi sebelum perbaikan stok.
