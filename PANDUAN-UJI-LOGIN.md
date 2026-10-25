@@ -83,6 +83,16 @@ Ini paket **uji login**, belum versi siap launch. Fungsi edit transaksi belum di
 
 Saat menyalin proyek lagi, perbarui ID spreadsheet uji dalam `firebase-config.gs`; kode sengaja menggunakan ID eksplisit agar deployment tidak memilih spreadsheet yang tidak jelas.
 
+## Tombol spreadsheet: fungsi repairAndOptimizeSpreadsheet tidak ditemukan
+
+Tombol/menu spreadsheet lama dapat masih memanggil `repairAndOptimizeSpreadsheet`, sedangkan implementasi internal telah diberi nama privat `repairAndOptimizeSpreadsheet_`. Perbarui seluruh isi `setup.gs` dari cabang uji-login, simpan, kemudian refresh tab spreadsheet UJI COBA agar menu dibangun ulang. Nama callback lama sekarang kembali tersedia melalui penghubung yang dibatasi ke akun admin dan konteks spreadsheet aktif dengan ID salinan uji yang dikonfigurasi.
+
+Ini adalah perbaikan menu spreadsheet: tidak perlu memperbarui deployment web app untuk menguji tombol di sheet. Menu baru dan tombol lama yang memakai nama `repairAndOptimizeSpreadsheet` memanggil penghubung yang sama.
+
+Fungsi pembaruan lama dapat mengubah struktur, menghapus sheet lama dan mengubah akses foto Drive. Penghubung baru mengambil script lock lalu membuat salinan penuh spreadsheet di Google Drive dengan nama berakhiran **BACKUP tanggal/jam** sebelum menjalankannya. Jika penyalinan gagal, pembaruan dibatalkan. URL cadangan dicatat di log eksekusi sebelum perubahan dimulai dan disertakan pada pesan jika pembaruan gagal. Cadangan spreadsheet tidak membatalkan perubahan izin file foto Drive; periksa kebutuhan pemeliharaan sebelum menjalankan fungsi ini.
+
+Perbaikan penghubung dan urutan backup diuji secara lokal dengan tiruan layanan Google. Migrasi lengkap belum dijalankan atau diverifikasi terhadap data spreadsheet pengguna dari workspace ini.
+
 ## Tampilan login dengan ilustrasi dashboard
 
 Ganti seluruh isi `auth-ui.html` dan `auth-client.html` dengan versi terbaru di cabang uji-login. Halaman memakai kartu putih dua kolom, latar pastel dan ilustrasi dashboard SVG yang tertanam di HTML; tidak memerlukan gambar Drive atau pengaturan domain tambahan untuk ilustrasinya. Pada HP, kedua panel tersusun vertikal dan tombol login tetap berada dekat bagian atas.

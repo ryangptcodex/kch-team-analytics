@@ -136,7 +136,7 @@ function onOpen() {
       .addItem('📷 Siapkan Sheet VISIT_PHOTOS', 'setupVisitPhotosSheet_')
       .addItem('🔄 Sinkronkan Nama & Tim di Sheet ATTENDANCE', 'syncAttendanceSalesDetails_')
       .addItem('🖼 Buka Akses & Konversi Foto GDrive di ATTENDANCE', 'convertAndAuthorizeDrivePhotosInAttendance_')
-      .addItem('🛠 Perbarui & Rapikan Seluruh Database Spreadsheet', 'repairAndOptimizeSpreadsheet_')
+      .addItem('🛠 Perbarui & Rapikan Seluruh Database Spreadsheet', 'repairAndOptimizeSpreadsheet')
       .addItem('🗑 Hapus Sheet Usang & Kolom Duplikat', 'purgeObsoleteColumnsAndSheets_')
       .addItem('📦 Sinkronkan Produk ke INVENTORY', 'syncProductsToInventory_')
       .addItem('💲 Sinkronkan Produk ke PRICE_MASTER', 'syncProductsToPriceMaster_')
@@ -1255,6 +1255,45 @@ function deduplicateAllSheets_() {
     }
   }
   SpreadsheetApp.flush();
+}
+
+// Stable callback for existing spreadsheet menus and assigned buttons.
+// Keep maintenance outside the web RPC allowlist and require a native Sheet UI.
+function repairAndOptimizeSpreadsheet() {
+  var email = String(Session.getActiveUser().getEmail() || '').trim().toLowerCase();
+  if (email !== KCH_BOOTSTRAP_ADMIN_EMAIL_) {
+    throw new Error('ACCESS_DENIED: Pembaruan spreadsheet hanya boleh dijalankan oleh Gmail admin.');
+  }
+  try { SpreadsheetApp.getUi(); }
+  catch (err) { throw new Error('ACCESS_DENIED: Jalankan pembaruan dari spreadsheet UJI COBA, bukan web app.'); }
+  var active = SpreadsheetApp.getActiveSpreadsheet();
+  if (!active || active.getId() !== KCH_TEST_SPREADSHEET_ID_) {
+    throw new Error('ACCESS_DENIED: Spreadsheet aktif bukan salinan UJI COBA yang dikonfigurasi.');
+  }
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    SpreadsheetApp.flush();
+    var backup;
+    try {
+      var stamp = Utilities.formatDate(new Date(), KCH_CONFIG.TIMEZONE, 'yyyy-MM-dd HH.mm.ss');
+      backup = active.copy(active.getName() + ' - BACKUP ' + stamp);
+      if (!backup || backup.getId() === active.getId()) throw new Error('Salinan cadangan tidak valid.');
+    } catch (err) {
+      throw new Error('Cadangan gagal dibuat; pembaruan dibatalkan. ' + err.message);
+    }
+    var backupUrl = backup.getUrl();
+    console.log('Cadangan sebelum pembaruan: ' + backupUrl);
+    try {
+      var result = repairAndOptimizeSpreadsheet_();
+      SpreadsheetApp.flush();
+      result.backupUrl = backupUrl;
+      active.toast('Pembaruan selesai. Cadangan tersedia di Google Drive: ' + backup.getName(), 'KCH UJI COBA', 10);
+      return result;
+    } catch (err) {
+      throw new Error('Pembaruan berhenti: ' + err.message + ' Cadangan sebelum pembaruan: ' + backupUrl);
+    }
+  } finally { lock.releaseLock(); }
 }
 
 function repairAndOptimizeSpreadsheet_() {

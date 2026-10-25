@@ -125,3 +125,13 @@ Pengguna berhenti sementara untuk tidur dan ingin melanjutkan nanti.
 - 37 tes lokal lolos. Chromium juga memverifikasi layout 1440px, 390px, 320px tanpa overflow horizontal; tepat satu tombol login; tombol dapat diklik; pesan error panjang tidak melebarkan layout; halaman login tersembunyi saat status hidden aktif. Ini tidak mengulangi login Google nyata.
 - Pratinjau desktop dan HP disimpan di `docs/login-desktop.png` dan `docs/login-mobile.png`.
 - File yang perlu diganti pengguna: `auth-ui.html`, `auth-client.html`. `/dev` cukup simpan dan refresh; `/exec` perlu update versi deployment existing. Pemasangan desain baru pada Google masih menunggu pengguna.
+
+### Perbaikan tombol Perbarui spreadsheet
+
+- Pengguna mengklik Perbarui pada sheet UJI COBA dan mendapat `Fungsi skrip tidak ditemukan: repairAndOptimizeSpreadsheet`.
+- Nama lama masih dipakai tombol/menu yang ada, sedangkan kode awal pengamanan mengubah implementasi menjadi `repairAndOptimizeSpreadsheet_`. Pemanggilan yang gagal menemukan fungsi belum masuk ke proses pembaruan.
+- Ditambahkan callback publik stabil `repairAndOptimizeSpreadsheet` di `setup.gs`. Hanya Gmail admin aktif yang diperbolehkan; fungsi harus berjalan di konteks UI spreadsheet dengan ID aktif sama dengan salinan uji. Gateway web tetap menolak operasi maintenance.
+- Menu `onOpen` untuk pembaruan kini memakai callback stabil tersebut. Fungsi internal tetap privat.
+- Penghubung baru mengunci operasi, membuat salinan backup spreadsheet sebelum menjalankan pembaruan lama, dan membatalkan pembaruan jika backup gagal. Log memuat URL backup sebelum perubahan; kegagalan migrasi menyertakan URL itu. Backup tidak otomatis mengembalikan perubahan izin foto Drive yang dilakukan routine lama.
+- File yang perlu diganti: `setup.gs`, lalu simpan dan refresh sheet. Tidak perlu deployment web baru untuk tombol native spreadsheet.
+- 43 tes lokal lolos, termasuk admin/konteks/ID, backup sebelum mutasi, pembatalan bila backup gagal dan pelepasan lock. Migrasi penuh data Google belum dieksekusi dari workspace ini atau dikonfirmasi pengguna.
