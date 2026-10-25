@@ -58,9 +58,18 @@ Pesan ini berasal dari kegagalan `UrlFetchApp.fetch` sebelum respons HTTP diteri
 5. **Nonaktifkan akses**: nonaktifkan sales dari admin, lalu lakukan permintaan data baru dari browser sales. Server harus menolak meskipun akun Google masih masuk.
 6. **Keluar**: pilih Keluar akun; data yang telah dimuat dibersihkan dengan pemuatan ulang halaman. Muat ulang juga mengharuskan login kembali karena sesi Firebase tidak disimpan permanen.
 
+## Pembaruan dropdown profil pada menu akses sales
+
+Untuk memasang perbaikan dropdown kosong, ganti seluruh isi **tiga file sekaligus** dari cabang uji-login: `auth.gs`, `auth-client.html`, `auth-ui.html`.
+Daftar profil kini dimuat langsung dari server bersama daftar akun saat panel dibuka, tanpa menunggu metadata dashboard. Panel menunjukkan status memuat, gagal, atau sheet SALES kosong; simpan dinonaktifkan selama profil belum tersedia. Akun sales yang sudah terdaftar memiliki tombol **Ubah** untuk mengisi Gmail, profil dan statusnya.
+
+Setelah menyimpan di editor, halaman `/dev` cukup dimuat ulang. Untuk URL `/exec`, buka **Terapkan → Kelola deployment → pilih deployment uji → ikon pensil → Versi baru → Terapkan**, lalu muat ulang URL `/exec` yang sama. Tidak perlu membuat deployment baru atau URL lain.
+
+Untuk mengaktifkan kembali akun: masuk sebagai admin → Kelola akses sales → tunggu profil selesai dimuat → klik **Ubah** pada baris akun sales → ubah status menjadi **Aktif** → **Simpan akses**. Setelah itu uji login kembali di akun sales.
+
 ## Batas tahap ini
 
-Pengujian lokal: `node --test tests/auth.test.cjs` menggunakan tiruan layanan Google/Spreadsheet. Pengujian itu memeriksa aturan akses dan penanganan kegagalan, bukan login Google nyata, izin Drive, atau deployment Apps Script.
+Pengujian lokal: `node --test tests/*.test.cjs` menggunakan tiruan layanan Google/Spreadsheet dan DOM panel akses. Pengujian itu memeriksa aturan akses, penanganan kegagalan serta pemuatan profil secara asinkron, bukan login Google nyata, izin Drive, atau deployment Apps Script.
 
 Ini paket **uji login**, belum versi siap launch. Fungsi edit transaksi belum ditambahkan. Validasi jumlah/harga, gabungan produk ganda dan pemulihan penyimpanan transaksi saat gagal masih memerlukan perbaikan tahap berikutnya. Jangan gunakan paket ini untuk transaksi operasional atau menganggap stok sudah terverifikasi. Data salinan dapat berubah bila fungsi tulis dijalankan.
 

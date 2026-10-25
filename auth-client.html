@@ -3,6 +3,7 @@
 <script>
   var kchFirebaseAuth = null;
   var kchAuthGeneration = 0;
+  var kchAccessLoadVersion = 0;
 
   function showKchAuthError(message) {
     document.body.classList.add('kch-locked');
@@ -107,33 +108,80 @@
   }
 
   function openKchAccessPanel() {
-    var select = document.getElementById('kchAccessSales');
-    select.replaceChildren();
-    (appState.attendanceSales || []).forEach(function(sales) {
-      var option = document.createElement('option'); option.value = sales.sales_id;
-      option.textContent = sales.full_name + ' (' + sales.sales_id + ')'; select.appendChild(option);
-    });
     document.getElementById('kchAccessPanel').hidden = false;
     loadKchAccessUsers();
   }
 
   function loadKchAccessUsers() {
-    document.getElementById('kchAccessMessage').textContent = 'Memuat daftar akses…';
+    var version = ++kchAccessLoadVersion;
+    var select = document.getElementById('kchAccessSales');
+    var selectedId = select.value;
+    var save = document.getElementById('kchSaveAccess');
+    var message = document.getElementById('kchAccessMessage');
+    function placeholder(text) {
+      select.replaceChildren();
+      var option = document.createElement('option'); option.value = ''; option.textContent = text;
+      select.appendChild(option);
+    }
+    function failed(text) {
+      placeholder('Profil sales belum tersedia');
+      select.disabled = true; save.disabled = true; message.textContent = text;
+    }
+    select.disabled = true; save.disabled = true;
+    placeholder('Memuat profil sales…');
+    document.getElementById('kchAccessRows').replaceChildren();
+    message.textContent = 'Memuat profil sales dan daftar akses…';
     kchRun().withSuccessHandler(function(result) {
+      if (version !== kchAccessLoadVersion) return;
+      if (!result || !result.success || !Array.isArray(result.users) || !Array.isArray(result.sales)) {
+        failed('Data akses tidak lengkap. Pastikan auth.gs dan auth-client.html sudah diperbarui bersama.'); return;
+      }
+      var salesRows = result.sales.filter(function(sales) { return sales.sales_id; });
+      placeholder(salesRows.length ? '-- Pilih profil sales --' : 'Belum ada profil di sheet SALES');
+      salesRows.forEach(function(sales) {
+        var option = document.createElement('option'); option.value = sales.sales_id;
+        option.textContent = (sales.full_name || sales.sales_id) + ' (' + sales.sales_id + ')' +
+          (String(sales.status).toUpperCase() === 'INACTIVE' ? ' — nonaktif' : '');
+        select.appendChild(option);
+      });
+      if (salesRows.some(function(sales) { return sales.sales_id === selectedId; })) select.value = selectedId;
+      select.disabled = !salesRows.length; save.disabled = !salesRows.length;
       var body = document.getElementById('kchAccessRows'); body.replaceChildren();
       result.users.forEach(function(user) {
         var row = document.createElement('tr');
         [user.email, user.salesId, user.role, user.status].forEach(function(value) {
           var cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
         });
+        var actions = document.createElement('td');
+        if (String(user.role).toUpperCase() === 'SALES') {
+          var edit = document.createElement('button'); edit.type = 'button';
+          edit.className = 'btn btn-secondary btn-sm'; edit.textContent = 'Ubah';
+          edit.onclick = function() {
+            if (select.disabled) return;
+            document.getElementById('kchAccessEmail').value = user.email;
+            select.value = user.salesId;
+            document.getElementById('kchAccessStatus').value = user.status;
+            message.textContent = select.value ? 'Akun dipilih. Atur status lalu klik Simpan akses.'
+              : 'Profil akun ini tidak ditemukan di sheet SALES. Periksa data profil sebelum menyimpan.';
+          };
+          actions.appendChild(edit);
+        }
+        row.appendChild(actions);
         body.appendChild(row);
       });
-      document.getElementById('kchAccessMessage').textContent = '';
-    }).withFailureHandler(function(err) { document.getElementById('kchAccessMessage').textContent = err.message; }).listAccessUsers();
+      message.textContent = salesRows.length ? '' : 'Sheet SALES belum berisi profil dengan sales_id. Data akses belum bisa disimpan.';
+    }).withFailureHandler(function(err) {
+      if (version !== kchAccessLoadVersion) return;
+      failed('Gagal memuat profil sales: ' + err.message + ' Tutup lalu buka menu ini untuk mencoba lagi.');
+    }).listAccessUsers();
   }
 
   function saveKchAccess(event) {
     event.preventDefault();
+    if (document.getElementById('kchAccessSales').disabled || document.getElementById('kchSaveAccess').disabled) return;
+    if (!document.getElementById('kchAccessSales').value) {
+      document.getElementById('kchAccessMessage').textContent = 'Pilih profil sales terlebih dahulu.'; return;
+    }
     document.getElementById('kchSaveAccess').disabled = true;
     kchRun().withSuccessHandler(function() {
       document.getElementById('kchSaveAccess').disabled = false;

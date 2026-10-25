@@ -175,9 +175,15 @@ function assertOwnSales_(salesId) {
 }
 
 function listAccessUsers_() {
+  var sales = getSheetData_('SALES').rows.filter(function(row) {
+    return String(row.sales_id || '').trim();
+  }).map(function(row) {
+    return { sales_id: String(row.sales_id).trim(), full_name: row.full_name || row.sales_id,
+      team_name: row.team_name || '', status: row.status || 'ACTIVE' };
+  });
   return { success: true, users: accessRows_(getAccessSheet_(false)).map(function(row) {
     return { email: row[0], salesId: row[2], role: row[3], status: row[4] };
-  }) };
+  }), sales: sales };
 }
 
 function saveAccessUser_(payload) {

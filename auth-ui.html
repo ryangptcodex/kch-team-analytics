@@ -7,6 +7,7 @@
   #kchAccessPanel { position:fixed; inset:20px; z-index:2000; overflow:auto; padding:24px; background:white; border:1px solid #cbd5e1; border-radius:12px; }
   #kchAccessPanel form { display:flex; flex-wrap:wrap; gap:12px; margin:16px 0; }
   #kchAccessPanel input, #kchAccessPanel select { padding:8px; max-width:100%; }
+  #kchAccessSales { flex:1 1 280px; min-width:0; width:100%; max-width:520px; }
   #kchAccessPanel td, #kchAccessPanel th { padding:8px; text-align:left; }
 </style>
 <script>document.body.classList.add('kch-locked');</script>
@@ -23,10 +24,10 @@
   <p>Hubungkan satu Gmail dengan satu profil sales. Untuk memperbarui akun, isi kembali email yang sama.</p>
   <form onsubmit="saveKchAccess(event)">
     <input id="kchAccessEmail" type="email" placeholder="Gmail sales" aria-label="Gmail sales" required>
-    <select id="kchAccessSales" aria-label="Profil sales" required></select>
+    <select id="kchAccessSales" aria-label="Profil sales" required disabled><option value="">Memuat profil sales…</option></select>
     <select id="kchAccessStatus" aria-label="Status akses"><option value="ACTIVE">Aktif</option><option value="INACTIVE">Nonaktif</option></select>
-    <button type="submit" class="btn btn-primary" id="kchSaveAccess">Simpan akses</button>
+    <button type="submit" class="btn btn-primary" id="kchSaveAccess" disabled>Simpan akses</button>
   </form>
   <p id="kchAccessMessage" role="status"></p>
-  <div style="overflow-x:auto"><table><thead><tr><th>Gmail</th><th>ID sales</th><th>Peran</th><th>Status</th></tr></thead><tbody id="kchAccessRows"></tbody></table></div>
+  <div style="overflow-x:auto"><table><thead><tr><th>Gmail</th><th>ID sales</th><th>Peran</th><th>Status</th><th>Tindakan</th></tr></thead><tbody id="kchAccessRows"></tbody></table></div>
 </section>

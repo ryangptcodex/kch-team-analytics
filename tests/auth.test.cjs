@@ -173,6 +173,10 @@ test('sales history, exports and detail cannot expose other sales transactions',
 });
 test('admin can read all sales history and add or deactivate sales access', () => {
   const e = environment({ identity: { email: 'admin@gmail.com', localId: 'admin-uid' } });
+  const access = e.call('listAccessUsers');
+  assert.equal(access.sales.length, 2); assert.equal(access.sales[0].sales_id, 'S1');
+  assert.equal(access.sales[0].full_name, 'Sales One');
+  assert.deepEqual(Object.keys(access.sales[0]).sort(), ['full_name', 'sales_id', 'status', 'team_name']);
   assert.equal(e.call('getTransactionsPaginated', [1, 10]).data.length, 2);
   assert.equal(e.call('saveAccessUser', [{ email: 'second@gmail.com', salesId: 'S2' }]).success, true);
   assert.equal(e.call('saveAccessUser', [{ email: 'second@gmail.com', salesId: 'S2', status: 'INACTIVE' }]).success, true);

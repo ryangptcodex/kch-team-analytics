@@ -96,3 +96,13 @@ Pengguna berhenti sementara untuk tidur dan ingin melanjutkan nanti.
 - Screenshot memperlihatkan label Sales Coordinator pada akun sales. Pemeriksaan sumber membuktikan `.user-role-header` masih teks statis di `index.html`; fungsi `updateDynamicGreeting()` belum memperbarui label role. Ini masalah tampilan, bukan bukti role ADMIN. Perlu diperbaiki di pembaruan berikutnya.
 - Screenshot memperlihatkan target Rp147.000.000 dan hari kerja 0/26. Sumber membuktikan nilai-nilai tersebut adalah placeholder HTML awal. Grafik dan metrik belum terbukti selesai dimuat saat screenshot; jangan menafsirkan angka ini sebagai hasil server atau memastikan penyebab grafik kosong tanpa hasil permintaan/error.
 - Tahap berikutnya: verifikasi form Input Penjualan (hanya diri sendiri), riwayat transaksi sendiri, lalu uji pencabutan akses menggunakan dua akun yang tersedia. Jangan membuat transaksi sebelum perbaikan stok.
+
+### Pengecekan pembatasan dan perbaikan panel akses
+
+- Pengguna mengonfirmasi pilihan sales pada Input Penjualan hanya dirinya dan riwayat hanya transaksi miliknya.
+- Setelah instruksi uji penonaktifan, pengguna menyebut sinkronisasi ditolak; kalimat awal ambigu, penolakan perlu dipastikan terkait status INACTIVE. Pemulihan akses setelah aktif kembali BELUM terverifikasi.
+- Pengguna kemudian melaporkan dropdown profil sales di panel admin kosong; screenshot menunjukkan daftar akun tetap tampil.
+- Ditemukan ketergantungan dropdown pada `appState.attendanceSales` yang dimuat terpisah dari daftar akun. Panel dapat dibuka sebelum metadata selesai, dan tidak otomatis memperbarui pilihan setelah metadata tiba.
+- Perbaikan: `listAccessUsers_` mengirim profil SALES yang diperlukan bersama daftar akun (tetap admin-only). Panel mengambil profil langsung, menampilkan status memuat/gagal/kosong, mencegah penyimpanan saat belum siap, mengabaikan respons lama, dan menyediakan tombol Ubah pada akun sales yang sudah terdaftar.
+- File yang perlu diganti bersama di Apps Script: `auth.gs`, `auth-client.html`, `auth-ui.html`. Perlu update versi deployment existing untuk `/exec`; `/dev` cukup simpan dan refresh.
+- 28 tes lokal lulus lewat `node --test tests/*.test.cjs`. Pemasangan perbaikan dropdown dan keberhasilan aktif kembali di browser pengguna masih menunggu.
