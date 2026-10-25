@@ -78,3 +78,12 @@ Pengguna berhenti sementara untuk tidur dan ingin melanjutkan nanti.
 - Unggah foto masih mengatur akses Drive ANYONE_WITH_LINK; kebijakan akses foto perlu dipertimbangkan sebelum launch.
 - Aturan target penjualan tersebar dan berpotensi tidak konsisten; perlu validasi sesuai aturan bisnis pengguna.
 - Jangan mereset data Oktober untuk memulai November; pisahkan laporan berdasarkan tanggal dan rekonsiliasi stok akhir/awal.
+
+### Login admin terverifikasi di deployment uji
+
+- Pengguna menjalankan `checkKchGoogleConnection` di editor; screenshot menunjukkan `connectionOk: true`, HTTP 400 INVALID_ID_TOKEN sesuai tes yang dirancang. Penyebab pasti kegagalan fetch sebelumnya tidak dikonfirmasi; jangan menyatakan pasti masalah jaringan atau OAuth.
+- Setelah refresh dan mencoba login, pengguna mengonfirmasi web app berhasil masuk dan sheet `ACCESS_USERS` muncul. Screenshot memperlihatkan dashboard pada deployment `/dev`.
+- Login admin pada salinan uji kini telah diverifikasi oleh pengguna, bukan hanya tes lokal.
+- Akun sales, penolakan akun tak terdaftar dan pencabutan akses BELUM diuji di browser nyata.
+- Langkah berikutnya: admin mendaftarkan satu Gmail sales lewat menu akun → Kelola akses sales, menghubungkan sales_id yang benar, kemudian menyiapkan deployment uji `/exec` untuk akun sales tanpa membagikan akses editor spreadsheet. `/dev` hanya ditujukan bagi editor proyek.
+- Perbaikan transaksi/stok dan fitur edit tetap belum selesai; hindari transaksi operasional.
