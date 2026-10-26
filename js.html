@@ -2091,6 +2091,13 @@
     recalculateTransactionTotals();
   }
 
+  function updateTransactionQuantityValidity(input) {
+    if (!input) return;
+    var qty = Number(input.value);
+    var valid = !input.validity.badInput && Number.isSafeInteger(qty) && qty >= 1;
+    input.setCustomValidity(valid ? '' : 'Jumlah produk minimal 1 dan harus berupa bilangan bulat.');
+  }
+
   function addItemRow() {
     var tbody = document.getElementById('transactionItemsTbody');
     if (!tbody) return;
@@ -2110,7 +2117,7 @@
       '<td class="text-right"><span data-role="cost">Rp 0</span></td>' +
       '<td class="text-right"><span data-role="sell">Rp 0</span></td>' +
       '<td class="text-right"><span data-role="shj">Rp 0</span></td>' +
-      '<td><input type="number" min="1" step="1" value="1" class="form-control" style="width:70px;text-align:center;margin:auto;" data-role="qty" oninput="recalculateTransactionTotals()"></td>' +
+      '<td><input type="number" min="1" step="1" value="1" class="form-control" style="width:70px;text-align:center;margin:auto;" data-role="qty" required oninvalid="updateTransactionQuantityValidity(this)" oninput="updateTransactionQuantityValidity(this);recalculateTransactionTotals()"></td>' +
       '<td class="text-right font-semibold"><span data-role="subtotal">Rp 0</span></td>' +
       '<td class="text-center"><button type="button" class="btn btn-danger-soft btn-sm" onclick="removeItemRow(\'' + rowId + '\')"><i class="fa-solid fa-trash"></i></button></td>';
     tbody.appendChild(tr);
@@ -2451,7 +2458,7 @@
       return;
     }
     if (items.some(function(item) { return !Number.isSafeInteger(item.qty) || item.qty <= 0; })) {
-      showToast('Qty produk harus bilangan bulat lebih besar dari 0.', 'error');
+      showToast('Jumlah produk minimal 1 dan harus berupa bilangan bulat.', 'error');
       return;
     }
 

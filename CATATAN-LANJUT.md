@@ -217,3 +217,9 @@ Pengguna berhenti sementara untuk tidur dan ingin melanjutkan nanti.
 - loadMetadata memulai loading dan menginvalidasi respons metrics lama. Sequence dashboard memastikan respons permintaan periode lebih lama tidak menimpa filter yang lebih baru. Dihapus pemanggilan metrics ganda dalam callback triggerManualSync; metadata sudah memuat metrics.
 - Dua file pemasangan: index.html dan js.html. /dev simpan+refresh, /exec versi deploymentbaru+refresh; tidak perlu Perbarui Sheet/repair atau perubahan schema/API.
 - 110 tes otomatis lokal lulus termasuk 6 tes state loading, error, success, zero nyata, race filter dan invalidasi metadata; Chromium menguji placeholder awal/loading/error/success pada1440/390/320px. Tidak mengubah perhitungan target server atau dataSheet.
+
+### Penolakan di Google dan bahasa validasi qty — 26 Oktober 2026
+
+- Screenshot uji dua baris PEAGB qty250+250 menunjukkan penolakan: sisa499 diminta500. Screenshot lanjutan menunjukkan stok PT.Global tetap499; riwayat6faktur tidak menampilkan transaksi percobaan Rp3.279.500. Bukti UI mendukung uji penolakan; ledger/jurnal Google tidak dibaca langsung agen.
+- Uji qty0 menghasilkan tooltip native browser Inggris Value must be greater than or equal to1. Pengguna meminta pesan Bahasa Indonesia. js.html menambahkan updateTransactionQuantityValidity dan mengaitkan oninput/oninvalid pada input qty dinamis; required/min1/step1 tetap. Pesan menjadi Jumlah produk minimal1 dan harus berupa bilangan bulat. Pesan toast pre-submit disamakan. Custom validity dibersihkan setelah qty valid agar koreksi tidak terkunci.
+- Chromium memeriksa0/negatif/pecahan/kosong, event invalid lewat reportValidity dan koreksi ke1/2. Sembilan tes client transaksi lulus. Perubahan bahasa ini hanya mengganti js.html; simpan+refresh /dev atau updateversi /exec+refresh, tanpa PerbaruiSheet.
