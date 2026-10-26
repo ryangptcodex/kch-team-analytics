@@ -202,3 +202,9 @@ Pengguna berhenti sementara untuk tidur dan ingin melanjutkan nanti.
 - Pengguna tidak menemukan Google Sheets API di daftar Layanan. Diberikan alternatif lewat Setelan proyek: tampilkan manifes appsscript.json, salin manifest berisi enabledAdvancedServices Sheets v4, simpan dan refresh editor; layanan tampil sebagai Sheets. Belum ada konfirmasi/screenshot bahwa aktivasi berhasil.
 - Pertanyaan terakhir apakah perlu menekan Perbarui di sheet: dijawab tidak perlu, karena itu maintenance bukan update kode webapp. Berikutnya pilih checkKchTransactionSetup di editor lalu Jalankan, izinkan akses bila diminta, periksa log success:true. Untuk /exec perlu versi deployment baru.
 - Jangan menganggap tujuh file, pemeriksaan API, deployment atau uji transaksi Google sudah selesai: pengguna belum mengirim hasil pemeriksaan. Saat lanjut, mulai dengan memastikan hasil log checkKchTransactionSetup, kemudian uji kecil pada salinan UJI COBA mengikuti panduan. Jangan memakai data asli atau menjalankan repair hanya untuk memasang paket.
+
+### Uji Google berhasil dan penyederhanaan status simpan — 26 Oktober 2026
+
+- Screenshot pengguna membuktikan checkKchTransactionSetup di Google selesai success:true, missingSheets:[], pendingRequests:[], layanan Sheets terlihat. Pengguna kemudian mengonfirmasi uji simpan transaksi berhasil; detail saldo/ledger tidak ditinjau langsung oleh agen.
+- Pengguna terganggu panel oranye berisi Menyimpan transaksi dan stok, request ID dan Periksa hasil saat proses normal. js.html kini menyembunyikan panel pada pengiriman/retry normal: progres cukup tombol Menyimpan… dan form disabled. Panel recovery tetap muncul bila hasil tidak pasti/koneksi gagal; perlindungan transaksi/stok tidak berubah.
+- Pemasangan perubahan tampilan ini hanya mengganti js.html. Simpan + refresh /dev, atau versi deployment baru + refresh /exec. Tambahan assertion pada tes client memeriksa panel tidak terlihat dan label tombol saat mengirim.

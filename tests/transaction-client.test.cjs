@@ -19,6 +19,7 @@ function browser(storage=new Map()) {
 }
 test('double submit is ignored and only opaque ID is retained for recovery',()=>{
  const e=browser();e.c.submitSalesTransaction();e.c.submitSalesTransaction();assert.equal(e.calls.length,1);assert.equal(e.els.txFormFields.disabled,true);
+ assert.equal(e.els.txRequestStatus.style.display,'none');assert.equal(e.els.btnSubmitTx.textContent,'Menyimpan…');
  const saved=JSON.parse([...e.storage.values()][0]);assert.deepEqual(Object.keys(saved),['requestId']);assert.equal(saved.requestId,e.calls[0].payload.requestId);assert.ok(![...e.storage.values()][0].includes('private'));
 });
 test('lost response locks draft; status recovery clears once and refreshes authoritative stock',()=>{

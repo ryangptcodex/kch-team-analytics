@@ -2310,7 +2310,8 @@
   function txClientSend(payload) {
     appState.isSubmittingTransaction = true;
     txClientLock(true);
-    txClientStatus('Menyimpan transaksi dan stok…', false);
+    // Routine progress stays on the submit button; recovery UI is for uncertainty.
+    txClientStatus('', false);
     var btn = document.getElementById('btnSubmitTx');
     if (btn) { btn.disabled = true; btn.textContent = 'Menyimpan…'; }
     kchRun().withSuccessHandler(txClientHandleResult).withFailureHandler(function(err) {
