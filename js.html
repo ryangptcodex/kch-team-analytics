@@ -51,6 +51,8 @@
     isLoadingMetadata: false,
     isSubmittingTransaction: false,
     pendingTransaction: null,
+    transactionEdit: null,
+    editLoadSeq: 0,
     mockPreview: false
   };
 
@@ -424,6 +426,7 @@
         loadTodayPlans(getLocalDateInputValue());
         ensureTransactionRows();
         if (appState.pendingTransaction) txClientLock(true);
+        if (appState.transactionEdit) updateEditTransactionTotals();
         loadDashboardMetrics();
         if (typeof callback === 'function') callback();
       })
@@ -2292,19 +2295,21 @@
   function txClientLock(locked) {
     var fields = document.getElementById('txFormFields');
     if (fields) fields.disabled = !!locked;
+    var editFields = document.getElementById('txEditFormFields');
+    if (editFields) editFields.disabled = !!locked;
   }
 
   function txClientStatus(message, showRetry) {
-    var box = document.getElementById('txRequestStatus');
-    var text = document.getElementById('txRequestStatusText');
-    var code = document.getElementById('txRequestCode');
-    var retry = document.getElementById('btnRetryTxRequest');
-    if (box) box.style.display = message ? 'block' : 'none';
-    if (text) text.textContent = message || '';
-    if (code) code.textContent = appState.pendingTransaction ? appState.pendingTransaction.requestId : '';
-    if (retry) { retry.style.display = showRetry ? 'inline-flex' : 'none'; retry.disabled = !!appState.isSubmittingTransaction; }
-    var check = document.getElementById('btnCheckTxRequest');
-    if (check) check.disabled = !!appState.isSubmittingTransaction;
+    [['txRequestStatus', 'txRequestStatusText', 'txRequestCode', 'btnRetryTxRequest', 'btnCheckTxRequest'],
+      ['editTxRequestStatus', 'editTxRequestStatusText', 'editTxRequestCode', 'btnRetryTxEditRequest', 'btnCheckTxEditRequest']].forEach(function(ids) {
+      var box = document.getElementById(ids[0]), text = document.getElementById(ids[1]), code = document.getElementById(ids[2]);
+      var retry = document.getElementById(ids[3]), check = document.getElementById(ids[4]);
+      if (box) box.style.display = message ? 'block' : 'none';
+      if (text) text.textContent = message || '';
+      if (code) code.textContent = appState.pendingTransaction ? appState.pendingTransaction.requestId : '';
+      if (retry) { retry.style.display = showRetry ? 'inline-flex' : 'none'; retry.disabled = !!appState.isSubmittingTransaction; }
+      if (check) check.disabled = !!appState.isSubmittingTransaction;
+    });
   }
 
   function restorePendingSalesTransaction() {
@@ -2331,11 +2336,14 @@
     appState.isSubmittingTransaction = false;
     var btn = document.getElementById('btnSubmitTx');
     if (btn) { btn.disabled = false; btn.textContent = 'Simpan Transaksi Penjualan'; }
+    var editBtn = document.getElementById('btnSubmitTxEdit');
+    if (editBtn) { editBtn.disabled = false; editBtn.textContent = 'Simpan perubahan'; }
     if (result && result.success && result.state === 'COMMITTED') {
       try { txClientClear(); }
       catch (err) { txClientStatus('Transaksi ' + result.transactionId + ' sudah tersimpan, tetapi browser belum dapat membersihkan status kiriman. Periksa hasil lagi sebelum transaksi baru.', false); return; }
       showToast(result.message + ' ' + result.transactionId + ' — ' + formatRupiah(result.totalSales), 'success');
-      resetSalesTransactionForm();
+      if (result.operation === 'EDIT') closeSalesTransactionEdit();
+      else resetSalesTransactionForm();
       // Read authoritative balances; never subtract again on an idempotent replay.
       loadMetadata();
       if (appState.currentView === 'riwayat') loadTransactions(1);
@@ -2358,11 +2366,15 @@
     txClientStatus('', false);
     var btn = document.getElementById('btnSubmitTx');
     if (btn) { btn.disabled = true; btn.textContent = 'Menyimpan…'; }
-    kchRun().withSuccessHandler(txClientHandleResult).withFailureHandler(function(err) {
+    var editBtn = document.getElementById('btnSubmitTxEdit');
+    if (editBtn && payload.transactionId) { editBtn.disabled = true; editBtn.textContent = 'Menyimpan…'; }
+    var runner = kchRun().withSuccessHandler(txClientHandleResult).withFailureHandler(function(err) {
       appState.isSubmittingTransaction = false;
       txClientLock(true);
       txClientStatus('Belum dapat memastikan hasil kiriman. Klik Periksa hasil. ' + (err && err.message || ''), false);
-    }).saveSalesTransaction(payload);
+    });
+    if (payload.transactionId) runner.editSalesTransaction(payload);
+    else runner.saveSalesTransaction(payload);
   }
 
   function retryPendingSalesTransaction() {
@@ -2387,7 +2399,9 @@
           txClientLock(false);
           var btn = document.getElementById('btnSubmitTx');
           if (btn) btn.disabled = false;
-          txClientStatus('Kiriman belum tercatat. Isi kembali detail transaksi; kode kiriman sebelumnya tetap digunakan.', false);
+          var editBtn = document.getElementById('btnSubmitTxEdit');
+          if (editBtn) editBtn.disabled = false;
+          txClientStatus('Kiriman belum tercatat. Isi detail transaksi atau buka kembali edit faktur; kode kiriman sebelumnya tetap digunakan.', false);
         }
         return;
       }
@@ -2498,6 +2512,129 @@
     recalculateTransactionTotals();
   }
 
+  function openSalesTransactionEdit(transactionId) {
+    if (appState.isSubmittingTransaction || (appState.pendingTransaction && appState.pendingTransaction.payload)) {
+      showToast('Periksa hasil kiriman sebelumnya sebelum membuka edit.', 'info');
+      return;
+    }
+    var version = ++appState.editLoadSeq;
+    kchRun().withSuccessHandler(function(res) {
+      if (version !== appState.editLoadSeq || appState.pendingTransaction && appState.pendingTransaction.payload) return;
+      if (!res || !res.success) { showToast(res && res.message || 'Faktur tidak dapat diedit.', 'error'); return; }
+      appState.transactionEdit = res;
+      closeTxDetailModal();
+      setText('editTxTitle', 'Edit ' + res.header.id);
+      setText('editTxOwner', res.header.salesName + ' · ' + res.header.teamName);
+      setValue('editTxDate', res.header.date);
+      setValue('editTxNotes', res.header.notes || '');
+      setValue('editTxReason', '');
+      var distributors = (appState.distributors || []).map(function(item) { return item.name || item.distributor_name; }).filter(Boolean);
+      if (distributors.indexOf(res.header.distributor) < 0) distributors.push(res.header.distributor);
+      setHtml('editTxDistributor', distributors.map(function(name) { return '<option value="' + escapeHtml(name) + '">' + escapeHtml(name) + '</option>'; }).join(''));
+      setValue('editTxDistributor', res.header.distributor);
+      setHtml('editTxItems', '');
+      (res.items || []).forEach(addEditTransactionRow);
+      txClientLock(false);
+      setText('btnSubmitTxEdit', 'Simpan perubahan');
+      setStyle('modalTransactionEdit', 'display', 'flex');
+      updateEditTransactionTotals();
+    }).withFailureHandler(function(err) {
+      if (version === appState.editLoadSeq) showToast('Gagal membuka edit: ' + (err && err.message || ''), 'error');
+    }).getSalesTransactionForEdit(transactionId);
+  }
+
+  function closeSalesTransactionEdit() {
+    if (appState.pendingTransaction && appState.pendingTransaction.payload && appState.pendingTransaction.payload.transactionId) {
+      showToast('Periksa hasil perubahan sebelum menutup edit.', 'info');
+      return;
+    }
+    appState.editLoadSeq++;
+    appState.transactionEdit = null;
+    setStyle('modalTransactionEdit', 'display', 'none');
+    setHtml('editTxItems', '');
+    setValue('editTxReason', '');
+    setValue('editTxNotes', '');
+  }
+
+  function editTransactionPrice(productId) {
+    var editing = appState.transactionEdit;
+    if (!editing) return null;
+    var original = (editing.items || []).find(function(item) { return normalizeKey(item.productId) === normalizeKey(productId); });
+    if (original) return { cost: Number(original.costPrice), sell: Number(original.sellingPrice), historical: true };
+    var product = findPriceProduct(productId, editing.header.teamName);
+    return product ? { cost: parseCleanNumber(product.cost_price), sell: parseCleanNumber(product.selling_price), historical: false } : null;
+  }
+
+  function addEditTransactionRow(item) {
+    var editing = appState.transactionEdit, body = document.getElementById('editTxItems');
+    if (!editing || !body || appState.pendingTransaction && appState.pendingTransaction.payload) return;
+    if (body.children.length >= 100) { showToast('Maksimal 100 baris produk.', 'info'); return; }
+    item = item || {};
+    var products = getActiveProductsForTeam(editing.header.teamName).map(function(product) { return { id: product.product_id || product.productId, name: product.product_name || product.productName || product.product_id }; });
+    (editing.items || []).forEach(function(original) {
+      if (!products.some(function(product) { return normalizeKey(product.id) === normalizeKey(original.productId); })) products.push({ id: original.productId, name: original.productName });
+    });
+    var seen = Object.create(null);
+    var options = '<option value="">Pilih produk</option>' + products.filter(function(product) { var key = normalizeKey(product.id); if (!key || seen[key]) return false; seen[key] = true; return true; }).map(function(product) { return '<option value="' + escapeHtml(product.id) + '">' + escapeHtml(product.name) + '</option>'; }).join('');
+    var row = document.createElement('tr');
+    row.innerHTML = '<td><select class="form-control edit-product" required onchange="updateEditTransactionTotals()" style="min-width:170px">' + options + '</select><small class="text-muted edit-price-note"></small></td>' +
+      '<td><input class="form-control edit-qty" aria-label="Jumlah produk" style="width:85px" type="number" min="1" step="1" value="1" required oninvalid="updateTransactionQuantityValidity(this)" oninput="updateTransactionQuantityValidity(this);updateEditTransactionTotals()"></td>' +
+      '<td class="text-right edit-price">—</td><td class="text-right edit-subtotal">—</td>' +
+      '<td><button type="button" class="btn btn-danger-soft btn-sm" aria-label="Hapus produk" onclick="this.closest(\'tr\').remove();updateEditTransactionTotals()"><i class="fa-solid fa-trash"></i> Hapus</button></td>';
+    body.appendChild(row);
+    var selectedProduct = products.find(function(product) { return normalizeKey(product.id) === normalizeKey(item.productId); });
+    row.querySelector('.edit-product').value = selectedProduct ? selectedProduct.id : (item.productId || '');
+    row.querySelector('.edit-qty').value = item.qty === undefined ? 1 : item.qty;
+    updateEditTransactionTotals();
+  }
+
+  function updateEditTransactionTotals() {
+    var body = document.getElementById('editTxItems');
+    if (!body || !appState.transactionEdit) return;
+    var cents = 0, valid = true;
+    Array.prototype.forEach.call(body.querySelectorAll('tr'), function(row) {
+      var price = editTransactionPrice(row.querySelector('.edit-product').value);
+      var qty = Number(row.querySelector('.edit-qty').value);
+      var rowValid = price && Number.isSafeInteger(qty) && qty > 0;
+      var subtotal = rowValid ? Math.round(price.sell * 100) * qty : 0;
+      if (!rowValid || !Number.isSafeInteger(subtotal)) valid = false;
+      cents += subtotal;
+      row.querySelector('.edit-price').textContent = price ? formatRupiah(price.sell) : '—';
+      row.querySelector('.edit-subtotal').textContent = rowValid ? formatRupiah(subtotal / 100) : '—';
+      row.querySelector('.edit-price-note').textContent = price ? (price.historical ? 'Harga faktur asli' : 'Harga master saat ini') : '';
+    });
+    setText('editTxTotal', valid && Number.isSafeInteger(cents) ? formatRupiah(cents / 100) : '—');
+  }
+
+  function submitSalesTransactionEdit(event) {
+    if (event) event.preventDefault();
+    var editing = appState.transactionEdit;
+    if (!editing || appState.isSubmittingTransaction) return;
+    if (appState.pendingTransaction && appState.pendingTransaction.payload) { showToast('Periksa hasil kiriman sebelumnya.', 'info'); return; }
+    var reason = String(getValue('editTxReason') || '').trim();
+    if (reason.length < 3 || reason.length > 500) { showToast('Isi alasan edit sepanjang 3 sampai 500 karakter.', 'error'); return; }
+    var body = document.getElementById('editTxItems'), items = [], invalid = false;
+    Array.prototype.forEach.call(body.querySelectorAll('tr'), function(row) {
+      var productId = row.querySelector('.edit-product').value, qty = Number(row.querySelector('.edit-qty').value), price = editTransactionPrice(productId);
+      if (!productId || !price || !Number.isSafeInteger(qty) || qty <= 0) { invalid = true; return; }
+      items.push({ productId: productId, qty: qty, costPrice: price.cost, sellingPrice: price.sell });
+    });
+    if (invalid || !items.length) { showToast('Pilih minimal satu produk dengan jumlah bulat minimal 1.', 'error'); return; }
+    var pending = appState.pendingTransaction;
+    var payload = { transactionId: editing.header.id, expectedRevision: editing.revision, salesId: editing.header.salesId, date: getValue('editTxDate'), distributor: getValue('editTxDistributor'), notes: getValue('editTxNotes'), reason: reason, items: items };
+    if (!payload.date || !payload.distributor) { showToast('Tanggal dan distributor wajib diisi.', 'error'); return; }
+    try {
+      payload.requestId = pending ? pending.requestId : txClientNewId();
+      appState.pendingTransaction = { requestId: payload.requestId, payload: payload };
+      txClientStore(appState.pendingTransaction);
+    } catch (err) {
+      appState.pendingTransaction = pending || null;
+      showToast('Perubahan belum dikirim. Izinkan penyimpanan sesi browser. ' + err.message, 'error');
+      return;
+    }
+    txClientSend(payload);
+  }
+
   function loadTransactions(page) {
     appState.transactionPage = page || 1;
     var search = String(getValue('txSearchKeyword') || '').trim().toLowerCase();
@@ -2552,7 +2689,7 @@
         '<td class="text-right">' + formatRupiah(item.totalCost) + '</td>' +
         '<td class="text-right font-semibold">' + formatRupiah(item.totalSales) + '</td>' +
         '<td class="text-right text-success font-semibold">' + formatRupiah(item.totalShj) + '</td>' +
-        '<td class="text-center"><button type="button" class="btn btn-outline btn-sm" onclick="openTransactionDetail(\'' + jsQuote(item.id || '') + '\')"><i class="fa-regular fa-eye"></i></button></td>' +
+        '<td class="text-center"><div style="display:flex;gap:6px;justify-content:center"><button type="button" class="btn btn-outline btn-sm" title="Lihat faktur" onclick="openTransactionDetail(\'' + escapeHtml(jsQuote(item.id || '')) + '\')"><i class="fa-regular fa-eye"></i></button><button type="button" class="btn btn-outline btn-sm" title="Edit faktur" onclick="openSalesTransactionEdit(\'' + escapeHtml(jsQuote(item.id || '')) + '\')"><i class="fa-solid fa-pen"></i> Edit</button></div></td>' +
       '</tr>';
     }).join('');
   }

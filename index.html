@@ -1004,7 +1004,7 @@
                     <th class="text-right">Total Modal</th>
                     <th class="text-right">Total Penjualan</th>
                     <th class="text-right">Total SHJ</th>
-                    <th class="text-center">Detail</th>
+                    <th class="text-center">Detail / Edit</th>
                   </tr>
                 </thead>
                 <tbody id="transactionsTbody">
@@ -1291,6 +1291,40 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary btn-sm" onclick="closeTxDetailModal()">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modalTransactionEdit" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="editTxTitle">
+    <div class="modal-dialog" style="max-width:920px;max-height:94vh;display:flex;flex-direction:column;">
+      <div class="modal-header">
+        <div style="min-width:0"><h3 class="modal-title" id="editTxTitle" style="overflow-wrap:anywhere">Edit faktur</h3><div class="modal-subtitle" id="editTxOwner">—</div></div>
+        <button type="button" class="btn-modal-close" onclick="closeSalesTransactionEdit()" aria-label="Tutup edit">&times;</button>
+      </div>
+      <div class="modal-body" style="max-height:none;min-height:0;">
+        <div id="editTxRequestStatus" style="display:none;padding:12px;border:1px solid #fed7aa;background:#fff7ed;border-radius:10px;margin-bottom:14px;">
+          <p id="editTxRequestStatusText" role="status" aria-live="polite" style="margin:0 0 8px;overflow-wrap:anywhere"></p>
+          <code id="editTxRequestCode" style="display:block;overflow-wrap:anywhere;font-size:11px;margin-bottom:8px"></code>
+          <button type="button" class="btn btn-secondary btn-sm" id="btnCheckTxEditRequest" onclick="checkPendingSalesTransaction()">Periksa hasil</button>
+          <button type="button" class="btn btn-primary btn-sm" id="btnRetryTxEditRequest" style="display:none" onclick="retryPendingSalesTransaction()">Coba simpan lagi</button>
+        </div>
+        <form onsubmit="submitSalesTransactionEdit(event)">
+          <fieldset id="txEditFormFields" style="border:0;padding:0;margin:0;min-width:0;">
+            <p class="text-muted" style="font-size:12px">Pemilik faktur tetap. Harga produk lama mengikuti faktur asli; produk tambahan memakai harga master terbaru. Stok disesuaikan sebesar selisih perubahan.</p>
+            <div class="form-grid-2">
+              <div class="form-group"><label for="editTxDate" class="form-label required">Tanggal penjualan</label><input class="form-control" type="date" id="editTxDate" required></div>
+              <div class="form-group"><label for="editTxDistributor" class="form-label required">Distributor</label><select class="form-control" id="editTxDistributor" required></select></div>
+            </div>
+            <div class="table-responsive" style="margin-top:16px"><table class="app-table table-sm"><thead><tr><th>Produk</th><th>Qty</th><th class="text-right">Harga jual</th><th class="text-right">Subtotal</th><th>Aksi</th></tr></thead><tbody id="editTxItems"></tbody></table></div>
+            <button type="button" class="btn btn-outline btn-sm" style="margin:12px 0" onclick="addEditTransactionRow()">+ Tambah produk</button>
+            <div class="form-group"><label for="editTxNotes" class="form-label">Catatan / toko pelanggan</label><textarea class="form-control" id="editTxNotes" rows="2" maxlength="2000"></textarea></div>
+            <div class="form-group" style="margin-top:12px"><label for="editTxReason" class="form-label required">Alasan edit</label><textarea class="form-control" id="editTxReason" rows="2" required minlength="3" maxlength="500" placeholder="Contoh: koreksi jumlah barang pada faktur"></textarea></div>
+            <div class="modal-total-summary"><span>TOTAL SETELAH EDIT:</span><strong id="editTxTotal">—</strong></div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-secondary" onclick="closeSalesTransactionEdit()">Batal edit</button><button type="submit" class="btn btn-primary" id="btnSubmitTxEdit">Simpan perubahan</button>
+            </div>
+          </fieldset>
+        </form>
       </div>
     </div>
   </div>

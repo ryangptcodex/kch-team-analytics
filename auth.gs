@@ -285,6 +285,7 @@ function kchApi(token, method, args) {
     getKchNews: getKchNews_, saveKchNewsArticle: saveKchNewsArticle_, archiveKchNewsArticle: archiveKchNewsArticle_,
     saveSalesPhotoUpload: saveSalesPhotoUpload_, saveSalesTransaction: saveSalesTransaction_,
     getSalesTransactionRequestStatus: getSalesTransactionRequestStatus_,
+    getSalesTransactionForEdit: getSalesTransactionForEdit_, editSalesTransaction: editSalesTransaction_,
     getTransactionsPaginated: getTransactionsPaginated_, getTransactionDetail: getTransactionDetail_,
     getAllTransactionsForExport: getAllTransactionsForExport_, getMonthlyTeamReport: getMonthlyTeamReport_,
     logClientActivity: logClientActivity_

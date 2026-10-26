@@ -191,3 +191,45 @@ Validasi otomatis lokal memakai workbook dan layanan Google tiruan, termasuk pen
 Ganti bersama `index.html` dan `js.html` terbaru. Salin dengan Copy raw file, tempel seluruh isi, lalu simpan. `/dev` cukup refresh; `/exec` gunakan versi deployment baru lalu refresh. Tidak perlu menekan Perbarui Sheet.
 
 KPI awal tampil **—**, bukan target contoh Rp147 juta atau angka lama. Status **Memuat data…** berubah **Live Sync** setelah respons dashboard berhasil. Saat memuat ulang/pergantian periode, angka/grafik lama dikosongkan; kegagalan tampil **Gagal memuat data** dan tetap netral. Nol asli dari server tetap tampil sebagai nol setelah berhasil. Perhitungan target/harga/stok server tidak diubah oleh revisi ini.
+
+## Paket edit transaksi — 26 Oktober 2026
+
+Fitur baru: tombol **Edit** pada setiap faktur di Riwayat Transaksi. SALES hanya dapat membuka/mengedit faktur yang dimiliki sales_id akun terverifikasi, termasuk bila faktur itu semula diinput admin. ADMIN/label TEAM LEADER dapat membantu semua sales. Pemilik faktur tidak dapat diganti. **Pembatalan faktur belum termasuk paket ini.**
+
+### Pemasangan lima file
+
+Di proyek Apps Script **UJI COBA**, buat file **Script** baru bernama `transaction-edits`, isi seluruh `transaction-edits.gs`. Kemudian ganti seluruh isi `transactions.gs`, `auth.gs`, `index.html`, dan `js.html` dengan versi cabang `uji-login` yang sama. Pasang kelimanya sebelum menjalankan aplikasi. File baru berjenis Script (.gs), bukan HTML. Tidak perlu membuat proyek Firebase, mengubah manifest/layanan API yang sudah berhasil, atau menjalankan Perbarui Sheet/repair. `code.gs`, `setup.gs`, CSS dan file autentikasi lain tidak berubah pada paket edit.
+
+Simpan semua file. `/dev`: refresh webapp. `/exec`: Terapkan → Kelola deployment → Edit → Versi baru → Terapkan, lalu refresh. Pastikan akun SALES menguji versi `/exec` yang sudah diperbarui.
+
+### Cara memakai
+
+1. Buka **Riwayat Transaksi → Edit** pada faktur yang ingin dikoreksi.
+2. Ubah tanggal, distributor, qty, produk atau catatan. Tambah/hapus baris produk bila diperlukan; minimal satu produk harus tetap ada. Pemilik faktur tetap ditampilkan tanpa kolom pengganti.
+3. Harga produk yang sudah ada pada versi faktur yang dibuka menggunakan **harga faktur asli**, walaupun harga master sudah berubah. Produk baru memakai harga master untuk tim sales. Harga jual/modal tidak dapat diketik manual di edit. Produk yang dihapus kemudian baru ditambahkan kembali pada revisi selanjutnya dianggap produk baru saat penambahan tersebut.
+4. Isi **alasan edit** (3–500 karakter), periksa total lalu klik **Simpan perubahan**. ID faktur tetap sama; riwayat utama dan laporan membaca angka versi terbaru.
+5. Bila pesan menyatakan faktur sudah berubah, tutup edit dan buka lagi dari riwayat untuk membaca versi terbaru. Jangan menimpa perubahan orang lain memakai form lama.
+
+Qty naik dari 1 ke 3 → stok berkurang 2. Qty turun 3 ke 1 → stok bertambah 2. Produk dihapus → qty lama dikembalikan; produk baru → stok dipotong sejumlah qty baru. Pindah distributor → kembalikan qty lama ke distributor lama, potong qty baru di distributor baru. Perubahan tanggal/catatan saja tidak menulis mutasi stok bila tidak ada selisih. Tanggal harus valid dan tidak di masa depan; qty bilangan bulat positif dan stok harus cukup setelah menghitung selisih.
+
+### Audit, konflik dan jaringan
+
+Perubahan baris faktur, stok, mutasi IN/OUT, audit EDIT_TRANSACTION, arsip sebelum/sesudah serta receipt COMMITTED ditulis dalam **satu batch atomik**. created_by/created_at faktur asli dipertahankan; editor, role, alasan dan waktu edit ditulis terpisah. Mutasi edit memakai tanggal hari pengeditan dan reference_id faktur sama. Kolom stock_before/stock_after pada mutasi adalah total stok semua distributor yang dikenal; detail per kolom distributor tersedia dalam arsip edit.
+
+Sheet tersembunyi `_KCH_TX_EDITS` otomatis dibuat saat edit pertama berhasil. Isinya edit_id, transaction_id, actor_email, actor_role, reason, before_json, after_json, stock_json, created_at. Admin dapat melihat melalui **Tampilan → Sheet tersembunyi**. Jangan mengubah/mengurutkan/menghapus arsip atau jurnal permintaan secara manual. Baris produk yang sudah tidak terpakai dikosongkan pada 18 kolom standar; baris fisik tidak dihapus agar posisi data lain tetap stabil.
+
+Form memakai pemeriksaan versi berdasarkan isi faktur dan arsip revisi, sehingga edit lama ditolak setelah revisi baru, termasuk jika nilainya sempat berubah lalu kembali seperti semula. Permintaan edit memakai mekanisme UID/request ID yang sama dengan pembuatan transaksi: retry tidak menerapkan selisih stok dua kali. Saat hasil tidak pasti, panel **Periksa hasil** tampil di modal edit dan form input. Edit tidak dapat ditutup atau diganti saat kirimannya belum pasti; refresh/logout tetap memakai pemulihan berdasarkan ID yang disimpan di sesi. Setelah refresh bila perlu buka **Input Penjualan** untuk memakai Periksa hasil; detail draft tidak dipersistenkan.
+
+PENDING ambigu menahan penyimpanan baru seluruh pengguna dan maintenance, sesuai paket transaksi sebelumnya. Tidak ada rollback otomatis untuk melewati ketidakpastian. Mengubah stok/faktur manual atau dari proyek Apps Script lain tidak dilindungi lock proyek ini.
+
+Faktur lama dengan qty/total/SHJ tidak konsisten, produk sama dengan harga berbeda, atribusi/header campur, lebih dari 100 baris, atau kolom tambahan berisi data akan ditolak agar tidak ditulis ulang diam-diam. Sales harus aktif dan timnya masih sama dengan faktur; produk yang tetap dipilih harus aktif, distributor tujuan harus aktif. Jika master sudah berubah sehingga faktur lama tidak bisa diedit, admin perlu memeriksa datanya terlebih dahulu. Paket ini tidak membersihkan transaksi historis secara otomatis.
+
+### Uji edit pertama di salinan
+
+1. Pilih faktur uji satu produk qty1. Catat stok distributor, ID dan total awal.
+2. Klik Edit, ubah qty1→2 dan isi alasan. Simpan: ID faktur tetap sama, jumlah faktur tidak bertambah, stok berkurang tepat1, total menjadi harga asli×2, ada mutasi OUT1, audit EDIT_TRANSACTION dan arsip sebelum/sesudah.
+3. Buka edit baru, kembalikan qty2→1: stok bertambah1 dan ada mutasi IN1. Tidak perlu mengubah saldo melalui sheet.
+4. Uji qty melebihi stok dan tanggal masa depan: versi faktur/stok tetap. Uji dua form untuk faktur sama: setelah form pertama disimpan, form kedua ditolak sebagai versi lama.
+5. Uji SALES sendiri, SALES mencoba faktur sales lain, serta admin membantu; pastikan created_by asli tetap, actor_email edit sesuai akun yang mengedit.
+
+Validasi lokal memakai API/Workbook/Firebase tiruan. Chromium memeriksa modal, harga historis, produk baru/total, payload, klik berulang, pemulihan retry, penutupan sesudah berhasil, layout1440/390/320px serta penghapusan state modal saat reset sesi. Belum ada edit yang dilakukan terhadap spreadsheet Google pengguna oleh agen.

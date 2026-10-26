@@ -178,7 +178,7 @@ function txTeamKey_(value) {
   return normalizeKey_(LEGACY_TEAM_MAP[key] || ({ ULTIMATE: 'Motoris Ultimate', SPG: 'SPG Kelontong' })[key] || key);
 }
 
-function txPlan_(ctx, meta, payload, user, transactionId, requestId) {
+function txPlan_(ctx, meta, payload, user, transactionId, requestId, options) {
   if (!Array.isArray(payload.items) || !payload.items.length || payload.items.length > 100) throw new Error('Pilih 1 sampai 100 baris produk.');
   if (typeof payload.salesId !== 'string' || payload.salesId.length > 128) throw new Error('Sales ID tidak valid.');
   var date = String(payload.date || '').trim();
@@ -202,7 +202,7 @@ function txPlan_(ctx, meta, payload, user, transactionId, requestId) {
   var names = ['SALES', 'PRODUCTS', 'PRICE_MASTER', 'DISTRIBUTORS', 'INVENTORY'];
   names.forEach(function(name) { if (!meta[name]) throw new Error('Sheet ' + name + ' belum tersedia.'); });
   var optional = ['SALES_TRANSACTIONS', 'INVENTORY_MOVEMENTS', 'ACTIVITY_LOGS'].filter(function(name) { return !!meta[name]; });
-  var raw = txRead_(ctx, names.concat(optional));
+  var raw = options && options.raw || txRead_(ctx, names.concat(optional));
   var salesTable = txTable_('SALES', raw.SALES, ['sales_id', 'full_name', 'team_name', 'status']);
   var products = txTable_('PRODUCTS', raw.PRODUCTS, ['product_id', 'product_name', 'status']);
   var prices = txTable_('PRICE_MASTER', raw.PRICE_MASTER, ['product_id', 'team_name', 'cost_price', 'selling_price', 'status']);
@@ -225,7 +225,8 @@ function txPlan_(ctx, meta, payload, user, transactionId, requestId) {
   Object.keys(grouped).sort().forEach(function(key) {
     var item = grouped[key];
     var product = txUnique_(products.rows, function(row) { return normalizeKey_(row.product_id) === key; }, 'Produk ' + key);
-    var price = txUnique_(prices.rows, function(row) { return normalizeKey_(row.product_id) === key && txTeamKey_(row.team_name) === txTeamKey_(sales.team_name); }, 'Harga produk ' + key + ' untuk tim sales');
+    var historical = options && options.fixedPrices && options.fixedPrices[key];
+    var price = historical ? { cost_price: historical.costPrice, selling_price: historical.sellingPrice, status: 'ACTIVE' } : txUnique_(prices.rows, function(row) { return normalizeKey_(row.product_id) === key && txTeamKey_(row.team_name) === txTeamKey_(sales.team_name); }, 'Harga produk ' + key + ' untuk tim sales');
     var inv = txUnique_(inventory.rows, function(row) { return normalizeKey_(row.product_id) === key; }, 'Stok produk ' + key);
     if (!txActive_(product) || !txActive_(price)) throw new Error('Produk atau harga ' + key + ' tidak aktif.');
     var cost = txMoney_(price.cost_price, 'Modal ' + key), sell = txMoney_(price.selling_price, 'Harga jual ' + key);
@@ -257,7 +258,7 @@ function txPlan_(ctx, meta, payload, user, transactionId, requestId) {
     stockUpdates: stockUpdates, replayed: false, message: 'Transaksi tersimpan. Stok, mutasi, dan audit diperbarui bersama.' };
   var plan = { salesId: String(sales.sales_id), date: date, distributor: String(distributor.distributor_name), stockUpdates: stockUpdates, itemCount: txRows.length };
   if (JSON.stringify(result).length > 45000 || JSON.stringify(plan).length > 45000) throw new Error('Detail transaksi terlalu panjang. Kurangi jumlah produk per kiriman.');
-  return { requests: requests, result: result, plan: plan };
+  return { requests: requests, result: result, plan: plan, rows: txRows };
 }
 
 function txReceiptValues_(receipt) { return KCH_TX_REQUEST_HEADERS_.map(function(header) { return receipt[header] || ''; }); }
@@ -289,7 +290,9 @@ function getSalesTransactionRequestStatus_(requestId) {
   finally { lock.releaseLock(); }
 }
 
-function saveSalesTransactionAtomic_(payload) {
+function saveSalesTransactionAtomic_(payload) { return txExecuteRequest_(payload, false); }
+
+function txExecuteRequest_(payload, editing) {
   var user = getCurrentUserInfo_();
   var id;
   try { id = txRequestId_(payload && payload.requestId); } catch (err) { return txFailure_('CLIENT_UPDATE_REQUIRED', err.message); }
@@ -298,7 +301,7 @@ function saveSalesTransactionAtomic_(payload) {
   try {
     var ctx = { id: getKchSpreadsheet_().getId(), token: ScriptApp.getOAuthToken() };
     var meta = txMetadata_(ctx), rows = txReceipts_(ctx, meta), key = txHash_(user.uid + ':' + id);
-    var fingerprint = txFingerprint_(payload);
+    var fingerprint = editing ? txHash_(JSON.stringify(['EDIT', payload.transactionId, payload.expectedRevision, payload.reason, txFingerprint_(payload)])) : txFingerprint_(payload);
     var committed = txCommitted_(rows, key);
     if (committed) {
       if (committed.fingerprint !== fingerprint) return txFailure_('REQUEST_CONFLICT', 'Kode kiriman ini sudah digunakan. Periksa hasil kiriman sebelumnya.', 'CONFLICT');
@@ -310,7 +313,7 @@ function saveSalesTransactionAtomic_(payload) {
     if (txHasPending_(rows)) return txPendingResult_(id, 'Ada kiriman yang hasilnya belum pasti. Penyimpanan baru ditahan agar stok tetap konsisten. Admin dapat memeriksa kiriman tertunda.');
     var attempt = Utilities.getUuid();
     var stamp = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd HH:mm:ss');
-    var transactionId = 'TRX-' + Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMdd') + '-' + attempt.replace(/-/g, '').slice(0, 16);
+    var transactionId = editing ? String(payload.transactionId || '') : 'TRX-' + Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMdd') + '-' + attempt.replace(/-/g, '').slice(0, 16);
     var receipt = { request_key: key, request_id: id, actor_uid: user.uid, actor_email: user.email, fingerprint: fingerprint,
       attempt_id: attempt, transaction_id: transactionId, state: 'PENDING', result_json: '', plan_json: '', created_at: stamp, updated_at: stamp };
     var reserve = [];
@@ -321,7 +324,7 @@ function saveSalesTransactionAtomic_(payload) {
     rows = txReceipts_(ctx, meta);
     receipt = txUnique_(rows, function(row) { return row.request_key === key && row.attempt_id === attempt; }, 'Catatan kiriman');
     var plan;
-    try { plan = txPlan_(ctx, meta, payload, user, transactionId, id); }
+    try { plan = editing ? txEditPlan_(ctx, meta, payload, user, transactionId, id) : txPlan_(ctx, meta, payload, user, transactionId, id); }
     catch (validation) { return txMarkFailed_(ctx, meta, receipt, 'VALIDATION_FAILED', validation.message); }
     receipt.state = 'COMMITTED'; receipt.result_json = JSON.stringify(plan.result); receipt.plan_json = JSON.stringify(plan.plan);
     receipt.updated_at = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd HH:mm:ss');

@@ -61,7 +61,7 @@ function environment(options = {}) {
     } }
   };
   vm.createContext(context);
-  for (const file of ['firebase-config.gs', 'code.gs', 'setup.gs', 'transactions.gs', 'auth.gs']) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
+  for (const file of ['firebase-config.gs', 'code.gs', 'setup.gs', 'transactions.gs','transaction-edits.gs', 'auth.gs']) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
   context.KCH_TEST_SPREADSHEET_ID_ = 'test-only';
   const now = Math.floor(Date.now() / 1000);
   const claims = { aud: context.KCH_FIREBASE_WEB_CONFIG_.projectId, iss: 'https://securetoken.google.com/' + context.KCH_FIREBASE_WEB_CONFIG_.projectId,
