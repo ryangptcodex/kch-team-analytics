@@ -185,3 +185,9 @@ Lakukan hanya di salinan UJI COBA dengan data uji yang bisa dikenali:
 5. Refresh/logout/login kembali; konfirmasi login, nama lengkap/TEAM LEADER, HK dan pembatasan sales masih berfungsi.
 
 Validasi otomatis lokal memakai workbook dan layanan Google tiruan, termasuk penolakan batch, respons hilang, penulisan terlambat, retry, batas akses serta perhitungan desimal. Chromium memeriksa penguncian form/tombol pemeriksaan, retry dengan kode sama dan tampilan 1440/390/320px. Belum ada pemasangan atau pengujian Sheets API terhadap akun/data Google nyata dari workspace ini.
+
+## Revisi tampilan loading dashboard — 26 Oktober 2026
+
+Ganti bersama `index.html` dan `js.html` terbaru. Salin dengan Copy raw file, tempel seluruh isi, lalu simpan. `/dev` cukup refresh; `/exec` gunakan versi deployment baru lalu refresh. Tidak perlu menekan Perbarui Sheet.
+
+KPI awal tampil **—**, bukan target contoh Rp147 juta atau angka lama. Status **Memuat data…** berubah **Live Sync** setelah respons dashboard berhasil. Saat memuat ulang/pergantian periode, angka/grafik lama dikosongkan; kegagalan tampil **Gagal memuat data** dan tetap netral. Nol asli dari server tetap tampil sebagai nol setelah berhasil. Perhitungan target/harga/stok server tidak diubah oleh revisi ini.

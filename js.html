@@ -47,6 +47,7 @@
     itemRowCounter: 0,
     txSearchTimer: null,
     isLoadingDashboard: false,
+    dashboardRequestSeq: 0,
     isLoadingMetadata: false,
     isSubmittingTransaction: false,
     pendingTransaction: null,
@@ -368,7 +369,6 @@
     var menu = document.getElementById('userDropdownMenu');
     if (menu) menu.style.display = 'none';
     loadMetadata(function() {
-      loadDashboardMetrics();
       if (appState.currentView === 'riwayat') loadTransactions(appState.transactionPage || 1);
     });
   }
@@ -376,12 +376,17 @@
   function loadMetadata(callback) {
     if (appState.isLoadingMetadata) return;
     appState.isLoadingMetadata = true;
+    // Invalidate older metrics while fresh metadata is being read.
+    appState.dashboardRequestSeq++;
+    appState.isLoadingDashboard = false;
+    setDashboardLoadState('loading');
     kchRun()
       .withSuccessHandler(function(res) {
         appState.isLoadingMetadata = false;
         if (!res || !res.success) {
           showToast(res && res.message ? res.message : 'Gagal memuat metadata aplikasi.', 'error');
-          showKchAuthError(res.message || 'Gagal memuat data aplikasi.');
+          setDashboardLoadState('error');
+          showKchAuthError(res && res.message || 'Gagal memuat data aplikasi.');
           return;
         }
 
@@ -424,6 +429,7 @@
       })
       .withFailureHandler(function(err) {
         appState.isLoadingMetadata = false;
+        setDashboardLoadState('error');
         showToast('Gagal terhubung ke server: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
       })
       .getInitialAppMetadata();
@@ -630,9 +636,35 @@
     else if (appState.dashboardPeriod === 'CUSTOM') textEl.textContent = formatDateIndo(appState.customStartDate) + ' - ' + formatDateIndo(appState.customEndDate);
   }
 
+  function setDashboardLoadState(state) {
+    var ready = state === 'ready';
+    var message = state === 'error' ? 'Data belum berhasil dimuat. Coba Sinkronisasi Live.' : 'Memuat data…';
+    var view = document.getElementById('view-dashboard');
+    if (view) view.setAttribute('aria-busy', state === 'loading' ? 'true' : 'false');
+    if (ready) {
+      setHtml('dashboardLoadStatus', '<span class="live-dot"></span> Live Sync');
+      return;
+    }
+    setText('dashboardLoadStatus', state === 'error' ? 'Gagal memuat data' : 'Memuat data…');
+    appState.dashboardData = null;
+    ['kpiTotalOmset', 'kpiAchieveBadge', 'kpiCumulativeTarget', 'kpiDaysRemaining', 'kpiDaysPassedBadge',
+      'kpiTopCanvasserName', 'kpiTopCanvasserAchieved', 'kpiTopMotorisName', 'kpiTopMotorisAchieved',
+      'donutCenterPct', 'areaDonutCenterPct'].forEach(function(id) { setText(id, '—'); });
+    setText('kpiRemainingLabel', 'Sisa: —');
+    setStyle('kpiProgressBar', 'width', '0%');
+    ['kpiTopCanvasserTeamBadge', 'kpiTopMotorisTeamBadge', 'teamPillLegend', 'areaPillLegend'].forEach(function(id) { setHtml(id, ''); });
+    ['salesTrendChart', 'salesDailyComparisonChart', 'teamDonutChart', 'areaDonutChart'].forEach(destroyChart);
+    setHtml('salesPerformanceTbody', '<tr><td colspan="6" class="text-center text-muted py-3">' + message + '</td></tr>');
+    ['recentTxFeedList', 'activityFeedList'].forEach(function(id) {
+      setHtml(id, '<div class="text-center text-muted py-3">' + message + '</div>');
+    });
+  }
+
   function loadDashboardMetrics() {
-    if (appState.isLoadingDashboard) return;
+    if (appState.isLoadingMetadata) return;
+    var requestSeq = ++appState.dashboardRequestSeq;
     appState.isLoadingDashboard = true;
+    setDashboardLoadState('loading');
 
     var payload = {
       period: appState.dashboardPeriod,
@@ -644,8 +676,10 @@
 
     kchRun()
       .withSuccessHandler(function(res) {
+        if (requestSeq !== appState.dashboardRequestSeq) return;
         appState.isLoadingDashboard = false;
         if (!res || !res.success) {
+          setDashboardLoadState('error');
           showToast(res && res.message ? res.message : 'Gagal memuat dashboard.', 'error');
           return;
         }
@@ -654,7 +688,9 @@
         renderDashboardData(res);
       })
       .withFailureHandler(function(err) {
+        if (requestSeq !== appState.dashboardRequestSeq) return;
         appState.isLoadingDashboard = false;
+        setDashboardLoadState('error');
         showToast('Gagal memuat dashboard: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
       })
       .getDashboardMetrics(payload);
@@ -673,6 +709,7 @@
     renderRecentTransactions(data.recentTransactions || []);
     renderActivityFeed(data.recentActivities || []);
     updatePeriodBadges();
+    setDashboardLoadState('ready');
   }
 
   function renderKpiCards(kpi) {

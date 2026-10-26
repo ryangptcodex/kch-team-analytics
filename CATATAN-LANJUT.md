@@ -208,3 +208,12 @@ Pengguna berhenti sementara untuk tidur dan ingin melanjutkan nanti.
 - Screenshot pengguna membuktikan checkKchTransactionSetup di Google selesai success:true, missingSheets:[], pendingRequests:[], layanan Sheets terlihat. Pengguna kemudian mengonfirmasi uji simpan transaksi berhasil; detail saldo/ledger tidak ditinjau langsung oleh agen.
 - Pengguna terganggu panel oranye berisi Menyimpan transaksi dan stok, request ID dan Periksa hasil saat proses normal. js.html kini menyembunyikan panel pada pengiriman/retry normal: progres cukup tombol Menyimpan… dan form disabled. Panel recovery tetap muncul bila hasil tidak pasti/koneksi gagal; perlindungan transaksi/stok tidak berubah.
 - Pemasangan perubahan tampilan ini hanya mengganti js.html. Simpan + refresh /dev, atau versi deployment baru + refresh /exec. Tambahan assertion pada tes client memeriksa panel tidak terlihat dan label tombol saat mengirim.
+
+### Tampilan netral selama memuat data — 26 Oktober 2026
+
+- Pengguna kembali mengonfirmasi tes transaksi berhasil (screenshot Monitoring Stok); uji penolakan stok kurang untuk dua baris produk belum dilakukan karena pengguna mengalihkan sementara ke revisi tampilan loading.
+- Angka Rp147.000.000 ternyata hardcoded pada index.html, bukan angka master saat loading. Diganti placeholder — untuk KPI omzet/target/achievement/hari/top sales, donut dan counter dashboard. Nama/email contoh di header juga dinetralkan; berita awal memakai Memuat berita, bukan klaim belum ada berita sebelum dibaca.
+- js.html menambahkan setDashboardLoadState: loading mengosongkan KPI/legenda/grafik/performa/aktivitas/transaksi terbaru dan cache dashboard lama; status Memuat data; hanya setelah render respons berhasil menjadi Live Sync. Error tetap — dengan pesan Gagal memuat data; angka nol ditampilkan bila memang dikembalikan server.
+- loadMetadata memulai loading dan menginvalidasi respons metrics lama. Sequence dashboard memastikan respons permintaan periode lebih lama tidak menimpa filter yang lebih baru. Dihapus pemanggilan metrics ganda dalam callback triggerManualSync; metadata sudah memuat metrics.
+- Dua file pemasangan: index.html dan js.html. /dev simpan+refresh, /exec versi deploymentbaru+refresh; tidak perlu Perbarui Sheet/repair atau perubahan schema/API.
+- 110 tes otomatis lokal lulus termasuk 6 tes state loading, error, success, zero nyata, race filter dan invalidasi metadata; Chromium menguji placeholder awal/loading/error/success pada1440/390/320px. Tidak mengubah perhitungan target server atau dataSheet.

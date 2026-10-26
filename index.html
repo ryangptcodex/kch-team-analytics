@@ -118,10 +118,10 @@
             <i class="fa-solid fa-arrow-left" id="desktopSidebarToggleIcon"></i>
           </button>
           <div>
-            <h1 class="header-greeting" id="headerGreetingText">Good Morning, Ryan <span class="wave-emoji">👋</span></h1>
+            <h1 class="header-greeting" id="headerGreetingText">Selamat datang <span class="wave-emoji">👋</span></h1>
             <div class="header-subtitle-wrap">
               <span class="header-subtitle" id="headerSubtitleText">Dashboard Sales Monitoring</span>
-              <span class="live-badge"><span class="live-dot"></span> Live Sync</span>
+              <span class="live-badge" id="dashboardLoadStatus" role="status" aria-live="polite">Memuat data…</span>
             </div>
           </div>
         </div>
@@ -168,18 +168,18 @@
 
           <div class="user-profile-wrapper">
             <div class="user-profile-badge" id="headerUserProfile" onclick="toggleUserDropdown(event)">
-              <div class="user-avatar-circle">R</div>
+              <div class="user-avatar-circle">—</div>
               <div class="user-meta-header">
-                <span class="user-name-header">Ryan</span>
-                <span class="user-role-header">Sales Coordinator</span>
+                <span class="user-name-header">—</span>
+                <span class="user-role-header">—</span>
               </div>
               <i class="fa-solid fa-chevron-down user-chevron"></i>
             </div>
             
             <div class="user-dropdown-menu" id="userDropdownMenu" style="display: none;">
               <div class="user-menu-info">
-                <div class="user-menu-name">Ryan Pratama</div>
-                <div class="user-menu-email">ryan.coordinator@kalbe.co.id</div>
+                <div class="user-menu-name">—</div>
+                <div class="user-menu-email">—</div>
               </div>
               <hr class="dropdown-divider">
               <a href="javascript:void(0)" class="dropdown-menu-item" onclick="triggerManualSync()"><i class="fa-solid fa-arrows-rotate"></i> Sinkronisasi Live</a>
@@ -191,7 +191,7 @@
 
       <main class="main-content">
         
-        <section class="content-view active" id="view-dashboard">
+        <section class="content-view active" id="view-dashboard" aria-busy="true">
           
           <div class="kpi-grid">
             <div class="kpi-card">
@@ -200,14 +200,14 @@
                 <span class="kpi-icon-pill icon-sales"><i class="fa-solid fa-wallet"></i></span>
               </div>
               <div class="kpi-value-wrap">
-                <span class="kpi-value" id="kpiTotalOmset">Rp 0</span>
-                <span class="badge badge-success" id="kpiAchieveBadge"><i class="fa-solid fa-arrow-trend-up"></i> 0%</span>
+                <span class="kpi-value" id="kpiTotalOmset">—</span>
+                <span class="badge badge-success" id="kpiAchieveBadge">—</span>
               </div>
               <div class="kpi-progress-wrap">
                 <div class="progress-bar-bg">
                   <div class="progress-bar-fill fill-sales" id="kpiProgressBar" style="width: 0%;"></div>
                 </div>
-                <div class="kpi-footer-note" id="kpiRemainingLabel"><i class="fa-solid fa-flag-checkered"></i> Sisa: Rp 0</div>
+                <div class="kpi-footer-note" id="kpiRemainingLabel">Sisa: —</div>
               </div>
             </div>
 
@@ -217,7 +217,7 @@
                 <span class="kpi-icon-pill icon-target"><i class="fa-solid fa-bullseye"></i></span>
               </div>
               <div class="kpi-value-wrap">
-                <span class="kpi-value" id="kpiCumulativeTarget">Rp 147.000.000</span>
+                <span class="kpi-value" id="kpiCumulativeTarget">—</span>
               </div>
               <div class="kpi-footer-note"><i class="fa-solid fa-location-dot"></i> Target Tim Reguler &amp; Tim Program</div>
             </div>
@@ -228,8 +228,8 @@
                 <span class="kpi-icon-pill icon-days"><i class="fa-solid fa-calendar-day"></i></span>
               </div>
               <div class="kpi-value-wrap">
-                <span class="kpi-value" id="kpiDaysRemaining">0 Hari</span>
-                <span class="badge badge-warning" id="kpiDaysPassedBadge">0 / 26 Hari</span>
+                <span class="kpi-value" id="kpiDaysRemaining">—</span>
+                <span class="badge badge-warning" id="kpiDaysPassedBadge">—</span>
               </div>
               <div class="kpi-footer-note"><i class="fa-solid fa-business-time"></i> Hari kerja aktif bulan ini</div>
             </div>
@@ -240,9 +240,9 @@
                 <span class="kpi-icon-pill icon-canvasser"><i class="fa-solid fa-truck-fast"></i></span>
               </div>
               <div class="top-performer-summary">
-                <span class="top-performer-name" id="kpiTopCanvasserName">-</span>
+                <span class="top-performer-name" id="kpiTopCanvasserName">—</span>
                 <div class="top-performer-metric">
-                  <strong class="text-primary font-semibold" id="kpiTopCanvasserAchieved">Rp 0 (0%)</strong>
+                  <strong class="text-primary font-semibold" id="kpiTopCanvasserAchieved">—</strong>
                   <span id="kpiTopCanvasserTeamBadge"></span>
                 </div>
               </div>
@@ -254,9 +254,9 @@
                 <span class="kpi-icon-pill icon-motoris"><i class="fa-solid fa-motorcycle"></i></span>
               </div>
               <div class="top-performer-summary">
-                <span class="top-performer-name" id="kpiTopMotorisName">-</span>
+                <span class="top-performer-name" id="kpiTopMotorisName">—</span>
                 <div class="top-performer-metric">
-                  <strong class="text-success font-semibold" id="kpiTopMotorisAchieved">Rp 0 (0%)</strong>
+                  <strong class="text-success font-semibold" id="kpiTopMotorisAchieved">—</strong>
                   <span id="kpiTopMotorisTeamBadge"></span>
                 </div>
               </div>
@@ -349,7 +349,7 @@
                         <i class="fa-solid fa-calendar-day text-primary"></i> Hari Ini
                       </button>
                     </div>
-                    <span class="badge badge-success" id="attendanceCountBadge"><i class="fa-solid fa-user-check"></i> 0 Hadir</span>
+                    <span class="badge badge-success" id="attendanceCountBadge">—</span>
                     <button type="button" class="btn btn-outline btn-sm" onclick="reloadAttendanceOnly()" title="Segarkan Foto Absensi">
                       <i class="fa-solid fa-arrows-rotate"></i>
                     </button>
@@ -396,7 +396,7 @@
                     <button type="button" class="btn btn-outline btn-sm" id="btnResetVisitPhotosToday" onclick="resetVisitPhotosToToday()" title="Kembali ke Hari Ini" style="display:none; padding:0 8px;">
                       <i class="fa-solid fa-calendar-day text-primary"></i> Hari Ini
                     </button>
-                    <span class="badge badge-success" id="visitPhotosCountBadge">0 Foto</span>
+                    <span class="badge badge-success" id="visitPhotosCountBadge">—</span>
                     <button type="button" class="btn btn-outline btn-sm" onclick="reloadVisitPhotosOnly()" title="Segarkan Foto Kunjungan">
                       <i class="fa-solid fa-arrows-rotate"></i>
                     </button>
@@ -424,7 +424,7 @@
                     <div class="card-subtitle">Rencana kunjungan tim sales hari ini</div>
                   </div>
                   <div style="display:flex; align-items:center; gap:8px;">
-                    <span class="badge badge-success" id="todayPlanDashboardCount">0 Rencana</span>
+                    <span class="badge badge-success" id="todayPlanDashboardCount">—</span>
                     <button type="button" class="btn btn-outline btn-sm" onclick="loadTodayPlans(getLocalDateInputValue())" title="Segarkan Today’s Plan"><i class="fa-solid fa-arrows-rotate"></i></button>
                     <button type="button" class="btn btn-outline btn-sm" onclick="switchView('today-plan')">Kelola</button>
                   </div>
@@ -454,8 +454,8 @@
                 </a>
                 <div class="kch-news-story">
                   <div class="kch-news-date" id="kchNewsDashboardDate"><i class="fa-regular fa-calendar"></i> -</div>
-                  <div class="kch-news-headline" id="kchNewsDashboardHeadline">Belum ada berita aktif.</div>
-                  <div class="kch-news-summary" id="kchNewsDashboardSummary">Berita aktif dari sheet KCH_NEWS akan tampil di sini.</div>
+                  <div class="kch-news-headline" id="kchNewsDashboardHeadline">Memuat berita…</div>
+                  <div class="kch-news-summary" id="kchNewsDashboardSummary">—</div>
                   <a class="kch-news-link" id="kchNewsDashboardLink" href="https://www.kalbe.co.id/id/news" target="_blank" rel="noopener noreferrer">Lihat berita selengkapnya <i class="fa-solid fa-arrow-right"></i></a>
                 </div>
               </div>
@@ -471,7 +471,7 @@
                 <div class="donut-wrap">
                   <canvas id="teamDonutChart"></canvas>
                   <div class="donut-center-text">
-                    <span class="donut-center-value" id="donutCenterPct">0%</span>
+                    <span class="donut-center-value" id="donutCenterPct">—</span>
                     <span class="donut-center-label">Realized</span>
                   </div>
                 </div>
@@ -489,7 +489,7 @@
                 <div class="donut-wrap">
                   <canvas id="areaDonutChart"></canvas>
                   <div class="donut-center-text">
-                    <span class="donut-center-value" id="areaDonutCenterPct">0%</span>
+                    <span class="donut-center-value" id="areaDonutCenterPct">—</span>
                     <span class="donut-center-label">Area Total</span>
                   </div>
                 </div>
@@ -504,7 +504,7 @@
                     <div class="card-subtitle">Ringkasan meeting tim terbaru</div>
                   </div>
                   <div style="display:flex; align-items:center; gap:8px;">
-                    <span class="badge badge-success" id="weeklyMeetingDashboardCount">0 Meeting</span>
+                    <span class="badge badge-success" id="weeklyMeetingDashboardCount">—</span>
                     <button type="button" class="btn btn-outline btn-sm" onclick="loadWeeklyMeetings()" title="Segarkan hasil meeting"><i class="fa-solid fa-arrows-rotate"></i></button>
                     <button type="button" class="btn btn-outline btn-sm" onclick="switchView('weekly-meeting')">Kelola</button>
                   </div>
