@@ -1,5 +1,4 @@
 <style>
-  #view-dashboard[aria-busy="true"] .dashboard-left-col, #view-dashboard[aria-busy="true"] .dashboard-side-col { min-width: 0; }
   .kch-news-banner:has(.widget-loading) { background: #f1f5f9; }
   .kpi-card:has([data-loading="true"]) { min-width: 0; }
   .kpi-value-wrap:has([data-loading="true"]) { flex-wrap: wrap; gap: 6px; }
@@ -687,7 +686,7 @@
 
   .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 14px;
     margin-bottom: 20px;
   }
@@ -870,7 +869,7 @@
 
   .dashboard-main-grid {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
     gap: 18px;
     margin-bottom: 24px;
     align-items: start;
@@ -881,6 +880,7 @@
     display: flex;
     flex-direction: column;
     gap: 18px;
+    min-width: 0;
   }
 
   .chart-card {
@@ -1712,14 +1712,14 @@
 
   .form-grid-3 {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
     margin-bottom: 24px;
   }
 
   .form-grid-4 {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 16px;
     margin-bottom: 24px;
   }
@@ -2204,7 +2204,7 @@
 
   .file-grid-cards {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 18px;
   }
 
@@ -2563,7 +2563,7 @@
     background-color: #fafbfc;
     border-bottom: 1px solid #f1f5f9;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
   }
 
@@ -2670,22 +2670,22 @@
   }
 
   @media (max-width: 1400px) {
-    .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+    .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   }
 
   @media (max-width: 1080px) {
     .dashboard-main-grid {
       grid-template-columns: 1fr;
     }
-    .file-grid-cards { grid-template-columns: repeat(2, 1fr); }
+    .file-grid-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .sales-profiles-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
     .form-grid-4 {
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 
   @media (max-width: 900px) {
-    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 
   @media (max-width: 820px) {
@@ -2784,6 +2784,22 @@
       min-width: 100%;
     }
   }
+
+  /* Grid contents may scroll inside a widget, never enlarge the page at browser zoom. */
+  .main-content, .content-view, .chart-card, .table-card, .table-responsive,
+  .form-group, .form-grid-3 > *, .form-grid-4 > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .chart-canvas-container canvas, .donut-wrap canvas { max-width: 100%; }
+  .kpi-header, .top-performer-summary, .top-performer-metric { min-width: 0; }
+  .kpi-label { white-space: normal; overflow: visible; text-overflow: clip; }
+  .top-performer-name { white-space: normal; overflow: visible; text-overflow: clip; }
+  .top-performer-name, .page-title, .card-title, .header-greeting { overflow-wrap: anywhere; }
+  .period-control-group, .segmented-control-modern { max-width: 100%; flex-wrap: wrap; }
+  .topbar-left > div, .filter-controls-group > *, .form-control { min-width: 0; max-width: 100%; }
+  .page-title-box { flex-wrap: wrap; gap: 12px; }
+  .modal-dialog { max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; }
 
   /* Let full account names wrap without overlapping the header controls. */
   .topbar {
