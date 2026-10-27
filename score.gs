@@ -148,7 +148,7 @@ function scoreParameters_(actuals) {
   var rules = [
     ['Fokus A · Bejo Jahe Merah', 5000000, 0.40, 40],
     ['Fokus B · Komix Herbal All/Family + Promag Herbal', 5000000, 0.25, 25],
-    ['Omzet selain Promag tablet', 27000000, 0.25, 25],
+    ['Total Value (non Promag Tablet)', 27000000, 0.25, 25],
     ['Active Account (AA)', 400, 0.10, 10]
   ];
   return rules.map(function(r, i) {

@@ -55,7 +55,7 @@ Bagian **Pemetaan kode produk · khusus admin** memperlihatkan kode, nama master
 | --- | ---: | ---: | ---: |
 | Fokus A | Rp5.000.000 | 40% | 40 |
 | Fokus B | Rp5.000.000 | 25% | 25 |
-| Omzet selain Promag Tablet | Rp27.000.000 | 25% | 25 |
+| Total Value (non Promag Tablet) | Rp27.000.000 | 25% | 25 |
 | AA | 400 | 10% | 10 |
 
 - Pencapaian = aktual / target.
