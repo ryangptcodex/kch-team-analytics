@@ -56,6 +56,9 @@
           <i class="fa-solid fa-chart-column nav-icon"></i>
           <span>Laporan Bulanan Tim</span>
         </a>
+        <a href="javascript:void(0)" class="nav-item" id="nav-skor" onclick="switchView('skor')">
+          <i class="fa-solid fa-gauge-high"></i><span>Skor</span>
+        </a>
         <a href="javascript:void(0)" class="nav-item" id="nav-absensi" onclick="switchView('absensi')">
           <i class="fa-solid fa-user-check nav-icon"></i>
           <span>Absensi</span>
@@ -1023,6 +1026,41 @@
           </div>
         </section>
 
+        <section class="content-view" id="view-skor">
+          <div class="page-title-box"><div><h2 class="page-title">Skor</h2><div class="page-subtitle">Evaluasi bulanan Motoris dan MMTW</div></div></div>
+          <div class="table-card" style="padding:16px;margin-bottom:18px">
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+              <div style="flex:1;min-width:180px"><label class="form-label" for="scoreSales">Sales</label><select class="form-control" id="scoreSales" onchange="loadScoreReport()"></select></div>
+              <div><label class="form-label" for="scoreMonth">Bulan penilaian</label><input type="month" class="form-control" id="scoreMonth" onchange="loadScoreReport()"></div>
+              <button type="button" class="btn btn-primary btn-sm" onclick="openScore()">Muat ulang</button>
+            </div>
+            <p id="scoreMessage" role="status" aria-live="polite" style="overflow-wrap:anywhere"></p>
+            <div class="kpi-value" id="scoreTotal">—</div><p class="font-semibold" id="scoreCategory">Pilih periode penilaian</p>
+            <p id="scoreCalendar" class="page-subtitle"></p>
+            <p class="page-subtitle">Skor tiap parameter dibatasi bobotnya. Total dan kategori memakai nilai asli tanpa pembulatan; angka tampilan dapat dibulatkan.</p>
+          </div>
+          <div class="table-card" style="margin-bottom:18px"><div class="table-responsive"><table class="app-table"><thead><tr><th>Parameter</th><th>Aktual</th><th>Target bulanan</th><th>Bobot</th><th>Pencapaian</th><th>Jumlah poin</th><th>Skor / maks.</th></tr></thead><tbody id="scoreRows"></tbody></table></div></div>
+          <div class="table-card" style="padding:16px;margin-bottom:18px">
+            <h3>Active Account (AA)</h3><p id="scoreAASummary"></p>
+            <p>AA diinput admin per sales per hari. Satu toko dihitung sekali dalam sehari; transaksi lagi pada hari berikutnya dihitung lagi. Kunjungan tanpa transaksi dan transaksi hanya Promag tablet tidak dihitung. AA tidak dihitung dari jumlah faktur.</p>
+            <div id="scoreAdminAA" hidden>
+              <p>Isi total AA pada tanggal tersebut. Menyimpan ulang mengganti angka harian, bukan menambahkannya. Isi 0 jika sudah diperiksa dan tidak ada AA.</p>
+              <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;margin-bottom:16px">
+                <div><label class="form-label" for="scoreAADate">Tanggal</label><input type="date" class="form-control" id="scoreAADate" onchange="selectScoreAADate()"></div>
+                <div><label class="form-label" for="scoreAACount">Jumlah AA</label><input type="number" min="0" step="1" class="form-control" id="scoreAACount" inputmode="numeric"></div>
+                <button type="button" class="btn btn-primary btn-sm" id="scoreAASave" onclick="saveScoreAA()" disabled>Simpan AA</button>
+              </div>
+            </div>
+            <div class="table-responsive"><table class="app-table"><thead><tr><th>Tanggal</th><th>Kalender</th><th>AA</th><th id="scoreActorHeader" hidden>Diinput oleh</th></tr></thead><tbody id="scoreDailyRows"></tbody></table></div>
+          </div>
+          <details class="table-card" id="scoreMapping" hidden style="padding:16px;margin-bottom:18px">
+            <summary class="font-semibold">Pemetaan kode produk · khusus admin</summary>
+            <p>Pemetaan memakai kode master yang sudah disepakati. Fokus A/B tetap masuk omzet; hanya LPRGN (Promag Tablet) dikecualikan. Kode dan nama diperiksa terhadap master setiap laporan dimuat.</p>
+            <p id="scoreMappingIssues" role="status"></p>
+            <div class="table-responsive"><table class="app-table"><thead><tr><th>Kode master</th><th>Nama master</th><th>Kelompok</th></tr></thead><tbody id="scoreMapRows"></tbody></table></div>
+          </details>
+        </section>
+
         <section class="content-view" id="view-laporan-bulanan">
           <div class="page-title-box">
             <div>
@@ -1437,6 +1475,7 @@
 
   <?!= include_('js'); ?>
   <script>window.KCH_FIREBASE_CONFIG = <?!= JSON.stringify(getFirebaseWebConfig_()); ?>;</script>
+  <?!= include_('score-client'); ?>
   <?!= include_('auth-client'); ?>
 
 </body>

@@ -7,6 +7,7 @@
    */
 
   var appState = {
+    score: null,
     currentView: 'dashboard',
     dashboardPeriod: 'TODAY',
     customStartDate: '',
@@ -297,6 +298,7 @@
         'input-tx': 'Pencatatan Penjualan Faktur',
         riwayat: 'Riwayat Transaksi Penjualan',
         'laporan-bulanan': 'Laporan Bulanan Tim',
+        skor: 'Skor Motoris dan MMTW',
         absensi: 'Absensi Tim',
         'foto-kunjungan': 'Dokumentasi Foto Kunjungan',
         'today-plan': 'Agenda Kunjungan Tim Hari Ini',
@@ -316,6 +318,7 @@
     var userMenu = document.getElementById('userDropdownMenu');
     if (userMenu) userMenu.style.display = 'none';
 
+    if (viewName === 'skor') openScore();
     if (viewName === 'input-tx') {
       setDefaultTransactionDate();
       ensureTransactionRows();

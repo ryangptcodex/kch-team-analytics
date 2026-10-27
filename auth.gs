@@ -210,7 +210,7 @@ function resolveAccessUser_(identity) {
 function filterAuthorizedRows_(sheetName, rows) {
   var user = KCH_REQUEST_USER_;
   if (!user || user.role === 'ADMIN') return rows;
-  if (['USERS', 'ACCESS_USERS'].indexOf(sheetName) >= 0) return [];
+  if (['USERS', 'ACCESS_USERS', 'SKOR_EVENTS'].indexOf(sheetName) >= 0) return [];
   if (['SALES', 'SALES_TRANSACTIONS', 'ATTENDANCE', 'VISIT_PHOTOS', 'TODAY_PLAN'].indexOf(sheetName) >= 0) {
     return rows.filter(function(row) { return normalizeKey_(row.sales_id) === normalizeKey_(user.salesId); });
   }
@@ -275,6 +275,9 @@ function saveAccessUser_(payload) {
 
 function kchApi(token, method, args) {
   var handlers = {
+    getScoreSetup: function() { return getScoreSetup_(); },
+    getScoreReport: function(month, salesId) { return getScoreReport_(month, salesId); },
+    saveScoreAA: function(input) { return saveScoreAA_(input); },
     getAuthProfile: function() { return { success: true, user: getCurrentUserInfo_() }; },
     saveMyProfile: saveMyProfile_,
     listAccessUsers: listAccessUsers_, saveAccessUser: saveAccessUser_,
@@ -296,7 +299,7 @@ function kchApi(token, method, args) {
   try {
     KCH_REQUEST_USER_ = resolveAccessUser_(verifyFirebaseIdentity_(token));
     var user = getCurrentUserInfo_();
-    var adminOnly = ['listAccessUsers', 'saveAccessUser', 'saveTodayPlan', 'archiveTodayPlan',
+    var adminOnly = ['saveScoreAA', 'listAccessUsers', 'saveAccessUser', 'saveTodayPlan', 'archiveTodayPlan',
       'saveWeeklyMeeting', 'archiveWeeklyMeeting', 'saveKchNewsArticle', 'archiveKchNewsArticle'];
     if (adminOnly.indexOf(method) >= 0 && user.role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin yang boleh melakukan operasi ini.');
     if (['saveSalesTransaction', 'saveSalesPhotoUpload'].indexOf(method) >= 0) {
