@@ -1,37 +1,37 @@
 <style>
   body.kch-locked > :not(#kchAuthScreen):not(script):not(style) { display:none !important; }
   #kchAuthScreen[hidden] { display:none !important; }
-  #kchAuthScreen { min-height:100vh; min-height:100svh; width:100%; display:grid; place-items:center; padding:40px 28px; position:relative; isolation:isolate; background:radial-gradient(ellipse at 6% 100%,#f2dff3 0,transparent 55%),radial-gradient(ellipse at 95% 15%,#f8eadc 0,transparent 54%),#f6f1ee; color:#202638; font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
-  #kchAuthScreen::before { content:''; position:absolute; inset:48% 0 0; background:linear-gradient(25deg,#eadced66,transparent 55%); clip-path:polygon(0 0,100% 78%,100% 100%,0 100%); z-index:-1; }
-  .kch-login-shell { width:100%; max-width:1240px; min-height:690px; display:grid; grid-template-columns:.95fr 1.05fr; padding:24px; background:#fff; border:1px solid #ffffffcc; border-radius:30px; box-shadow:0 24px 85px #60465a13; }
+  #kchAuthScreen { min-height:100vh; min-height:100svh; width:100%; display:grid; place-items:center; padding:40px 28px; position:relative; isolation:isolate; background:radial-gradient(ellipse at 6% 100%,#dbeafe 0,transparent 55%),radial-gradient(ellipse at 95% 15%,var(--primary-light, #eff6ff) 0,transparent 54%),var(--bg-main, #f8fafc); color:var(--text-body, #334155); font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+  #kchAuthScreen::before { content:''; position:absolute; inset:48% 0 0; background:linear-gradient(25deg,#bfdbfe66,transparent 55%); clip-path:polygon(0 0,100% 78%,100% 100%,0 100%); z-index:-1; }
+  .kch-login-shell { width:100%; max-width:1240px; min-height:690px; display:grid; grid-template-columns:.95fr 1.05fr; padding:24px; background:#fff; border:1px solid #ffffffcc; border-radius:30px; box-shadow:0 24px 85px #0c1e3313; }
   .kch-login-main { display:flex; flex-direction:column; justify-content:center; padding:48px 58px; min-width:0; }
   .kch-login-brand { display:flex; align-items:center; gap:12px; margin-bottom:54px; }
-  .kch-login-brand-icon { width:43px; height:43px; display:grid; place-items:center; background:linear-gradient(135deg,#6b61df,#a765cf); border-radius:13px; box-shadow:0 5px 13px #8c6eda22; }
+  .kch-login-brand-icon { width:43px; height:43px; display:grid; place-items:center; background:linear-gradient(135deg,var(--primary, #2563eb),var(--primary-hover, #1d4ed8)); border-radius:13px; box-shadow:0 5px 13px #2563eb22; }
   .kch-login-brand-icon svg { width:25px; height:25px; }
   .kch-login-brand-name { font-size:20px; font-weight:800; letter-spacing:-.6px; line-height:1.2; }
-  .kch-login-brand-sub { display:block; font-size:10px; font-weight:600; letter-spacing:1.7px; color:#8c869b; margin-top:5px; text-transform:uppercase; }
-  .kch-login-eyebrow { font-size:10px; font-weight:700; letter-spacing:1.9px; color:#8b75ab; margin:0 0 13px; text-transform:uppercase; }
-  #kchLoginTitle { font-size:clamp(30px,3vw,41px); line-height:1.2; font-weight:650; letter-spacing:-1.7px; margin:0 0 17px; color:#1f2636; }
-  .kch-login-description { font-size:14px; line-height:1.8; color:#858492; margin:0; max-width:325px; }
-  .kch-login-divider { height:1px; width:100%; background:#efedf3; margin:29px 0; }
-  .kch-login-account-hint { font-size:12px; line-height:1.8; color:#737180; margin:0 0 16px; }
-  #kchGoogleLogin { width:100%; min-height:54px; border:1px solid #dfdce8; border-radius:11px; background:#fff; color:#252b3b; font:600 13px/1.4 'Inter',system-ui,sans-serif; display:flex; align-items:center; justify-content:center; gap:12px; padding:15px 18px; cursor:pointer; box-shadow:0 3px 9px #33294405; transition:background .18s,border-color .18s,box-shadow .18s; }
-  #kchGoogleLogin:hover:enabled { background:#faf8ff; border-color:#a99ac7; box-shadow:0 4px 14px #8065b416; }
-  #kchGoogleLogin:focus-visible { outline:3px solid #bca7e7; outline-offset:4px; }
+  .kch-login-brand-sub { display:block; font-size:10px; font-weight:600; letter-spacing:1.7px; color:var(--text-muted, #64748b); margin-top:5px; text-transform:uppercase; }
+  .kch-login-eyebrow { font-size:10px; font-weight:700; letter-spacing:1.9px; color:var(--primary, #2563eb); margin:0 0 13px; text-transform:uppercase; }
+  #kchLoginTitle { font-size:clamp(30px,3vw,41px); line-height:1.2; font-weight:650; letter-spacing:-1.7px; margin:0 0 17px; color:var(--text-heading, #0f172a); }
+  .kch-login-description { font-size:14px; line-height:1.8; color:var(--text-muted, #64748b); margin:0; max-width:325px; }
+  .kch-login-divider { height:1px; width:100%; background:var(--border-color, #e2e8f0); margin:29px 0; }
+  .kch-login-account-hint { font-size:12px; line-height:1.8; color:var(--text-muted, #64748b); margin:0 0 16px; }
+  #kchGoogleLogin { width:100%; min-height:54px; border:1px solid var(--border-color, #e2e8f0); border-radius:11px; background:#fff; color:var(--text-heading, #0f172a); font:600 13px/1.4 'Inter',system-ui,sans-serif; display:flex; align-items:center; justify-content:center; gap:12px; padding:15px 18px; cursor:pointer; box-shadow:0 3px 9px #0c1e3305; transition:background .18s,border-color .18s,box-shadow .18s; }
+  #kchGoogleLogin:hover:enabled { background:var(--primary-light, #eff6ff); border-color:var(--primary, #2563eb); box-shadow:0 4px 14px #2563eb16; }
+  #kchGoogleLogin:focus-visible { outline:3px solid var(--primary, #2563eb); outline-offset:4px; }
   #kchGoogleLogin:disabled { opacity:.55; cursor:wait; }
   #kchGoogleLogin svg { width:19px; height:19px; flex-shrink:0; }
-  #kchAuthMessage { white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; line-height:1.7; color:#777184; min-height:41px; margin:16px 0 0; }
-  .kch-login-footnote { display:flex; align-items:center; gap:7px; font-size:10px; line-height:1.6; color:#a09aa9; margin-top:29px; }
+  #kchAuthMessage { white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; line-height:1.7; color:var(--text-muted, #64748b); min-height:41px; margin:16px 0 0; }
+  .kch-login-footnote { display:flex; align-items:center; gap:7px; font-size:10px; line-height:1.6; color:var(--text-muted, #64748b); margin-top:29px; }
   .kch-login-footnote svg { width:13px; height:13px; flex-shrink:0; }
-  .kch-login-visual { display:flex; flex-direction:column; justify-content:space-between; align-items:center; position:relative; overflow:hidden; border-radius:22px; background:linear-gradient(145deg,#e9edff 0%,#eee0f8 53%,#f6dded 100%); padding:53px 25px 22px; min-width:0; }
+  .kch-login-visual { display:flex; flex-direction:column; justify-content:space-between; align-items:center; position:relative; overflow:hidden; border-radius:22px; background:linear-gradient(145deg,var(--primary-light, #eff6ff) 0%,#dbeafe 53%,var(--primary-border, #bfdbfe) 100%); padding:53px 25px 22px; min-width:0; }
   .kch-login-visual::before { content:''; width:340px; height:340px; border-radius:50%; background:#fff3; position:absolute; bottom:-155px; right:-50px; }
-  .kch-login-visual::after { content:''; width:210px; height:290px; border-radius:120px 120px 0 0; background:#a496d411; position:absolute; left:-50px; bottom:30px; transform:rotate(-17deg); }
+  .kch-login-visual::after { content:''; width:210px; height:290px; border-radius:120px 120px 0 0; background:#2563eb11; position:absolute; left:-50px; bottom:30px; transform:rotate(-17deg); }
   .kch-login-visual-copy { position:relative; z-index:1; text-align:center; max-width:430px; }
-  .kch-login-visual h2 { font-size:clamp(25px,2.5vw,33px); line-height:1.3; font-weight:600; letter-spacing:-1.2px; color:#342943; margin:0 0 17px; }
-  .kch-login-visual-copy p { font-size:13px; line-height:1.8; color:#73667f; max-width:355px; margin:0 auto; }
-  .kch-login-visual-tag { display:inline-flex; align-items:center; gap:7px; margin:24px 0 0; padding:7px 13px; border-radius:30px; background:#ffffff70; border:1px solid #ffffff80; color:#7b5ba3; font-size:10px; font-weight:600; }
+  .kch-login-visual h2 { font-size:clamp(25px,2.5vw,33px); line-height:1.3; font-weight:600; letter-spacing:-1.2px; color:var(--text-heading, #0f172a); margin:0 0 17px; }
+  .kch-login-visual-copy p { font-size:13px; line-height:1.8; color:#475569; max-width:355px; margin:0 auto; }
+  .kch-login-visual-tag { display:inline-flex; align-items:center; gap:7px; margin:24px 0 0; padding:7px 13px; border-radius:30px; background:#ffffff70; border:1px solid #ffffff80; color:var(--primary-hover, #1d4ed8); font-size:10px; font-weight:600; }
   .kch-login-art { position:relative; z-index:1; display:block; width:100%; max-width:540px; height:auto; margin-top:22px; }
-  .kch-login-visual-note { position:relative; z-index:1; font-size:9px; color:#9582a4; letter-spacing:.5px; margin-top:8px; }
+  .kch-login-visual-note { position:relative; z-index:1; font-size:9px; color:#475569; letter-spacing:.5px; margin-top:8px; }
   #kchAccessPanel { position:fixed; inset:20px; z-index:2000; overflow:auto; padding:24px; background:white; border:1px solid #cbd5e1; border-radius:12px; }
   #kchAccessPanel form { display:flex; flex-wrap:wrap; gap:12px; margin:16px 0; }
   #kchAccessPanel input, #kchAccessPanel select { padding:8px; max-width:100%; }
@@ -83,56 +83,56 @@
       <svg class="kch-login-art" viewBox="0 0 600 400" role="img" aria-labelledby="kchDashboardArtTitle">
         <title id="kchDashboardArtTitle">Ilustrasi dashboard dengan grafik penjualan, pencapaian target, dan aktivitas tim</title>
         <defs>
-          <filter id="kchArtShadow" x="-30%" y="-30%" width="170%" height="180%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#705598" flood-opacity=".13"/></filter>
-          <linearGradient id="kchArtArea" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ab8ae3" stop-opacity=".28"/><stop offset="1" stop-color="#ab8ae3" stop-opacity="0"/></linearGradient>
-          <linearGradient id="kchArtBar" x1="0" y1="1" x2="0" y2="0"><stop stop-color="#c4aceb"/><stop offset="1" stop-color="#8966c7"/></linearGradient>
+          <filter id="kchArtShadow" x="-30%" y="-30%" width="170%" height="180%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#0c1e33" flood-opacity=".13"/></filter>
+          <linearGradient id="kchArtArea" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#2563eb" stop-opacity=".28"/><stop offset="1" stop-color="#2563eb" stop-opacity="0"/></linearGradient>
+          <linearGradient id="kchArtBar" x1="0" y1="1" x2="0" y2="0"><stop stop-color="#93c5fd"/><stop offset="1" stop-color="#2563eb"/></linearGradient>
         </defs>
-        <ellipse cx="305" cy="365" rx="245" ry="20" fill="#aa88cb" opacity=".1"/>
+        <ellipse cx="305" cy="365" rx="245" ry="20" fill="#2563eb" opacity=".1"/>
         <g filter="url(#kchArtShadow)">
           <rect x="38" y="62" width="524" height="288" rx="17" fill="#fff"/>
-          <path d="M55 62h69v288H55a17 17 0 0 1-17-17V79a17 17 0 0 1 17-17Z" fill="#50436d"/>
-          <rect x="53" y="81" width="19" height="19" rx="6" fill="#a992d4"/>
+          <path d="M55 62h69v288H55a17 17 0 0 1-17-17V79a17 17 0 0 1 17-17Z" fill="#0c1e33"/>
+          <rect x="53" y="81" width="19" height="19" rx="6" fill="#2563eb"/>
           <path d="M58 95v-6m4 6V86m4 9v-4" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
           <text x="78" y="95" font-size="11" fill="white" font-family="Arial,sans-serif" font-weight="700">KCH</text>
           <rect x="49" y="123" width="64" height="24" rx="6" fill="#ffffff22"/>
-          <rect x="57" y="131" width="7" height="7" rx="2" fill="#d8c9f0"/><rect x="70" y="133" width="32" height="4" rx="2" fill="#f0e9fa"/>
-          <g fill="#c6b8dc" opacity=".65"><rect x="57" y="163" width="7" height="7" rx="2"/><rect x="70" y="165" width="27" height="4" rx="2"/><rect x="57" y="193" width="7" height="7" rx="2"/><rect x="70" y="195" width="31" height="4" rx="2"/><rect x="57" y="223" width="7" height="7" rx="2"/><rect x="70" y="225" width="24" height="4" rx="2"/></g>
-          <text x="143" y="93" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#40354f">Sales overview</text>
-          <rect x="143" y="103" width="99" height="4" rx="2" fill="#e7e2ee"/><circle cx="536" cy="91" r="10" fill="#eee5f8"/>
-          <rect x="143" y="122" width="121" height="55" rx="9" fill="#f3edf9"/>
-          <text x="154" y="141" font-family="Arial,sans-serif" font-size="8" fill="#8a7b9d">PENJUALAN</text>
-          <rect x="154" y="151" width="49" height="8" rx="3" fill="#8a69b9"/><path d="m226 157 7-8 6 3 10-12" stroke="#9d7ac9" stroke-width="2" stroke-linecap="round" fill="none"/>
-          <rect x="276" y="122" width="121" height="55" rx="9" fill="#fff2e8"/>
-          <text x="287" y="141" font-family="Arial,sans-serif" font-size="8" fill="#ac8a6e">TARGET TIM</text>
-          <rect x="287" y="151" width="49" height="8" rx="3" fill="#d2a177"/><circle cx="376" cy="150" r="10" fill="#f8e2cf"/><path d="m372 150 3 3 6-7" stroke="#c2946c" stroke-width="1.7" fill="none"/>
-          <rect x="409" y="122" width="132" height="55" rx="9" fill="#eaf4f1"/>
-          <text x="420" y="141" font-family="Arial,sans-serif" font-size="8" fill="#7b9c91">AKTIVITAS</text>
-          <rect x="420" y="151" width="49" height="8" rx="3" fill="#80ae9d"/><g fill="#a7c9bd"><rect x="506" y="150" width="4" height="8" rx="1"/><rect x="513" y="145" width="4" height="13" rx="1"/><rect x="520" y="140" width="4" height="18" rx="1"/></g>
-          <rect x="143" y="190" width="254" height="140" rx="10" fill="white" stroke="#eeeaf3"/>
-          <text x="156" y="210" font-family="Arial,sans-serif" font-size="9" font-weight="600" fill="#6c5b80">Tren penjualan</text>
-          <g stroke="#f0edf5"><path d="M157 236h225M157 261h225M157 286h225M157 311h225"/></g>
+          <rect x="57" y="131" width="7" height="7" rx="2" fill="#bfdbfe"/><rect x="70" y="133" width="32" height="4" rx="2" fill="#eff6ff"/>
+          <g fill="#94a3b8" opacity=".65"><rect x="57" y="163" width="7" height="7" rx="2"/><rect x="70" y="165" width="27" height="4" rx="2"/><rect x="57" y="193" width="7" height="7" rx="2"/><rect x="70" y="195" width="31" height="4" rx="2"/><rect x="57" y="223" width="7" height="7" rx="2"/><rect x="70" y="225" width="24" height="4" rx="2"/></g>
+          <text x="143" y="93" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#0f172a">Sales overview</text>
+          <rect x="143" y="103" width="99" height="4" rx="2" fill="#e2e8f0"/><circle cx="536" cy="91" r="10" fill="#dbeafe"/>
+          <rect x="143" y="122" width="121" height="55" rx="9" fill="#eff6ff"/>
+          <text x="154" y="141" font-family="Arial,sans-serif" font-size="8" fill="#64748b">PENJUALAN</text>
+          <rect x="154" y="151" width="49" height="8" rx="3" fill="#2563eb"/><path d="m226 157 7-8 6 3 10-12" stroke="#2563eb" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <rect x="276" y="122" width="121" height="55" rx="9" fill="#fef3c7"/>
+          <text x="287" y="141" font-family="Arial,sans-serif" font-size="8" fill="#92400e">TARGET TIM</text>
+          <rect x="287" y="151" width="49" height="8" rx="3" fill="#f59e0b"/><circle cx="376" cy="150" r="10" fill="#fde68a"/><path d="m372 150 3 3 6-7" stroke="#b45309" stroke-width="1.7" fill="none"/>
+          <rect x="409" y="122" width="132" height="55" rx="9" fill="#dcfce7"/>
+          <text x="420" y="141" font-family="Arial,sans-serif" font-size="8" fill="#166534">AKTIVITAS</text>
+          <rect x="420" y="151" width="49" height="8" rx="3" fill="#16a34a"/><g fill="#86efac"><rect x="506" y="150" width="4" height="8" rx="1"/><rect x="513" y="145" width="4" height="13" rx="1"/><rect x="520" y="140" width="4" height="18" rx="1"/></g>
+          <rect x="143" y="190" width="254" height="140" rx="10" fill="white" stroke="#e2e8f0"/>
+          <text x="156" y="210" font-family="Arial,sans-serif" font-size="9" font-weight="600" fill="#475569">Tren penjualan</text>
+          <g stroke="#f1f5f9"><path d="M157 236h225M157 261h225M157 286h225M157 311h225"/></g>
           <path d="M158 292c20-4 25-27 44-20s24-9 41-12 22 7 40-14 25 10 42-16 31-2 56-17v99H158Z" fill="url(#kchArtArea)"/>
-          <path d="M158 292c20-4 25-27 44-20s24-9 41-12 22 7 40-14 25 10 42-16 31-2 56-17" stroke="#a17bd2" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-          <circle cx="325" cy="230" r="4" fill="#fff" stroke="#a17bd2" stroke-width="2"/>
-          <rect x="409" y="190" width="132" height="140" rx="10" fill="white" stroke="#eeeaf3"/>
-          <text x="423" y="210" font-family="Arial,sans-serif" font-size="9" font-weight="600" fill="#6c5b80">Pencapaian tim</text>
-          <circle cx="475" cy="257" r="27" fill="none" stroke="#f0eaf7" stroke-width="10"/>
-          <circle cx="475" cy="257" r="27" fill="none" stroke="#b093d4" stroke-width="10" stroke-dasharray="114 170" transform="rotate(-90 475 257)" stroke-linecap="round"/>
-          <path d="m467 257 5 5 10-11" stroke="#aa8ccc" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-          <rect x="433" y="302" width="84" height="4" rx="2" fill="#e7e0ef"/>
+          <path d="M158 292c20-4 25-27 44-20s24-9 41-12 22 7 40-14 25 10 42-16 31-2 56-17" stroke="#2563eb" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <circle cx="325" cy="230" r="4" fill="#fff" stroke="#2563eb" stroke-width="2"/>
+          <rect x="409" y="190" width="132" height="140" rx="10" fill="white" stroke="#e2e8f0"/>
+          <text x="423" y="210" font-family="Arial,sans-serif" font-size="9" font-weight="600" fill="#475569">Pencapaian tim</text>
+          <circle cx="475" cy="257" r="27" fill="none" stroke="#dbeafe" stroke-width="10"/>
+          <circle cx="475" cy="257" r="27" fill="none" stroke="#2563eb" stroke-width="10" stroke-dasharray="114 170" transform="rotate(-90 475 257)" stroke-linecap="round"/>
+          <path d="m467 257 5 5 10-11" stroke="#2563eb" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <rect x="433" y="302" width="84" height="4" rx="2" fill="#e2e8f0"/>
         </g>
         <g filter="url(#kchArtShadow)">
           <rect x="412" y="23" width="146" height="60" rx="12" fill="#fff"/>
-          <rect x="425" y="36" width="32" height="32" rx="10" fill="#f1e9fa"/>
-          <path d="m433 56 6-7 4 3 7-9m-6 0h6v6" stroke="#9874c9" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-          <text x="468" y="48" font-family="Arial,sans-serif" font-size="9" fill="#544363" font-weight="600">Lihat progres tim</text>
-          <rect x="468" y="57" width="67" height="4" rx="2" fill="#e4dbea"/>
+          <rect x="425" y="36" width="32" height="32" rx="10" fill="#eff6ff"/>
+          <path d="m433 56 6-7 4 3 7-9m-6 0h6v6" stroke="#2563eb" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <text x="468" y="48" font-family="Arial,sans-serif" font-size="9" fill="#334155" font-weight="600">Lihat progres tim</text>
+          <rect x="468" y="57" width="67" height="4" rx="2" fill="#e2e8f0"/>
           <rect x="15" y="274" width="144" height="73" rx="12" fill="#fff"/>
-          <text x="29" y="295" font-family="Arial,sans-serif" font-size="9" fill="#7b6c8d">Aktivitas harian</text>
+          <text x="29" y="295" font-family="Arial,sans-serif" font-size="9" fill="#64748b">Aktivitas harian</text>
           <g fill="url(#kchArtBar)"><rect x="30" y="320" width="10" height="13" rx="3"/><rect x="47" y="313" width="10" height="20" rx="3"/><rect x="64" y="316" width="10" height="17" rx="3"/><rect x="81" y="304" width="10" height="29" rx="3"/><rect x="98" y="309" width="10" height="24" rx="3"/><rect x="115" y="300" width="10" height="33" rx="3"/><rect x="132" y="306" width="10" height="27" rx="3"/></g>
         </g>
-        <ellipse cx="36" cy="40" rx="6" ry="6" fill="#be9bdf" opacity=".45"/><circle cx="572" cy="308" r="7" fill="#dcb2cc" opacity=".55"/>
-        <path d="M565 116v12m-6-6h12" stroke="#b8a0d5" stroke-width="2" stroke-linecap="round"/>
+        <ellipse cx="36" cy="40" rx="6" ry="6" fill="#60a5fa" opacity=".45"/><circle cx="572" cy="308" r="7" fill="#93c5fd" opacity=".55"/>
+        <path d="M565 116v12m-6-6h12" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"/>
       </svg>
       <span class="kch-login-visual-note">Ilustrasi dashboard KCH Team Analytics</span>
     </aside>
