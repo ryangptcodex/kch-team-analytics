@@ -1,4 +1,27 @@
 <style>
+  #view-dashboard[aria-busy="true"] .dashboard-left-col, #view-dashboard[aria-busy="true"] .dashboard-side-col { min-width: 0; }
+  .kch-news-banner:has(.widget-loading) { background: #f1f5f9; }
+  .kpi-card:has([data-loading="true"]) { min-width: 0; }
+  .kpi-value-wrap:has([data-loading="true"]) { flex-wrap: wrap; gap: 6px; }
+  .widget-loading, [data-loading="true"] {
+    color: var(--text-muted) !important;
+    font-size: 12px !important;
+    font-weight: 400 !important;
+    line-height: 1.5 !important;
+    letter-spacing: normal !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+  }
+  .badge[data-loading="true"], .live-badge[data-loading="true"], .live-badge:has(.widget-loading) { background: #f1f5f9; color: var(--text-muted); }
+  .chart-canvas-container[data-chart-state="loading"] canvas, .chart-canvas-container[data-chart-state="error"] canvas { visibility: hidden; max-width: 100%; }
+  .chart-canvas-container[data-chart-state="loading"], .chart-canvas-container[data-chart-state="error"] { position: relative; }
+  .chart-canvas-container[data-chart-state="loading"]::after, .chart-canvas-container[data-chart-state="error"]::after {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    color: var(--text-muted); font-size: 12px; font-weight: 400;
+    content: 'Sedang memuat data';
+  }
+  .chart-canvas-container[data-chart-state="error"]::after { content: 'Gagal memuat data'; }
+
   :root {
     --primary: #2563eb;
     --primary-hover: #1d4ed8;

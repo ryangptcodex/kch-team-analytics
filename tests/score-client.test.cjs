@@ -26,7 +26,7 @@ test('period changes and failures clear old totals; late previous response canno
   const e=client();e.c.loadScoreReport();const older=e.requests[0];e.node('scoreMonth').value='2026-09';e.c.loadScoreReport();
   e.requests[1].success({...e.report,month:'2026-09',total:65,category:'LANJUT BULAN BERIKUTNYA',nextMonth:'Oktober 2026'});
   older.success(e.report);assert.equal(e.node('scoreTotal').textContent,'65 / 100');assert.match(e.node('scoreCategory').textContent,/Oktober/);
-  e.c.loadScoreReport();assert.equal(e.node('scoreTotal').textContent,'—');e.requests[2].failure({message:'Read failed'});assert.equal(e.node('scoreCategory').textContent,'Gagal memuat');assert.equal(e.c.scoreState().report,null);
+  e.c.loadScoreReport();assert.equal(e.node('scoreTotal').textContent,'Sedang memuat data');e.requests[2].failure({message:'Read failed'});assert.equal(e.node('scoreCategory').textContent,'Gagal memuat');assert.equal(e.c.scoreState().report,null);
 });
 test('AA rejects blank, negative and decimal input before RPC; explicit zero is accepted',()=>{
   const e=client();e.c.scoreState().report=e.report;e.node('scoreAADate').value='2026-10-01';

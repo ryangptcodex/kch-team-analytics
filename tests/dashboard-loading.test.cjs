@@ -17,13 +17,13 @@ function browser(){
 }
 test('initial HTML has neutral KPI values and no sample target or identity',()=>{
  const e=browser();assert.doesNotMatch(e.html,/147\.000\.000|Ryan Pratama|ryan\.coordinator@/);
- for(const id of ['kpiTotalOmset','kpiCumulativeTarget','kpiDaysPassedBadge','kpiTopMotorisAchieved'])assert.match(e.html,new RegExp('id="'+id+'">—<'));
- assert.match(e.html,/id="dashboardLoadStatus"[^>]*>Memuat data…/);
+ for(const id of ['kpiTotalOmset','kpiCumulativeTarget','kpiDaysPassedBadge','kpiTopMotorisAchieved'])assert.match(e.html,new RegExp('id="'+id+'"[^>]*>[\\s\\S]*?Sedang memuat data'));
+ assert.match(e.html,/id="dashboardLoadStatus"[^>]*>[\s\S]*?Sedang memuat data/);
 });
 test('refresh clears old values and charts until a genuine server response arrives',()=>{
  const e=browser();let destroyed=0;e.c.appState.dashboardData={kpi:{totalTarget:147000000}};e.c.appState.charts.salesTrendChart={destroy(){destroyed++}};
- e.c.loadDashboardMetrics();assert.equal(e.els.kpiCumulativeTarget.textContent,'—');assert.equal(e.c.appState.dashboardData,null);assert.equal(destroyed,1);assert.equal(e.els['view-dashboard']['aria-busy'],'true');
- e.calls[0].ok({success:true,kpi:{totalTarget:123456,totalSales:200}});assert.match(e.els.kpiCumulativeTarget.textContent,/123\.456/);assert.match(e.els.dashboardLoadStatus.innerHTML,/Live Sync/);assert.equal(e.els['view-dashboard']['aria-busy'],'false');
+ e.c.loadDashboardMetrics();assert.equal(e.els.kpiCumulativeTarget.textContent,'Sedang memuat data');assert.equal(e.c.appState.dashboardData,null);assert.equal(destroyed,1);assert.equal(e.els['view-dashboard']['aria-busy'],'true');
+ e.calls[0].ok({success:true,kpi:{totalTarget:123456,totalSales:200}});assert.match(e.els.kpiCumulativeTarget.textContent,/123\.456/);assert.equal(e.els.kpiCumulativeTarget['data-loading'],'false');assert.match(e.els.dashboardLoadStatus.innerHTML,/Live Sync/);assert.equal(e.els['view-dashboard']['aria-busy'],'false');
 });
 test('failed or empty responses stay neutral rather than showing false zeros or stale values',()=>{
  for(const mode of ['transport','rejected','null']){const e=browser();e.c.loadDashboardMetrics();if(mode==='transport')e.calls[0].fail(Error('offline'));else e.calls[0].ok(mode==='null'?null:{success:false,message:'No data'});
@@ -34,7 +34,7 @@ test('rapid period changes ignore stale successes and failures',()=>{
  e.calls[1].ok({success:true,kpi:{totalTarget:600,totalSales:200}});e.calls[0].ok({success:true,kpi:{totalTarget:999}});assert.match(e.els.kpiCumulativeTarget.textContent,/600/);e.calls[0].fail(Error('old'));assert.equal(e.toasts.length,0);assert.equal(e.c.appState.isLoadingDashboard,false);
 });
 test('metadata loading invalidates old metrics and remains neutral on failure',()=>{
- const e=browser();e.c.loadDashboardMetrics();e.c.loadMetadata();assert.equal(e.calls[1].method,'metadata');e.calls[0].ok({success:true,kpi:{totalTarget:999}});assert.equal(e.els.kpiCumulativeTarget.textContent,'—');
+ const e=browser();e.c.loadDashboardMetrics();e.c.loadMetadata();assert.equal(e.calls[1].method,'metadata');e.calls[0].ok({success:true,kpi:{totalTarget:999}});assert.equal(e.els.kpiCumulativeTarget.textContent,'Sedang memuat data');
  e.calls[1].fail(Error('offline'));assert.equal(e.els.dashboardLoadStatus.textContent,'Gagal memuat data');assert.equal(e.c.appState.isLoadingMetadata,false);
 });
 test('real zero returned by server is displayed as zero after loading',()=>{

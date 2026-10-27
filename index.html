@@ -124,7 +124,7 @@
             <h1 class="header-greeting" id="headerGreetingText">Selamat datang <span class="wave-emoji">👋</span></h1>
             <div class="header-subtitle-wrap">
               <span class="header-subtitle" id="headerSubtitleText">Dashboard Sales Monitoring</span>
-              <span class="live-badge" id="dashboardLoadStatus" role="status" aria-live="polite">Memuat data…</span>
+              <span class="live-badge" id="dashboardLoadStatus" role="status" aria-live="polite"><span class="widget-loading">Sedang memuat data</span></span>
             </div>
           </div>
         </div>
@@ -203,14 +203,14 @@
                 <span class="kpi-icon-pill icon-sales"><i class="fa-solid fa-wallet"></i></span>
               </div>
               <div class="kpi-value-wrap">
-                <span class="kpi-value" id="kpiTotalOmset">—</span>
-                <span class="badge badge-success" id="kpiAchieveBadge">—</span>
+                <span class="kpi-value" id="kpiTotalOmset" data-loading="true"><span class="widget-loading">Sedang memuat data</span></span>
+                <span class="badge badge-success" id="kpiAchieveBadge" data-loading="true"><span class="widget-loading">Sedang memuat data</span></span>
               </div>
               <div class="kpi-progress-wrap">
                 <div class="progress-bar-bg">
                   <div class="progress-bar-fill fill-sales" id="kpiProgressBar" style="width: 0%;"></div>
                 </div>
-                <div class="kpi-footer-note" id="kpiRemainingLabel">Sisa: —</div>
+                <div class="kpi-footer-note" id="kpiRemainingLabel" data-loading="true"><span class="widget-loading">Sedang memuat data</span></div>
               </div>
             </div>
 
@@ -220,7 +220,7 @@
                 <span class="kpi-icon-pill icon-target"><i class="fa-solid fa-bullseye"></i></span>
               </div>
               <div class="kpi-value-wrap">
-                <span class="kpi-value" id="kpiCumulativeTarget">—</span>
+                <span class="kpi-value" id="kpiCumulativeTarget" data-loading="true"><span class="widget-loading">Sedang memuat data</span></span>
               </div>
               <div class="kpi-footer-note"><i class="fa-solid fa-location-dot"></i> Target Tim Reguler &amp; Tim Program</div>
             </div>
@@ -231,8 +231,8 @@
                 <span class="kpi-icon-pill icon-days"><i class="fa-solid fa-calendar-day"></i></span>
               </div>
               <div class="kpi-value-wrap">
-                <span class="kpi-value" id="kpiDaysRemaining">—</span>
-                <span class="badge badge-warning" id="kpiDaysPassedBadge">—</span>
+                <span class="kpi-value" id="kpiDaysRemaining" data-loading="true"><span class="widget-loading">Sedang memuat data</span></span>
+                <span class="badge badge-warning" id="kpiDaysPassedBadge" data-loading="true"><span class="widget-loading">Sedang memuat data</span></span>
               </div>
               <div class="kpi-footer-note"><i class="fa-solid fa-business-time"></i> Hari kerja aktif bulan ini</div>
             </div>
@@ -243,9 +243,9 @@
                 <span class="kpi-icon-pill icon-canvasser"><i class="fa-solid fa-truck-fast"></i></span>
               </div>
               <div class="top-performer-summary">
-                <span class="top-performer-name" id="kpiTopCanvasserName">—</span>
+                <span class="top-performer-name" id="kpiTopCanvasserName" data-loading="true"><span class="widget-loading">Sedang memuat data</span></span>
                 <div class="top-performer-metric">
-                  <strong class="text-primary font-semibold" id="kpiTopCanvasserAchieved">—</strong>
+                  <strong class="text-primary font-semibold" id="kpiTopCanvasserAchieved" data-loading="true"><span class="widget-loading">Sedang memuat data</span></strong>
                   <span id="kpiTopCanvasserTeamBadge"></span>
                 </div>
               </div>
@@ -257,9 +257,9 @@
                 <span class="kpi-icon-pill icon-motoris"><i class="fa-solid fa-motorcycle"></i></span>
               </div>
               <div class="top-performer-summary">
-                <span class="top-performer-name" id="kpiTopMotorisName">—</span>
+                <span class="top-performer-name" id="kpiTopMotorisName" data-loading="true"><span class="widget-loading">Sedang memuat data</span></span>
                 <div class="top-performer-metric">
-                  <strong class="text-success font-semibold" id="kpiTopMotorisAchieved">—</strong>
+                  <strong class="text-success font-semibold" id="kpiTopMotorisAchieved" data-loading="true"><span class="widget-loading">Sedang memuat data</span></strong>
                   <span id="kpiTopMotorisTeamBadge"></span>
                 </div>
               </div>
@@ -279,7 +279,7 @@
                   </div>
                   <span class="badge badge-primary-light" id="salesTrendPeriodBadge">Hari Ini</span>
                 </div>
-                <div class="chart-canvas-container">
+                <div class="chart-canvas-container" data-chart-state="loading">
                   <canvas id="salesTrendChart"></canvas>
                 </div>
               </div>
@@ -293,7 +293,7 @@
                   </div>
                   <span class="badge badge-primary-light" id="salesDailyChartPeriodBadge">Hari Ini</span>
                 </div>
-                <div class="chart-canvas-container">
+                <div class="chart-canvas-container" data-chart-state="loading">
                   <canvas id="salesDailyComparisonChart"></canvas>
                 </div>
               </div>
@@ -323,7 +323,7 @@
                       </tr>
                     </thead>
                     <tbody id="salesPerformanceTbody">
-                      <tr><td colspan="6" class="text-center text-muted py-3">Memuat performa sales...</td></tr>
+                      <tr><td colspan="6" class="text-center text-muted py-3"><span class="widget-loading">Sedang memuat data</span></td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -352,7 +352,7 @@
                         <i class="fa-solid fa-calendar-day text-primary"></i> Hari Ini
                       </button>
                     </div>
-                    <span class="badge badge-success" id="attendanceCountBadge">—</span>
+                    <span class="badge badge-success" id="attendanceCountBadge" data-loading="true"><span class="widget-loading">Sedang memuat data</span></span>
                     <button type="button" class="btn btn-outline btn-sm" onclick="reloadAttendanceOnly()" title="Segarkan Foto Absensi">
                       <i class="fa-solid fa-arrows-rotate"></i>
                     </button>
@@ -375,7 +375,7 @@
                 <div class="attendance-grid" id="attendanceGridContainer">
                   <div class="attendance-loading-placeholder">
                     <i class="fa-solid fa-circle-notch fa-spin text-primary"></i>
-                    <span>Memuat foto absensi tim...</span>
+                    <span><span class="widget-loading">Sedang memuat data</span></span>
                   </div>
                 </div>
               </div>
@@ -399,7 +399,7 @@
                     <button type="button" class="btn btn-outline btn-sm" id="btnResetVisitPhotosToday" onclick="resetVisitPhotosToToday()" title="Kembali ke Hari Ini" style="display:none; padding:0 8px;">
                       <i class="fa-solid fa-calendar-day text-primary"></i> Hari Ini
                     </button>
-                    <span class="badge badge-success" id="visitPhotosCountBadge">—</span>
+                    <span class="badge badge-success" id="visitPhotosCountBadge" data-loading="true"><span class="widget-loading">Sedang memuat data</span></span>
                     <button type="button" class="btn btn-outline btn-sm" onclick="reloadVisitPhotosOnly()" title="Segarkan Foto Kunjungan">
                       <i class="fa-solid fa-arrows-rotate"></i>
                     </button>
@@ -427,13 +427,13 @@
                     <div class="card-subtitle">Rencana kunjungan tim sales hari ini</div>
                   </div>
                   <div style="display:flex; align-items:center; gap:8px;">
-                    <span class="badge badge-success" id="todayPlanDashboardCount">—</span>
+                    <span class="badge badge-success" id="todayPlanDashboardCount" data-loading="true"><span class="widget-loading">Sedang memuat data</span></span>
                     <button type="button" class="btn btn-outline btn-sm" onclick="loadTodayPlans(getLocalDateInputValue())" title="Segarkan Today’s Plan"><i class="fa-solid fa-arrows-rotate"></i></button>
                     <button type="button" class="btn btn-outline btn-sm" onclick="switchView('today-plan')">Kelola</button>
                   </div>
                 </div>
                 <div class="activity-feed-list today-plan-list" id="todayPlanDashboardList">
-                  <div class="text-muted text-center py-2">Memuat rencana hari ini...</div>
+                  <div class="text-muted text-center py-2"><span class="widget-loading">Sedang memuat data</span></div>
                 </div>
               </div>
 
@@ -451,14 +451,14 @@
                 </div>
                 <a class="kch-news-banner" id="kchNewsDashboardBanner" href="https://www.kalbe.co.id/id/news" target="_blank" rel="noopener noreferrer" aria-label="Buka berita terbaru Kalbe">
                   <span class="kch-news-banner-kicker">KCH NEWS</span>
-                  <strong>Memuat berita...</strong>
+                  <strong><span class="widget-loading">Sedang memuat data</span></strong>
                   <span>Berita dan informasi Kalbe</span>
                   <i class="fa-solid fa-arrow-up-right-from-square"></i>
                 </a>
                 <div class="kch-news-story">
                   <div class="kch-news-date" id="kchNewsDashboardDate"><i class="fa-regular fa-calendar"></i> -</div>
-                  <div class="kch-news-headline" id="kchNewsDashboardHeadline">Memuat berita…</div>
-                  <div class="kch-news-summary" id="kchNewsDashboardSummary">—</div>
+                  <div class="kch-news-headline" id="kchNewsDashboardHeadline"><span class="widget-loading">Sedang memuat data</span></div>
+                  <div class="kch-news-summary" id="kchNewsDashboardSummary" data-loading="true"><span class="widget-loading">Sedang memuat data</span></div>
                   <a class="kch-news-link" id="kchNewsDashboardLink" href="https://www.kalbe.co.id/id/news" target="_blank" rel="noopener noreferrer">Lihat berita selengkapnya <i class="fa-solid fa-arrow-right"></i></a>
                 </div>
               </div>
@@ -474,7 +474,7 @@
                 <div class="donut-wrap">
                   <canvas id="teamDonutChart"></canvas>
                   <div class="donut-center-text">
-                    <span class="donut-center-value" id="donutCenterPct">—</span>
+                    <span class="donut-center-value" id="donutCenterPct" data-loading="true"><span class="widget-loading">Sedang memuat data</span></span>
                     <span class="donut-center-label">Realized</span>
                   </div>
                 </div>
@@ -492,7 +492,7 @@
                 <div class="donut-wrap">
                   <canvas id="areaDonutChart"></canvas>
                   <div class="donut-center-text">
-                    <span class="donut-center-value" id="areaDonutCenterPct">—</span>
+                    <span class="donut-center-value" id="areaDonutCenterPct" data-loading="true"><span class="widget-loading">Sedang memuat data</span></span>
                     <span class="donut-center-label">Area Total</span>
                   </div>
                 </div>
@@ -507,13 +507,13 @@
                     <div class="card-subtitle">Ringkasan meeting tim terbaru</div>
                   </div>
                   <div style="display:flex; align-items:center; gap:8px;">
-                    <span class="badge badge-success" id="weeklyMeetingDashboardCount">—</span>
+                    <span class="badge badge-success" id="weeklyMeetingDashboardCount" data-loading="true"><span class="widget-loading">Sedang memuat data</span></span>
                     <button type="button" class="btn btn-outline btn-sm" onclick="loadWeeklyMeetings()" title="Segarkan hasil meeting"><i class="fa-solid fa-arrows-rotate"></i></button>
                     <button type="button" class="btn btn-outline btn-sm" onclick="switchView('weekly-meeting')">Kelola</button>
                   </div>
                 </div>
                 <div class="activity-feed-list" id="weeklyMeetingDashboardList">
-                  <div class="text-muted text-center py-2">Memuat hasil meeting...</div>
+                  <div class="text-muted text-center py-2"><span class="widget-loading">Sedang memuat data</span></div>
                 </div>
               </div>
 
@@ -527,7 +527,7 @@
                   <button type="button" class="btn btn-outline btn-sm" onclick="switchView('riwayat')">Lihat Semua</button>
                 </div>
                 <div class="activity-feed-list" id="recentTxFeedList">
-                  <div class="text-muted text-center py-2">Belum ada transaksi.</div>
+                  <div class="text-muted text-center py-2"><span class="widget-loading">Sedang memuat data</span></div>
                 </div>
               </div>
 
@@ -540,7 +540,7 @@
                   </div>
                 </div>
                 <div class="activity-feed-list" id="activityFeedList">
-                  <div class="text-muted text-center py-2">Belum ada catatan aktivitas.</div>
+                  <div class="text-muted text-center py-2"><span class="widget-loading">Sedang memuat data</span></div>
                 </div>
               </div>
 
@@ -613,7 +613,7 @@
             </form>
           </div>
           <div class="kch-news-page-list" id="kchNewsPageList">
-            <div class="chart-card text-muted">Memuat KCH News...</div>
+            <div class="chart-card text-muted"><span class="widget-loading">Sedang memuat data</span></div>
           </div>
         </section>
 
@@ -643,7 +643,7 @@
                 <button type="button" class="btn btn-outline btn-sm" id="btnResetAttendancePageToday" onclick="resetAttendanceToToday()" title="Kembali ke Hari Ini" style="display:none; padding:0 8px;">
                   <i class="fa-solid fa-calendar-day text-primary"></i> Hari Ini
                 </button>
-                <span class="badge badge-success" id="attendancePageCountBadge"><i class="fa-solid fa-user-check"></i> 0 Hadir</span>
+                <span class="badge badge-success" id="attendancePageCountBadge" data-loading="true"><span class="widget-loading">Sedang memuat data</span></span>
                 <button type="button" class="btn btn-outline btn-sm" onclick="reloadAttendanceOnly()" title="Segarkan Absensi">
                   <i class="fa-solid fa-arrows-rotate"></i>
                 </button>
@@ -664,7 +664,7 @@
             <div class="attendance-grid" id="attendancePageGridContainer">
               <div class="attendance-loading-placeholder">
                 <i class="fa-solid fa-circle-notch fa-spin text-primary"></i>
-                <span>Memuat foto absensi tim...</span>
+                <span><span class="widget-loading">Sedang memuat data</span></span>
               </div>
             </div>
           </div>
@@ -688,7 +688,7 @@
               <button type="button" class="btn btn-outline btn-sm" id="btnResetVisitPhotosPageToday" onclick="resetVisitPhotosToToday()" title="Kembali ke Hari Ini" style="display:none; padding:0 8px;">
                 <i class="fa-solid fa-calendar-day text-primary"></i> Hari Ini
               </button>
-              <span class="badge badge-success" id="visitPhotosPageCountBadge">0 Foto</span>
+              <span class="badge badge-success" id="visitPhotosPageCountBadge" data-loading="true"><span class="widget-loading">Sedang memuat data</span></span>
               <button type="button" class="btn btn-outline btn-sm" onclick="reloadVisitPhotosOnly()" title="Segarkan Foto Kunjungan">
                 <i class="fa-solid fa-arrows-rotate"></i>
               </button>
@@ -778,10 +778,10 @@
                 <div class="card-title">Agenda Tim Hari Ini</div>
                 <div class="card-subtitle">Diurutkan berdasarkan jam rencana kunjungan</div>
               </div>
-              <span class="badge badge-success" id="todayPlanPageCount">0 Rencana</span>
+              <span class="badge badge-success" id="todayPlanPageCount" data-loading="true"><span class="widget-loading">Sedang memuat data</span></span>
             </div>
             <div class="activity-feed-list today-plan-list" id="todayPlanPageList">
-              <div class="text-muted text-center py-2">Memuat rencana hari ini...</div>
+              <div class="text-muted text-center py-2"><span class="widget-loading">Sedang memuat data</span></div>
             </div>
           </div>
         </section>
@@ -841,10 +841,10 @@
                 <div class="card-title">Arsip Hasil Meeting</div>
                 <div class="card-subtitle">Meeting aktif ditampilkan dari yang paling baru</div>
               </div>
-              <span class="badge badge-success" id="weeklyMeetingPageCount">0 Meeting</span>
+              <span class="badge badge-success" id="weeklyMeetingPageCount" data-loading="true"><span class="widget-loading">Sedang memuat data</span></span>
             </div>
             <div class="activity-feed-list" id="weeklyMeetingPageList">
-              <div class="text-muted text-center py-2">Memuat hasil meeting...</div>
+              <div class="text-muted text-center py-2"><span class="widget-loading">Sedang memuat data</span></div>
             </div>
           </div>
         </section>
@@ -1011,7 +1011,7 @@
                   </tr>
                 </thead>
                 <tbody id="transactionsTbody">
-                  <tr><td colspan="9" class="text-center text-muted py-3">Memuat data transaksi...</td></tr>
+                  <tr><td colspan="9" class="text-center text-muted py-3"><span class="widget-loading">Sedang memuat data</span></td></tr>
                 </tbody>
               </table>
             </div>
@@ -1035,7 +1035,7 @@
               <button type="button" class="btn btn-primary btn-sm" onclick="openScore()">Muat ulang</button>
             </div>
             <p id="scoreMessage" role="status" aria-live="polite" style="overflow-wrap:anywhere"></p>
-            <div class="kpi-value" id="scoreTotal">—</div><p class="font-semibold" id="scoreCategory">Pilih periode penilaian</p>
+            <div class="kpi-value" id="scoreTotal" data-loading="true"><span class="widget-loading">Sedang memuat data</span></div><p class="font-semibold" id="scoreCategory">Pilih periode penilaian</p>
             <p id="scoreCalendar" class="page-subtitle"></p>
             <p class="page-subtitle">Skor tiap parameter dibatasi bobotnya. Total dan kategori memakai nilai asli tanpa pembulatan; angka tampilan dapat dibulatkan.</p>
           </div>
@@ -1088,17 +1088,17 @@
           <div class="kpi-grid" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
             <div class="kpi-card">
               <div class="kpi-header"><span class="kpi-label">TOTAL PENCAPAIAN</span><span class="kpi-icon-pill icon-sales"><i class="fa-solid fa-wallet"></i></span></div>
-              <div class="kpi-value" id="monthlyReportTotalSales">Rp 0</div>
+              <div class="kpi-value" id="monthlyReportTotalSales" data-loading="true"><span class="widget-loading">Sedang memuat data</span></div>
               <div class="page-subtitle" id="monthlyReportTargetInfo">Target bulanan: -</div>
             </div>
             <div class="kpi-card">
               <div class="kpi-header"><span class="kpi-label">TOTAL SHJ</span><span class="kpi-icon-pill icon-target"><i class="fa-solid fa-coins"></i></span></div>
-              <div class="kpi-value" id="monthlyReportTotalShj">Rp 0</div>
+              <div class="kpi-value" id="monthlyReportTotalShj" data-loading="true"><span class="widget-loading">Sedang memuat data</span></div>
               <div class="page-subtitle">Akumulasi SHJ transaksi bulan ini</div>
             </div>
             <div class="kpi-card">
               <div class="kpi-header"><span class="kpi-label">TOTAL HK</span><span class="kpi-icon-pill icon-days"><i class="fa-solid fa-calendar-check"></i></span></div>
-              <div class="kpi-value" id="monthlyReportTotalHK">0 Hari</div>
+              <div class="kpi-value" id="monthlyReportTotalHK" data-loading="true"><span class="widget-loading">Sedang memuat data</span></div>
               <div class="page-subtitle">Tanggal unik dengan absensi atau transaksi</div>
             </div>
           </div>
@@ -1159,7 +1159,7 @@
                   </tr>
                 </thead>
                 <tbody id="inventoryTbody">
-                  <tr><td colspan="9" class="text-center text-muted py-3">Memuat stok gudang...</td></tr>
+                  <tr><td colspan="9" class="text-center text-muted py-3"><span class="widget-loading">Sedang memuat data</span></td></tr>
                 </tbody>
               </table>
             </div>
@@ -1199,7 +1199,7 @@
                   </tr>
                 </thead>
                 <tbody id="masterPriceTbody">
-                  <tr><td colspan="8" class="text-center text-muted py-3">Memuat data harga...</td></tr>
+                  <tr><td colspan="8" class="text-center text-muted py-3"><span class="widget-loading">Sedang memuat data</span></td></tr>
                 </tbody>
               </table>
             </div>
@@ -1213,7 +1213,7 @@
               <div class="page-subtitle">Biodata personil lapangan: identitas, area operasional, kontak, kehadiran HK, dan target bulanan</div>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
-              <span class="badge badge-primary" id="salesTotalCountBadge"><i class="fa-solid fa-users"></i> 0 Personil</span>
+              <span class="badge badge-primary" id="salesTotalCountBadge" data-loading="true"><span class="widget-loading">Sedang memuat data</span></span>
             </div>
           </div>
 
@@ -1243,7 +1243,7 @@
           <div class="sales-profiles-grid" id="salesProfilesGridContainer">
             <div class="attendance-loading-placeholder">
               <i class="fa-solid fa-circle-notch fa-spin text-primary"></i>
-              <span>Memuat direktori profil sales...</span>
+              <span><span class="widget-loading">Sedang memuat data</span></span>
             </div>
           </div>
         </section>
@@ -1255,7 +1255,7 @@
               <div class="page-subtitle">Akses cepat ke folder dan dokumen operasional Cabang Lhokseumawe dari sheet FILES</div>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
-              <span class="badge badge-primary" id="filesTotalCountBadge"><i class="fa-solid fa-folder-open"></i> 0 Berkas</span>
+              <span class="badge badge-primary" id="filesTotalCountBadge" data-loading="true"><span class="widget-loading">Sedang memuat data</span></span>
             </div>
           </div>
 
@@ -1278,7 +1278,7 @@
           <div class="file-grid-cards" id="driveFilesGridContainer">
             <div class="attendance-loading-placeholder">
               <i class="fa-solid fa-circle-notch fa-spin text-primary"></i>
-              <span>Memuat berkas & folder dari sheet FILES...</span>
+              <span><span class="widget-loading">Sedang memuat data</span></span>
             </div>
           </div>
         </section>

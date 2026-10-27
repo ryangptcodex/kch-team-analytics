@@ -378,9 +378,21 @@
     });
   }
 
+  function setMetadataWidgetState(state) {
+    var text = state === 'loading' ? 'Sedang memuat data' : 'Gagal memuat data';
+    [['inventoryTbody', 9], ['masterPriceTbody', 8]].forEach(function(item) {
+      setHtml(item[0], '<tr><td colspan="' + item[1] + '" class="text-center text-muted py-3"><span class="widget-loading">' + text + '</span></td></tr>');
+    });
+    ['salesProfilesGridContainer', 'driveFilesGridContainer', 'kchNewsPageList'].forEach(function(id) {
+      setHtml(id, '<div class="attendance-loading-placeholder"><span class="widget-loading">' + text + '</span></div>');
+    });
+    ['salesTotalCountBadge', 'filesTotalCountBadge', 'kchNewsDashboardHeadline', 'kchNewsDashboardSummary'].forEach(function(id) { setText(id, text); });
+  }
+
   function loadMetadata(callback) {
     if (appState.isLoadingMetadata) return;
     appState.isLoadingMetadata = true;
+    setMetadataWidgetState('loading');
     // Invalidate older metrics while fresh metadata is being read.
     appState.dashboardRequestSeq++;
     appState.isLoadingDashboard = false;
@@ -391,6 +403,7 @@
         if (!res || !res.success) {
           showToast(res && res.message ? res.message : 'Gagal memuat metadata aplikasi.', 'error');
           setDashboardLoadState('error');
+          setMetadataWidgetState('error');
           showKchAuthError(res && res.message || 'Gagal memuat data aplikasi.');
           return;
         }
@@ -436,6 +449,7 @@
       .withFailureHandler(function(err) {
         appState.isLoadingMetadata = false;
         setDashboardLoadState('error');
+        setMetadataWidgetState('error');
         showToast('Gagal terhubung ke server: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
       })
       .getInitialAppMetadata();
@@ -480,16 +494,17 @@
     var month = getValue('monthlyReportMonth');
     if (!salesId || !month) return;
 
-    setText('monthlyReportTotalSales', 'Memuat...');
-    setText('monthlyReportTotalShj', 'Memuat...');
-    setText('monthlyReportTotalHK', '...');
+    setText('monthlyReportTotalSales', 'Sedang memuat data');
+    setText('monthlyReportTotalShj', 'Sedang memuat data');
+    setText('monthlyReportTotalHK', 'Sedang memuat data');
     var tbody = document.getElementById('monthlyReportProductsTbody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Memuat laporan bulanan...</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3"><span class="widget-loading">Sedang memuat data</span></td></tr>';
 
     kchRun()
       .withSuccessHandler(function(res) {
         if (!res || !res.success) {
           showToast(res && res.message ? res.message : 'Laporan bulanan gagal dimuat.', 'error');
+        ['monthlyReportTotalSales', 'monthlyReportTotalShj', 'monthlyReportTotalHK'].forEach(function(id) { setText(id, '—'); });
           if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Laporan tidak dapat dimuat.</td></tr>';
           return;
         }
@@ -523,6 +538,7 @@
       })
       .withFailureHandler(function(err) {
         showToast('Gagal memuat laporan: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+        ['monthlyReportTotalSales', 'monthlyReportTotalShj', 'monthlyReportTotalHK'].forEach(function(id) { setText(id, '—'); });
         if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Laporan tidak dapat dimuat.</td></tr>';
       })
       .getMonthlyTeamReport(month, salesId);
@@ -644,19 +660,23 @@
 
   function setDashboardLoadState(state) {
     var ready = state === 'ready';
-    var message = state === 'error' ? 'Data belum berhasil dimuat. Coba Sinkronisasi Live.' : 'Memuat data…';
+    var message = state === 'error' ? 'Data belum berhasil dimuat. Coba Sinkronisasi Live.' : 'Sedang memuat data';
     var view = document.getElementById('view-dashboard');
     if (view) view.setAttribute('aria-busy', state === 'loading' ? 'true' : 'false');
+    ['salesTrendChart', 'salesDailyComparisonChart'].forEach(function(id) {
+      var canvas = document.getElementById(id);
+      if (canvas && canvas.parentElement) canvas.parentElement.setAttribute('data-chart-state', state);
+    });
     if (ready) {
       setHtml('dashboardLoadStatus', '<span class="live-dot"></span> Live Sync');
       return;
     }
-    setText('dashboardLoadStatus', state === 'error' ? 'Gagal memuat data' : 'Memuat data…');
+    setText('dashboardLoadStatus', state === 'error' ? 'Gagal memuat data' : 'Sedang memuat data');
     appState.dashboardData = null;
     ['kpiTotalOmset', 'kpiAchieveBadge', 'kpiCumulativeTarget', 'kpiDaysRemaining', 'kpiDaysPassedBadge',
       'kpiTopCanvasserName', 'kpiTopCanvasserAchieved', 'kpiTopMotorisName', 'kpiTopMotorisAchieved',
-      'donutCenterPct', 'areaDonutCenterPct'].forEach(function(id) { setText(id, '—'); });
-    setText('kpiRemainingLabel', 'Sisa: —');
+      'donutCenterPct', 'areaDonutCenterPct'].forEach(function(id) { setText(id, state === 'loading' ? 'Sedang memuat data' : '—'); });
+    setText('kpiRemainingLabel', state === 'loading' ? 'Sedang memuat data' : 'Sisa: —');
     setStyle('kpiProgressBar', 'width', '0%');
     ['kpiTopCanvasserTeamBadge', 'kpiTopMotorisTeamBadge', 'teamPillLegend', 'areaPillLegend'].forEach(function(id) { setHtml(id, ''); });
     ['salesTrendChart', 'salesDailyComparisonChart', 'teamDonutChart', 'areaDonutChart'].forEach(destroyChart);
@@ -1147,12 +1167,13 @@
   }
 
   function loadTodayPlans(dateValue) {
+    ['todayPlanDashboardCount', 'todayPlanPageCount'].forEach(function(id) { setText(id, 'Sedang memuat data'); });
     var date = normalizeDateString(dateValue) || getLocalDateInputValue();
     setValue('todayPlanDate', date);
     setText('todayPlanDateLabel', formatDateIndo(date));
     ['todayPlanDashboardList', 'todayPlanPageList'].forEach(function(id) {
       var container = document.getElementById(id);
-      if (container) container.innerHTML = '<div class="text-muted text-center py-2">Memuat rencana kunjungan...</div>';
+      if (container) container.innerHTML = '<div class="text-muted text-center py-2"><span class="widget-loading">Sedang memuat data</span></div>';
     });
     kchRun()
       .withSuccessHandler(function(res) {
@@ -1287,9 +1308,10 @@
   }
 
   function loadWeeklyMeetings() {
+    ['weeklyMeetingDashboardCount', 'weeklyMeetingPageCount'].forEach(function(id) { setText(id, 'Sedang memuat data'); });
     ['weeklyMeetingDashboardList', 'weeklyMeetingPageList'].forEach(function(id) {
       var container = document.getElementById(id);
-      if (container) container.innerHTML = '<div class="text-muted text-center py-2">Memuat hasil meeting...</div>';
+      if (container) container.innerHTML = '<div class="text-muted text-center py-2"><span class="widget-loading">Sedang memuat data</span></div>';
     });
     kchRun()
       .withSuccessHandler(function(res) {
@@ -1642,7 +1664,7 @@
 
   function loadKchNews() {
     var pageList = document.getElementById('kchNewsPageList');
-    if (pageList) pageList.innerHTML = '<div class="chart-card text-muted">Memuat KCH News...</div>';
+    if (pageList) pageList.innerHTML = '<div class="chart-card text-muted"><span class="widget-loading">Sedang memuat data</span></div>';
     kchRun()
       .withSuccessHandler(function(res) {
         if (!res || !res.success) {
@@ -1689,10 +1711,11 @@
   }
 
   function reloadVisitPhotosOnly() {
+    ['visitPhotosCountBadge', 'visitPhotosPageCountBadge'].forEach(function(id) { setText(id, 'Sedang memuat data'); });
     var targetDate = appState.visitPhotoDate || getLocalDateInputValue();
     ['visitPhotosDashboardGridContainer', 'visitPhotosPageGridContainer'].forEach(function(id) {
       var container = document.getElementById(id);
-      if (container) container.innerHTML = '<div class="attendance-loading-placeholder"><i class="fa-solid fa-circle-notch fa-spin text-primary"></i><span>Memuat foto kunjungan...</span></div>';
+      if (container) container.innerHTML = '<div class="attendance-loading-placeholder"><i class="fa-solid fa-circle-notch fa-spin text-primary"></i><span><span class="widget-loading">Sedang memuat data</span></span></div>';
     });
 
     kchRun()
@@ -1751,15 +1774,18 @@
   }
 
   function loadAttendanceByDate(dateStr) {
+    ['attendanceCountBadge', 'attendancePageCountBadge'].forEach(function(id) { setText(id, 'Sedang memuat data'); });
     var target = dateStr || getLocalDateInputValue();
     ['attendanceGridContainer', 'attendancePageGridContainer'].forEach(function(id) {
       var container = document.getElementById(id);
-      if (container) container.innerHTML = '<div class="attendance-loading-placeholder"><i class="fa-solid fa-circle-notch fa-spin text-primary"></i><span>Memuat foto absensi tim...</span></div>';
+      if (container) container.innerHTML = '<div class="attendance-loading-placeholder"><i class="fa-solid fa-circle-notch fa-spin text-primary"></i><span><span class="widget-loading">Sedang memuat data</span></span></div>';
     });
 
     kchRun()
       .withSuccessHandler(function(res) {
         if (!res || !res.success) {
+          ['attendanceCountBadge', 'attendancePageCountBadge'].forEach(function(id) { setText(id, '—'); });
+          ['attendanceGridContainer', 'attendancePageGridContainer'].forEach(function(id) { setHtml(id, '<div class="text-muted">Gagal memuat data</div>'); });
           showToast(res && res.message ? res.message : 'Gagal memuat absensi.', 'error');
           return;
         }
@@ -1767,6 +1793,8 @@
         renderAttendanceGrid(appState.attendanceData, appState.attendanceTeamFilter || 'ALL');
       })
       .withFailureHandler(function(err) {
+        ['attendanceCountBadge', 'attendancePageCountBadge'].forEach(function(id) { setText(id, '—'); });
+          ['attendanceGridContainer', 'attendancePageGridContainer'].forEach(function(id) { setHtml(id, '<div class="text-muted">Gagal memuat data</div>'); });
         showToast('Gagal memuat absensi: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
       })
       .getAttendanceByDate(target);
@@ -2645,7 +2673,7 @@
     var distributor = getValue('txFilterDistributor') || 'ALL';
     var date = getValue('txFilterDate') || '';
     var tbody = document.getElementById('transactionsTbody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Memuat data transaksi...</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3"><span class="widget-loading">Sedang memuat data</span></td></tr>';
 
     kchRun()
       .withSuccessHandler(function(res) {
@@ -3197,12 +3225,18 @@ function renderDriveFiles() {
 
   function setText(id, value) {
     var el = document.getElementById(id);
-    if (el) el.textContent = value === null || value === undefined ? '' : value;
+    if (el) {
+      el.textContent = value === null || value === undefined ? '' : value;
+      if (el.setAttribute) el.setAttribute('data-loading', value === 'Sedang memuat data' ? 'true' : 'false');
+    }
   }
 
   function setHtml(id, value) {
     var el = document.getElementById(id);
-    if (el) el.innerHTML = value === null || value === undefined ? '' : value;
+    if (el) {
+      el.innerHTML = value === null || value === undefined ? '' : value;
+      if (el.setAttribute) el.setAttribute('data-loading', 'false');
+    }
   }
 
   function setStyle(id, property, value) {
