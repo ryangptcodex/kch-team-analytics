@@ -44,7 +44,7 @@
           <i class="fa-solid fa-chart-pie nav-icon"></i>
           <span>Dashboard Sales</span>
         </a>
-        <a href="javascript:void(0)" class="nav-item" id="nav-input-tx" onclick="switchView('input-tx')">
+        <a href="javascript:void(0)" class="nav-item" data-kch-write id="nav-input-tx" onclick="switchView('input-tx')">
           <i class="fa-solid fa-file-invoice nav-icon"></i>
           <span>Input Penjualan</span>
         </a>
@@ -559,7 +559,7 @@
               <i class="fa-solid fa-arrows-rotate"></i> Segarkan
             </button>
           </div>
-          <div class="chart-card kch-news-editor" id="kchNewsManagerPanel" style="display:none;">
+          <div class="chart-card kch-news-editor" data-kch-write id="kchNewsManagerPanel" style="display:none;">
             <div class="card-header-clean">
               <div>
                 <div class="card-title"><i class="fa-solid fa-pen-to-square text-primary"></i> Kelola Artikel KCH</div>
@@ -632,7 +632,7 @@
                 <div class="card-subtitle" id="attendancePageSubtitle">Dokumentasi kehadiran personil sales</div>
               </div>
               <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <button type="button" class="btn btn-primary btn-sm" onclick="openPhotoUploadForm('attendance')">
+                <button type="button" class="btn btn-primary btn-sm" data-kch-write onclick="openPhotoUploadForm('attendance')">
                   <i class="fa-solid fa-camera"></i> Input Absensi
                 </button>
                 <div class="date-input-indo-wrapper" title="Filter Tanggal Absensi">
@@ -677,7 +677,7 @@
               <div class="page-subtitle">Dokumentasi kunjungan lapangan personil sales</div>
             </div>
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              <button type="button" class="btn btn-primary btn-sm" onclick="openPhotoUploadForm('visit')">
+              <button type="button" class="btn btn-primary btn-sm" data-kch-write onclick="openPhotoUploadForm('visit')">
                 <i class="fa-solid fa-camera"></i> Input Foto Kunjungan
               </button>
               <div class="date-input-indo-wrapper" title="Filter Tanggal Foto Kunjungan">
@@ -723,7 +723,7 @@
             </div>
           </div>
 
-          <div class="table-card today-plan-editor-card" id="todayPlanEditorPanel" style="display:none; padding:18px; margin-bottom:18px;">
+          <div class="table-card today-plan-editor-card" data-kch-write id="todayPlanEditorPanel" style="display:none; padding:18px; margin-bottom:18px;">
             <div class="card-header-clean" style="padding:0; margin-bottom:14px;">
               <div>
                 <div class="card-title" id="todayPlanFormTitle">Tambah Rencana Kunjungan</div>
@@ -797,7 +797,7 @@
             </button>
           </div>
 
-          <div class="table-card" id="weeklyMeetingEditorPanel" style="display:none; padding:18px; margin-bottom:18px;">
+          <div class="table-card" data-kch-write id="weeklyMeetingEditorPanel" style="display:none; padding:18px; margin-bottom:18px;">
             <div class="card-header-clean" style="padding:0; margin-bottom:14px;">
               <div>
                 <div class="card-title" id="weeklyMeetingFormTitle">Tambah Hasil Meeting</div>
@@ -849,7 +849,7 @@
           </div>
         </section>
 
-        <section class="content-view" id="view-input-tx">
+        <section class="content-view" data-kch-write id="view-input-tx">
           <div class="page-title-box">
             <div>
               <h2 class="page-title">Formulir Input Penjualan Faktur</h2>
@@ -1043,7 +1043,7 @@
           <div class="table-card" style="padding:16px;margin-bottom:18px">
             <h3>Active Account (AA)</h3><p id="scoreAASummary"></p>
             <p>AA diinput admin per sales per hari. Satu toko dihitung sekali dalam sehari; transaksi lagi pada hari berikutnya dihitung lagi. Kunjungan tanpa transaksi dan transaksi hanya Promag tablet tidak dihitung. AA tidak dihitung dari jumlah faktur.</p>
-            <div id="scoreAdminAA" hidden>
+            <div data-kch-write id="scoreAdminAA" hidden>
               <p>Isi total AA pada tanggal tersebut. Menyimpan ulang mengganti angka harian, bukan menambahkannya. Isi 0 jika sudah diperiksa dan tidak ada AA.</p>
               <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;margin-bottom:16px">
                 <div><label class="form-label" for="scoreAADate">Tanggal</label><input type="date" class="form-control" id="scoreAADate" onchange="selectScoreAADate()"></div>
@@ -1333,7 +1333,7 @@
     </div>
   </div>
 
-  <div class="modal-backdrop" id="modalTransactionEdit" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="editTxTitle">
+  <div class="modal-backdrop" data-kch-write id="modalTransactionEdit" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="editTxTitle">
     <div class="modal-dialog" style="max-width:920px;max-height:94vh;display:flex;flex-direction:column;">
       <div class="modal-header">
         <div style="min-width:0"><h3 class="modal-title" id="editTxTitle" style="overflow-wrap:anywhere">Edit faktur</h3><div class="modal-subtitle" id="editTxOwner">—</div></div>
@@ -1405,7 +1405,7 @@
     </div>
   </div>
 
-  <div class="modal-backdrop" id="modalPhotoUpload" style="display:none;" onclick="closePhotoUploadForm()">
+  <div class="modal-backdrop" data-kch-write id="modalPhotoUpload" style="display:none;" onclick="closePhotoUploadForm()">
     <div class="modal-dialog" style="max-width:560px;" onclick="event.stopPropagation()">
       <div class="modal-header">
         <div>

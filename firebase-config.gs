@@ -9,6 +9,8 @@ var KCH_FIREBASE_WEB_CONFIG_ = {
   "measurementId": "G-TTVTERWKHC"
 };
 var KCH_BOOTSTRAP_ADMIN_EMAIL_ = 'mhmdryyan7@gmail.com';
+// Only these two verified Google accounts may use the web app.
+var KCH_GUEST_EMAIL_ = 'juniortlkchlse@gmail.com';
 function getFirebaseWebConfig_() { return KCH_FIREBASE_WEB_CONFIG_; }
 
 // ID of the TEST spreadsheet only; do not use the original October database.

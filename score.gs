@@ -107,7 +107,7 @@ function getScoreSetup_() {
   return { success: true, canManage: user.role === 'ADMIN', today: scoreToday_(), mappingReady: mapping.ready,
     mappingIssues: mapping.issues,
     products: user.role === 'ADMIN' ? mapping.products : [],
-    sales: data.sales.filter(function(s) { return scoreEligible_(s) && (user.role === 'ADMIN' || normalizeKey_(s.sales_id) === normalizeKey_(user.salesId)); })
+    sales: data.sales.filter(function(s) { return scoreEligible_(s) && (['ADMIN', 'GUEST'].indexOf(user.role) >= 0 || normalizeKey_(s.sales_id) === normalizeKey_(user.salesId)); })
       .map(function(s) { return { salesId: String(s.sales_id), name: String(s.full_name), team: String(s.team_name), active: txActive_(s) }; }) };
 }
 function scoreWriteEvent_(data, ledger, scope, payload, input, user) {

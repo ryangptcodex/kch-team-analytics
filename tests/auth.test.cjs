@@ -63,6 +63,8 @@ function environment(options = {}) {
   vm.createContext(context);
   for (const file of ['firebase-config.gs', 'code.gs', 'setup.gs', 'transactions.gs','transaction-edits.gs', 'auth.gs']) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
   context.KCH_TEST_SPREADSHEET_ID_ = 'test-only';
+  if (!options.identity || options.identity.email !== 'mhmdryyan7@gmail.com') context.KCH_BOOTSTRAP_ADMIN_EMAIL_ = 'admin@gmail.com';
+  context.KCH_GUEST_EMAIL_ = 'sales@gmail.com';
   const now = Math.floor(Date.now() / 1000);
   const claims = { aud: context.KCH_FIREBASE_WEB_CONFIG_.projectId, iss: 'https://securetoken.google.com/' + context.KCH_FIREBASE_WEB_CONFIG_.projectId,
     sub: identity.localId, exp: now + 3600, iat: now, auth_time: now, firebase: { sign_in_provider: 'google.com' }, ...(options.claims || {}) };
@@ -89,7 +91,7 @@ test('visible editor diagnostic requires the active Google admin account', () =>
     assert.throws(() => e.context.checkKchGoogleConnection(), /ACCESS_DENIED/);
     assert.equal(e.lookupCalls(), 0);
   }
-  const e = environment({ editorEmail: 'mhmdryyan7@gmail.com', access: false,
+  const e = environment({ editorEmail: 'admin@gmail.com', access: false,
     lookupCode: 400, lookupBody: { error: { message: 'INVALID_ID_TOKEN' } } });
   assert.equal(e.context.checkKchGoogleConnection().connectionOk, true);
   assert.equal(e.sheets.has('ACCESS_USERS'), false);
@@ -118,10 +120,10 @@ test('rejects unverified, disabled, wrong UID, non-Google and revoked accounts',
   }
   assert.throws(() => environment({ claims: { sub: 'forged-uid' } }).call('getAuthProfile'), /AUTH_REQUIRED/);
 });
-test('unknown account cannot register itself or become admin', () => {
-  const e = environment({ access: false });
-  assert.throws(() => e.call('getAuthProfile'), /belum terdaftar/);
-  assert.equal(e.sheets.has('ACCESS_USERS'), false);
+test('unknown account cannot register itself or become admin even with a stored ADMIN role', () => {
+  const e = environment({ access: [['other@gmail.com','other-uid','','ADMIN','ACTIVE']], identity: {email:'other@gmail.com',localId:'other-uid'} });
+  assert.throws(() => e.call('getAuthProfile'), /hanya tersedia/);
+  assert.equal(e.sheets.get('ACCESS_USERS').rows.length,2);
 });
 test('first verified designated admin bootstraps once', () => {
   const e = environment({ access: false, identity: { email: 'mhmdryyan7@gmail.com', localId: 'owner-uid' } });
@@ -132,20 +134,24 @@ test('an inactive designated admin is not automatically re-enabled', () => {
   const e = environment({ access: [['mhmdryyan7@gmail.com', 'owner-uid', '', 'ADMIN', 'INACTIVE']], identity: { email: 'mhmdryyan7@gmail.com', localId: 'owner-uid' } });
   assert.throws(() => e.call('getAuthProfile'), /tidak aktif/);
 });
-test('sales identity is bound to Gmail and sales profile', () => {
-  const e = environment(); const user = e.call('getAuthProfile').user;
-  assert.equal(user.role, 'SALES'); assert.equal(user.salesId, 'S1'); assert.equal(user.email, 'sales@gmail.com');
-  assert.equal(e.context.KCH_REQUEST_USER_, null);
+test('configured guest is always GUEST with no sales binding, regardless of stored role', () => {
+  for(const role of ['SALES','ADMIN','GUEST']) {
+    const e = environment({access:[['sales@gmail.com','sales-uid','S1',role,'ACTIVE']]});
+    const user=e.call('getAuthProfile').user;
+    assert.equal(user.role,'GUEST'); assert.equal(user.salesId,''); assert.equal(user.fullName,'Tamu');
+    assert.equal(e.context.KCH_REQUEST_USER_,null);
+  }
 });
-test('pre-registered Gmail binds its UID on first verified login', () => {
+test('guest login does not provision, bind UID or update any spreadsheet data', () => {
   const e = environment({ access: [['sales@gmail.com', '', 'S1', 'SALES', 'ACTIVE']] });
-  e.call('getAuthProfile'); assert.equal(e.sheets.get('ACCESS_USERS').rows[1][1], 'sales-uid');
+  const before=JSON.stringify([...e.sheets.values()].map(s=>s.rows));
+  e.call('getAuthProfile'); assert.equal(JSON.stringify([...e.sheets.values()].map(s=>s.rows)),before);
+  const noSheet=environment({access:false});assert.equal(noSheet.call('getAuthProfile').user.role,'GUEST');assert.equal(noSheet.sheets.has('ACCESS_USERS'),false);
 });
-test('UID mismatch, duplicate email and duplicate profile fail closed', () => {
+test('guest UID mismatches and duplicate email rows fail closed', () => {
   for (const access of [
-    [['sales@gmail.com', 'different-uid', 'S1', 'SALES', 'ACTIVE']],
-    [['sales@gmail.com', 'sales-uid', 'S1', 'SALES', 'ACTIVE'], ['sales@gmail.com', 'sales-uid', 'S1', 'SALES', 'ACTIVE']],
-    [['sales@gmail.com', 'sales-uid', 'S1', 'SALES', 'ACTIVE'], ['other@gmail.com', '', 'S1', 'SALES', 'ACTIVE']]
+    [['sales@gmail.com', 'different-uid', '', 'GUEST', 'ACTIVE']],
+    [['sales@gmail.com', 'sales-uid', '', 'GUEST', 'ACTIVE'], ['sales@gmail.com', 'sales-uid', '', 'GUEST', 'ACTIVE']]
   ]) assert.throws(() => environment({ access }).call('getAuthProfile'), /ACCESS_DENIED/);
 });
 test('deactivating access takes effect on the next RPC', () => {
@@ -155,7 +161,7 @@ test('deactivating access takes effect on the next RPC', () => {
 });
 test('legacy seven-column access sheets still log in without a schema write', () => {
   const e = environment();
-  assert.equal(e.call('getAuthProfile').user.fullName, 'Sales One');
+  assert.equal(e.call('getAuthProfile').user.fullName, 'Tamu');
   assert.equal(e.sheets.get('ACCESS_USERS').rows[0].length, 7);
 });
 test('admin can save a display name and read it again on the next login', () => {
@@ -175,44 +181,30 @@ test('changing a Google profile name leaves the same email and UID authorized as
   assert.equal(user.fullName, 'Ryan Pratama'); assert.equal(user.role, 'ADMIN');
   assert.equal(user.email, 'admin@gmail.com'); assert.equal(user.uid, 'admin-uid');
 });
-test('invalid role is distinguished from inactive account status', () => {
-  const e = environment(); e.sheets.get('ACCESS_USERS').rows[2][3] = 'Sales Coordinator';
-  assert.throws(() => e.call('getAuthProfile'), /Role akun tidak valid/);
-  e.sheets.get('ACCESS_USERS').rows[2][3] = 'SALES'; e.sheets.get('ACCESS_USERS').rows[2][4] = 'INACTIVE';
-  assert.throws(() => e.call('getAuthProfile'), /Akses akun tidak aktif/);
+test('invalid admin role is distinguished from inactive account status', () => {
+  const e=environment({identity:{email:'admin@gmail.com',localId:'admin-uid'}});e.sheets.get('ACCESS_USERS').rows[1][3]='Sales Coordinator';
+  assert.throws(()=>e.call('getAuthProfile'),/Role akun tidak valid/);
+  e.sheets.get('ACCESS_USERS').rows[1][3]='ADMIN';e.sheets.get('ACCESS_USERS').rows[1][4]='INACTIVE';assert.throws(()=>e.call('getAuthProfile'),/Akses akun tidak aktif/);
 });
-test('profile updates cannot target another email or change role, UID, or sales mapping', () => {
-  const e = environment(); const access = e.sheets.get('ACCESS_USERS').rows;
-  const adminBefore = [...access[1]]; const ownBefore = access[2].slice(0, 5);
-  const saved = e.call('saveMyProfile', [{ displayName: 'Nickname Sales', email: 'admin@gmail.com', role: 'ADMIN', salesId: 'S2', uid: 'admin-uid' }]);
-  assert.equal(saved.user.role, 'SALES'); assert.equal(saved.user.email, 'sales@gmail.com');
-  assert.equal(saved.user.salesId, 'S1'); assert.equal(saved.user.uid, 'sales-uid');
-  assert.deepEqual(access[1], adminBefore); assert.deepEqual(access[2].slice(0, 5), ownBefore);
-  assert.equal(access[2][7], 'Nickname Sales');
-  assert.equal(e.sheets.get('SALES').rows[1][1], 'Sales One');
+test('admin profile updates cannot target guest or change account identity',()=>{
+  const e=environment({identity:{email:'admin@gmail.com',localId:'admin-uid'}}),rows=e.sheets.get('ACCESS_USERS').rows,guestBefore=[...rows[2]];
+  const r=e.call('saveMyProfile',[{displayName:'Ryan',email:'sales@gmail.com',role:'GUEST',salesId:'S2',uid:'forged'}]);
+  assert.equal(r.user.email,'admin@gmail.com');assert.equal(r.user.role,'ADMIN');assert.equal(r.user.uid,'admin-uid');assert.deepEqual(rows[2],guestBefore);assert.equal(rows[1][7],'Ryan');
 });
-test('display-name column appends after unrelated columns without overwriting them', () => {
-  const e = environment(); const rows = e.sheets.get('ACCESS_USERS').rows;
-  rows[0][7] = 'notes'; rows[2][7] = 'keep this';
-  e.call('saveMyProfile', [{ displayName: 'Ryan' }]);
-  assert.equal(rows[0][7], 'notes'); assert.equal(rows[2][7], 'keep this');
-  assert.equal(rows[0][8], 'display_name'); assert.equal(rows[2][8], 'Ryan');
-  assert.equal(e.call('getAuthProfile').user.fullName, 'Ryan');
+test('admin display-name column preserves unrelated columns',()=>{
+  const e=environment({identity:{email:'admin@gmail.com',localId:'admin-uid'}}),rows=e.sheets.get('ACCESS_USERS').rows;rows[0][7]='notes';rows[1][7]='keep';
+  e.call('saveMyProfile',[{displayName:'Ryan'}]);assert.equal(rows[1][7],'keep');assert.equal(rows[0][8],'display_name');assert.equal(rows[1][8],'Ryan');
 });
-test('invalid names are rejected before adding a column or changing account identity', () => {
-  for (const displayName of ['', 'A', 'A'.repeat(81), '=IMPORTXML("example")', 'New\nLine', null]) {
-    const e = environment(); const rows = e.sheets.get('ACCESS_USERS').rows;
-    const before = JSON.stringify(rows);
-    assert.throws(() => e.call('saveMyProfile', [{ displayName }]), /Nama tampilan tidak valid/);
-    assert.equal(JSON.stringify(rows), before);
+test('invalid admin names are rejected before schema or account mutation',()=>{
+  for(const displayName of ['', 'A', 'A'.repeat(81), '=IMPORTXML("example")', 'New\nLine', null]){
+    const e=environment({identity:{email:'admin@gmail.com',localId:'admin-uid'}}),rows=e.sheets.get('ACCESS_USERS').rows,before=JSON.stringify(rows);
+    assert.throws(()=>e.call('saveMyProfile',[{displayName}]),/Nama tampilan tidak valid/);assert.equal(JSON.stringify(rows),before);
   }
 });
-test('profile save rechecks deactivation and UID changes under its write lock', () => {
-  for (const change of [row => { row[4] = 'INACTIVE'; }, row => { row[1] = 'different-uid'; }]) {
-    const e = environment(); e.context.KCH_REQUEST_USER_ = e.call('getAuthProfile').user;
-    change(e.sheets.get('ACCESS_USERS').rows[2]);
-    assert.throws(() => e.context.saveMyProfile_({ displayName: 'New Name' }), /ACCESS_DENIED/);
-    assert.equal(e.sheets.get('ACCESS_USERS').rows[0].length, 7);
+test('admin profile save rechecks deactivation and UID under lock',()=>{
+  for(const change of [r=>r[4]='INACTIVE',r=>r[1]='other-uid']){
+    const e=environment({identity:{email:'admin@gmail.com',localId:'admin-uid'}});e.context.KCH_REQUEST_USER_=e.call('getAuthProfile').user;change(e.sheets.get('ACCESS_USERS').rows[1]);
+    assert.throws(()=>e.context.saveMyProfile_({displayName:'Ryan'}),/Akses akun berubah/);
   }
 });
 test('access status edits retain an existing custom display name', () => {
@@ -222,40 +214,30 @@ test('access status edits retain an existing custom display name', () => {
   e.call('saveAccessUser', [{ email: 'sales@gmail.com', salesId: 'S1', status: 'INACTIVE' }]);
   assert.equal(rows[2][7], 'Sales Nickname');
 });
-test('sales cannot access admin operations, others uploads, transactions or reports', () => {
-  const e = environment();
-  for (const method of ['listAccessUsers', 'saveAccessUser', 'saveTodayPlan', 'saveWeeklyMeeting', 'saveKchNewsArticle']) {
-    assert.throws(() => e.call(method, [{}]), /Hanya admin/);
-  }
-  for (const method of ['saveSalesTransaction', 'saveSalesPhotoUpload']) {
-    assert.throws(() => e.call(method, [{ salesId: 'S2', username: 'admin@gmail.com' }]), /data sendiri/);
-  }
-  assert.throws(() => e.call('getMonthlyTeamReport', ['2026-10', 'S2']), /data sendiri/);
-  assert.equal(e.context.KCH_REQUEST_USER_, null);
+test('guest cannot invoke any write, edit snapshot, profile, access or request-status endpoint',()=>{
+  const e=environment(),before=JSON.stringify([...e.sheets.values()].map(s=>s.rows));
+  for(const method of ['saveMyProfile','listAccessUsers','saveAccessUser','saveTodayPlan','archiveTodayPlan','saveWeeklyMeeting','archiveWeeklyMeeting','saveKchNewsArticle','archiveKchNewsArticle','saveScoreAA','saveSalesTransaction','editSalesTransaction','saveSalesPhotoUpload','getSalesTransactionForEdit','getSalesTransactionRequestStatus','logClientActivity'])assert.throws(()=>e.call(method,[{}]),/Tamu hanya boleh melihat/);
+  assert.equal(JSON.stringify([...e.sheets.values()].map(s=>s.rows)),before);assert.equal(e.context.KCH_REQUEST_USER_,null);
 });
-test('sales history, exports and detail cannot expose other sales transactions', () => {
-  const e = environment();
-  const history = e.call('getTransactionsPaginated', [1, 10]);
-  assert.equal(history.success, true); assert.equal(history.data.length, 1); assert.equal(history.data[0].id, 'T1');
-  assert.equal(e.call('getAllTransactionsForExport', []).data.length, 1);
-  assert.equal(e.call('getTransactionDetail', ['T2']).success, false);
+test('guest can read all sales history, export and details without changing sheet data',()=>{
+  const e=environment(),before=JSON.stringify([...e.sheets.values()].map(s=>s.rows));
+  assert.equal(e.call('getTransactionsPaginated',[1,10]).data.length,2);assert.equal(e.call('getAllTransactionsForExport',[]).data.length,2);assert.equal(e.call('getTransactionDetail',['T2']).success,true);
+  assert.equal(JSON.stringify([...e.sheets.values()].map(s=>s.rows)),before);
 });
-test('admin can read all sales history and add or deactivate sales access', () => {
-  const e = environment({ identity: { email: 'admin@gmail.com', localId: 'admin-uid' } });
-  const access = e.call('listAccessUsers');
-  assert.equal(access.sales.length, 2); assert.equal(access.sales[0].sales_id, 'S1');
-  assert.equal(access.sales[0].full_name, 'Sales One');
-  assert.deepEqual(Object.keys(access.sales[0]).sort(), ['full_name', 'sales_id', 'status', 'team_name']);
-  assert.equal(e.call('getTransactionsPaginated', [1, 10]).data.length, 2);
-  assert.equal(e.call('saveAccessUser', [{ email: 'second@gmail.com', salesId: 'S2' }]).success, true);
-  assert.equal(e.call('saveAccessUser', [{ email: 'second@gmail.com', salesId: 'S2', status: 'INACTIVE' }]).success, true);
-  assert.equal(e.call('listAccessUsers').users.find(u => u.email === 'second@gmail.com').status, 'INACTIVE');
+test('admin sees only two configured accounts and can deactivate/reactivate guest, never add a third',()=>{
+  const e=environment({identity:{email:'admin@gmail.com',localId:'admin-uid'}});
+  const users=e.call('listAccessUsers').users;assert.equal(users.length,2);assert.equal(users[1].role,'GUEST');
+  assert.equal(e.call('getTransactionsPaginated',[1,10]).data.length,2);
+  assert.throws(()=>e.call('saveAccessUser',[{email:'third@gmail.com',status:'ACTIVE'}]),/tidak dapat ditambahkan/);
+  assert.equal(e.call('saveAccessUser',[{email:'sales@gmail.com',status:'INACTIVE'}]).success,true);
+  assert.equal(e.call('listAccessUsers').users[1].status,'INACTIVE');
+  assert.equal(e.call('saveAccessUser',[{email:'sales@gmail.com',status:'ACTIVE'}]).success,true);
 });
-test('access form cannot grant admin or remap an existing admin account', () => {
-  const e = environment({ identity: { email: 'admin@gmail.com', localId: 'admin-uid' } });
-  e.call('saveAccessUser', [{ email: 'second@gmail.com', salesId: 'S2', role: 'ADMIN' }]);
-  assert.equal(e.call('listAccessUsers').users.find(u => u.email === 'second@gmail.com').role, 'SALES');
-  assert.throws(() => e.call('saveAccessUser', [{ email: 'admin@gmail.com', salesId: 'S2', status: 'INACTIVE' }]), /bukan akun sales/);
+test('access form cannot promote guest, assign sales ID or deactivate designated admin',()=>{
+  const e=environment({identity:{email:'admin@gmail.com',localId:'admin-uid'}});
+  e.call('saveAccessUser',[{email:'sales@gmail.com',salesId:'S2',role:'ADMIN',status:'ACTIVE'}]);
+  const row=e.sheets.get('ACCESS_USERS').rows[2];assert.equal(row[3],'GUEST');assert.equal(row[2],'');
+  assert.throws(()=>e.call('saveAccessUser',[{email:'admin@gmail.com',status:'INACTIVE'}]),/Hanya status akun Tamu/);
 });
 test('RPC allowlist blocks setup functions, inherited properties and arbitrary helpers', () => {
   const e = environment();
@@ -289,4 +271,24 @@ test('client attaches ID token and suppresses stale responses after logout', asy
   assert.equal(received[0], 'verified-by-server-later'); assert.equal(received[1], 'getAuthProfile');
   c.kchAuthGeneration++;
   successHandler({ success: true }); assert.equal(count, 0);
+});
+
+test('all guest progress read endpoints are read-only, including reports and missing plan sheet',()=>{
+  const e=environment(),before=JSON.stringify([...e.sheets.entries()].map(([name,s])=>[name,s.rows]));
+  e.context.setupMonthlyTeamReportSheet_=()=>{throw Error('Guest must not persist a report');};
+  e.context.setupTodayPlanSheet_=()=>{throw Error('Guest must not create plan sheet');};
+  for(const [method,args]of [['getInitialAppMetadata',[]],['getDashboardMetrics',[{period:'MONTH'}]],['getTodayPlans',['2026-10-25']],['getWeeklyMeetings',[]],['getKchNews',[]],['getAttendanceByDate',['2026-10-25']],['getVisitPhotosByDate',['2026-10-25']],['getMonthlyTeamReport',['2026-10','S2']]]) {
+    const r=e.call(method,args);assert.equal(r.success,true,method+': '+r.message);
+  }
+  assert.equal(JSON.stringify([...e.sheets.entries()].map(([name,s])=>[name,s.rows])),before);
+});
+test('previous SALES and third-party ADMIN sessions are revoked by the next authenticated RPC',()=>{
+  for(const role of ['SALES','ADMIN','GUEST']){
+    const e=environment({identity:{email:'old-sales@gmail.com',localId:'old-uid'},access:[['old-sales@gmail.com','old-uid','S1',role,'ACTIVE']]});
+    assert.throws(()=>e.call('getInitialAppMetadata'),/hanya tersedia/);
+  }
+});
+test('designated real emails are the only production account configuration',()=>{
+  const c={};vm.createContext(c);vm.runInContext(fs.readFileSync(path.join(root,'firebase-config.gs'),'utf8'),c);
+  assert.equal(c.KCH_BOOTSTRAP_ADMIN_EMAIL_,'mhmdryyan7@gmail.com');assert.equal(c.KCH_GUEST_EMAIL_,'juniortlkchlse@gmail.com');
 });

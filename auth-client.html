@@ -21,6 +21,7 @@
 
   function resetKchSessionUi() {
     kchAccessLoadVersion++;
+    document.body.classList.remove('kch-readonly');
     if (appState.txSearchTimer) clearTimeout(appState.txSearchTimer);
     Object.keys(appState.charts || {}).forEach(function(name) {
       try { appState.charts[name].destroy(); } catch (err) {}
@@ -150,18 +151,21 @@
   }
 
   function installKchAccountActions(user) {
+    if (document.body) { if (user.role === 'GUEST') document.body.classList.add('kch-readonly'); else document.body.classList.remove('kch-readonly'); }
     var roleLabel = document.querySelector('.user-role-header');
-    if (roleLabel) roleLabel.textContent = user.role === 'ADMIN' ? 'TEAM LEADER' : 'Sales';
+    if (roleLabel) roleLabel.textContent = user.role === 'ADMIN' ? 'TEAM LEADER' : user.role === 'GUEST' ? 'Tamu' : 'Sales';
     var menu = document.getElementById('userDropdownMenu');
     if (!menu || document.getElementById('kchLogoutAction')) return;
+    if (user.role !== 'GUEST') {
     var profile = document.createElement('button');
     profile.type = 'button'; profile.className = 'dropdown-menu-item';
     profile.textContent = 'Edit profil'; profile.onclick = openKchProfile;
     menu.appendChild(profile);
+    }
     if (user.role === 'ADMIN') {
       var access = document.createElement('button');
       access.type = 'button'; access.className = 'dropdown-menu-item';
-      access.textContent = 'Kelola akses sales'; access.onclick = openKchAccessPanel;
+      access.textContent = 'Kelola akun'; access.onclick = openKchAccessPanel;
       menu.appendChild(access);
     }
     var logout = document.createElement('button');
@@ -215,82 +219,47 @@
 
   function loadKchAccessUsers() {
     var version = ++kchAccessLoadVersion;
-    var select = document.getElementById('kchAccessSales');
-    var selectedId = select.value;
     var save = document.getElementById('kchSaveAccess');
     var message = document.getElementById('kchAccessMessage');
-    function placeholder(text) {
-      select.replaceChildren();
-      var option = document.createElement('option'); option.value = ''; option.textContent = text;
-      select.appendChild(option);
-    }
-    function failed(text) {
-      placeholder('Profil sales belum tersedia');
-      select.disabled = true; save.disabled = true; message.textContent = text;
-    }
-    select.disabled = true; save.disabled = true;
-    placeholder('Memuat profil sales…');
+    save.disabled = true;
     document.getElementById('kchAccessRows').replaceChildren();
-    message.textContent = 'Memuat profil sales dan daftar akses…';
+    message.textContent = 'Sedang memuat data';
     kchRun().withSuccessHandler(function(result) {
       if (version !== kchAccessLoadVersion) return;
-      if (!result || !result.success || !Array.isArray(result.users) || !Array.isArray(result.sales)) {
-        failed('Data akses tidak lengkap. Pastikan auth.gs dan auth-client.html sudah diperbarui bersama.'); return;
+      if (!result || !result.success || !Array.isArray(result.users) || result.users.length !== 2 ||
+          result.users.filter(function(u) { return u.role === 'GUEST'; }).length !== 1) {
+        message.textContent = 'Daftar akun tidak lengkap. Muat ulang sebelum mengubah status.'; return;
       }
-      var salesRows = result.sales.filter(function(sales) { return sales.sales_id; });
-      placeholder(salesRows.length ? '-- Pilih profil sales --' : 'Belum ada profil di sheet SALES');
-      salesRows.forEach(function(sales) {
-        var option = document.createElement('option'); option.value = sales.sales_id;
-        option.textContent = (sales.full_name || sales.sales_id) + ' (' + sales.sales_id + ')' +
-          (String(sales.status).toUpperCase() === 'INACTIVE' ? ' — nonaktif' : '');
-        select.appendChild(option);
-      });
-      if (salesRows.some(function(sales) { return sales.sales_id === selectedId; })) select.value = selectedId;
-      select.disabled = !salesRows.length; save.disabled = !salesRows.length;
-      var body = document.getElementById('kchAccessRows'); body.replaceChildren();
+      var guest = result.users.filter(function(u) { return u.role === 'GUEST'; })[0];
+      document.getElementById('kchAccessEmail').value = guest.email;
+      document.getElementById('kchAccessStatus').value = guest.status;
+      var body = document.getElementById('kchAccessRows');
       result.users.forEach(function(user) {
         var row = document.createElement('tr');
-        [user.email, user.salesId, user.role, user.status].forEach(function(value) {
+        [user.email, user.role === 'GUEST' ? 'Tamu · hanya lihat' : 'Admin · akses penuh', user.status].forEach(function(value) {
           var cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
         });
-        var actions = document.createElement('td');
-        if (String(user.role).toUpperCase() === 'SALES') {
-          var edit = document.createElement('button'); edit.type = 'button';
-          edit.className = 'btn btn-secondary btn-sm'; edit.textContent = 'Ubah';
-          edit.onclick = function() {
-            if (select.disabled) return;
-            document.getElementById('kchAccessEmail').value = user.email;
-            select.value = user.salesId;
-            document.getElementById('kchAccessStatus').value = user.status;
-            message.textContent = select.value ? 'Akun dipilih. Atur status lalu klik Simpan akses.'
-              : 'Profil akun ini tidak ditemukan di sheet SALES. Periksa data profil sebelum menyimpan.';
-          };
-          actions.appendChild(edit);
-        }
-        row.appendChild(actions);
         body.appendChild(row);
       });
-      message.textContent = salesRows.length ? '' : 'Sheet SALES belum berisi profil dengan sales_id. Data akses belum bisa disimpan.';
+      save.disabled = false;
+      message.textContent = 'Hanya status akun Tamu yang dapat diubah. Akun sales lama tidak memiliki akses webapp.';
     }).withFailureHandler(function(err) {
       if (version !== kchAccessLoadVersion) return;
-      failed('Gagal memuat profil sales: ' + err.message + ' Tutup lalu buka menu ini untuk mencoba lagi.');
+      message.textContent = 'Gagal memuat akun: ' + err.message;
     }).listAccessUsers();
   }
 
   function saveKchAccess(event) {
     event.preventDefault();
-    if (document.getElementById('kchAccessSales').disabled || document.getElementById('kchSaveAccess').disabled) return;
-    if (!document.getElementById('kchAccessSales').value) {
-      document.getElementById('kchAccessMessage').textContent = 'Pilih profil sales terlebih dahulu.'; return;
-    }
-    document.getElementById('kchSaveAccess').disabled = true;
-    kchRun().withSuccessHandler(function() {
-      document.getElementById('kchSaveAccess').disabled = false;
-      showToast('Akses sales disimpan.', 'success'); loadKchAccessUsers();
+    var save = document.getElementById('kchSaveAccess');
+    if (save.disabled) return;
+    save.disabled = true;
+    kchRun().withSuccessHandler(function(result) {
+      if (!result || !result.success) { save.disabled = false; document.getElementById('kchAccessMessage').textContent = result && result.message || 'Status gagal disimpan.'; return; }
+      showToast('Status akun Tamu disimpan.', 'success'); loadKchAccessUsers();
     }).withFailureHandler(function(err) {
-      document.getElementById('kchSaveAccess').disabled = false;
+      save.disabled = false;
       document.getElementById('kchAccessMessage').textContent = err.message;
-    }).saveAccessUser({ email: document.getElementById('kchAccessEmail').value,
-      salesId: document.getElementById('kchAccessSales').value, status: document.getElementById('kchAccessStatus').value });
+    }).saveAccessUser({ email: document.getElementById('kchAccessEmail').value, status: document.getElementById('kchAccessStatus').value });
   }
 </script>

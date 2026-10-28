@@ -141,3 +141,11 @@ test('other Promag variants remain ordinary KPI turnover; exclusion is specific 
   const e=fixture();e.rows('PRODUCTS').push(['PRGOTHER','Promag Double Action','ACTIVE']);e.tx('PRGOTHER',700);
   const r=e.report();assert.equal(r.mappingReady,true);assert.equal(r.parameters[1].actual,0);assert.equal(r.parameters[2].actual,700);
 });
+
+test('guest can view Motoris and MMTW scores/AA across sales, with no write access or sheet changes',()=>{
+  const e=fixture();e.aa(10);e.aa(20,'2026-10-01','S2');const before=JSON.stringify(e.rows('SKOR_EVENTS'));
+  e.actor({role:'GUEST',uid:'guest',email:'juniortlkchlse@gmail.com',salesId:''});
+  const setup=e.api('getScoreSetup');assert.equal(setup.canManage,false);assert.equal(setup.sales.length,2);assert.equal(setup.products.length,0);
+  assert.equal(e.report().totalAA,10);assert.equal(e.report('2026-10','S2').totalAA,20);assert.throws(()=>e.aa(99),/Tamu hanya boleh melihat/);
+  assert.equal(JSON.stringify(e.rows('SKOR_EVENTS')),before);
+});

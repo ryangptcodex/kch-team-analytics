@@ -277,6 +277,7 @@
   }
 
   function switchView(viewName) {
+    if (appState.user && appState.user.role === 'GUEST' && viewName === 'input-tx') { showToast('Akun Tamu hanya boleh melihat data.', 'error'); return; }
     appState.currentView = viewName;
 
     document.querySelectorAll('.content-view').forEach(function(el) {
@@ -1801,6 +1802,7 @@
   }
 
   function openPhotoUploadForm(type) {
+    if (appState.user && appState.user.role === 'GUEST') { if (typeof event !== 'undefined' && event && event.preventDefault) event.preventDefault(); showToast('Akun Tamu hanya boleh melihat data.', 'error'); return; }
     var photoType = type === 'visit' ? 'visit' : 'attendance';
     var salesSource = appState.attendanceSales || appState.sales || [];
     var salesRows = salesSource.filter(function(s) {
@@ -2344,6 +2346,7 @@
   }
 
   function restorePendingSalesTransaction() {
+    if (appState.user && appState.user.role === 'GUEST') return;
     var saved;
     try {
       saved = JSON.parse(window.sessionStorage.getItem(txClientStorageKey()) || 'null');
@@ -2445,6 +2448,7 @@
   }
 
   function submitSalesTransaction(event) {
+    if (appState.user && appState.user.role === 'GUEST') { if (typeof event !== 'undefined' && event && event.preventDefault) event.preventDefault(); showToast('Akun Tamu hanya boleh melihat data.', 'error'); return; }
     if (event) event.preventDefault();
     if (appState.isSubmittingTransaction) return;
 
@@ -2544,6 +2548,7 @@
   }
 
   function openSalesTransactionEdit(transactionId) {
+    if (appState.user && appState.user.role === 'GUEST') { if (typeof event !== 'undefined' && event && event.preventDefault) event.preventDefault(); showToast('Akun Tamu hanya boleh melihat data.', 'error'); return; }
     if (appState.isSubmittingTransaction || (appState.pendingTransaction && appState.pendingTransaction.payload)) {
       showToast('Periksa hasil kiriman sebelumnya sebelum membuka edit.', 'info');
       return;
@@ -2720,7 +2725,7 @@
         '<td class="text-right">' + formatRupiah(item.totalCost) + '</td>' +
         '<td class="text-right font-semibold">' + formatRupiah(item.totalSales) + '</td>' +
         '<td class="text-right text-success font-semibold">' + formatRupiah(item.totalShj) + '</td>' +
-        '<td class="text-center"><div style="display:flex;gap:6px;justify-content:center"><button type="button" class="btn btn-outline btn-sm" title="Lihat faktur" onclick="openTransactionDetail(\'' + escapeHtml(jsQuote(item.id || '')) + '\')"><i class="fa-regular fa-eye"></i></button><button type="button" class="btn btn-outline btn-sm" title="Edit faktur" onclick="openSalesTransactionEdit(\'' + escapeHtml(jsQuote(item.id || '')) + '\')"><i class="fa-solid fa-pen"></i> Edit</button></div></td>' +
+        '<td class="text-center"><div style="display:flex;gap:6px;justify-content:center"><button type="button" class="btn btn-outline btn-sm" title="Lihat faktur" onclick="openTransactionDetail(\'' + escapeHtml(jsQuote(item.id || '')) + '\')"><i class="fa-regular fa-eye"></i></button><button type="button" class="btn btn-outline btn-sm" data-kch-write title="Edit faktur" onclick="openSalesTransactionEdit(\'' + escapeHtml(jsQuote(item.id || '')) + '\')"><i class="fa-solid fa-pen"></i> Edit</button></div></td>' +
       '</tr>';
     }).join('');
   }
@@ -3091,6 +3096,7 @@ function renderDriveFiles() {
   }
 
   function logClientActivity(action, targetRef, details) {
+    if (appState.user && appState.user.role === 'GUEST') return;
     try {
       kchRun().logClientActivity(action, targetRef, details, appState.user && appState.user.username ? appState.user.username : 'ryan');
     } catch (e) {}

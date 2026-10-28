@@ -33,64 +33,22 @@ function panel() {
   };
   return { context, nodes, requests };
 }
-function response() {
-  return { success: true, sales: [{ sales_id: 'S1', full_name: 'One', status: 'ACTIVE' }, { sales_id: 'S2', full_name: 'Two', status: 'ACTIVE' }],
-    users: [{ email: 'admin@gmail.com', salesId: '', role: 'ADMIN', status: 'ACTIVE' },
-      { email: 'one@gmail.com', salesId: 'S1', role: 'SALES', status: 'INACTIVE' }] };
-}
-
-test('opening before dashboard metadata arrives loads profiles directly from server', () => {
-  const e = panel(); e.context.openKchAccessPanel();
-  assert.equal(e.nodes.kchAccessPanel.hidden, false);
-  assert.equal(e.nodes.kchAccessSales.disabled, true); assert.equal(e.nodes.kchSaveAccess.disabled, true);
-  assert.match(e.nodes.kchAccessSales.children[0].textContent, /Memuat/);
-  assert.equal(e.requests[0].method, 'listAccessUsers');
-  e.requests[0].success(response());
-  assert.equal(e.context.appState.attendanceSales.length, 0, 'Does not require metadata side effects');
-  assert.deepEqual(e.nodes.kchAccessSales.children.map(c => c.value), ['', 'S1', 'S2']);
-  assert.equal(e.nodes.kchAccessSales.disabled, false); assert.equal(e.nodes.kchSaveAccess.disabled, false);
+function response(){return {success:true,users:[{email:'admin@gmail.com',role:'ADMIN',status:'ACTIVE'},{email:'guest@gmail.com',role:'GUEST',status:'ACTIVE'}]};}
+test('account panel loads fixed admin/guest list without sales metadata',()=>{
+ const e=panel();e.context.openKchAccessPanel();assert.equal(e.nodes.kchSaveAccess.disabled,true);e.requests[0].success(response());assert.equal(e.nodes.kchSaveAccess.disabled,false);assert.equal(e.nodes.kchAccessEmail.value,'guest@gmail.com');assert.equal(e.nodes.kchAccessRows.children.length,2);
 });
-test('existing account edit selects the right profile and can reactivate access', () => {
-  const e = panel(); e.context.openKchAccessPanel(); e.requests[0].success(response());
-  const rows = e.nodes.kchAccessRows.children;
-  assert.equal(rows[0].children[4].children.length, 0, 'No sales edit action on admin account');
-  rows[1].children[4].children[0].onclick();
-  assert.equal(e.nodes.kchAccessEmail.value, 'one@gmail.com'); assert.equal(e.nodes.kchAccessSales.value, 'S1');
-  assert.equal(e.nodes.kchAccessStatus.value, 'INACTIVE');
-  e.nodes.kchAccessStatus.value = 'ACTIVE'; e.context.saveKchAccess({ preventDefault() {} });
-  assert.equal(e.requests[1].method, 'saveAccessUser');
-  assert.equal(e.requests[1].payload.email, 'one@gmail.com'); assert.equal(e.requests[1].payload.salesId, 'S1');
-  assert.equal(e.requests[1].payload.status, 'ACTIVE');
+test('guest status is preselected and saving sends no sales mapping',()=>{
+ const e=panel();e.context.openKchAccessPanel();const r=response();r.users[1].status='INACTIVE';e.requests[0].success(r);assert.equal(e.nodes.kchAccessStatus.value,'INACTIVE');e.nodes.kchAccessStatus.value='ACTIVE';e.context.saveKchAccess({preventDefault(){}});assert.equal(e.requests[1].payload.email,'guest@gmail.com');assert.equal(e.requests[1].payload.status,'ACTIVE');assert.equal('salesId' in e.requests[1].payload,false);assert.equal(e.nodes.kchSaveAccess.disabled,true);
 });
-test('empty profiles display an explanation and cannot submit an invalid mapping', () => {
-  const e = panel(); e.context.openKchAccessPanel();
-  e.requests[0].success({ success: true, sales: [], users: response().users });
-  assert.match(e.nodes.kchAccessMessage.textContent, /Sheet SALES/);
-  assert.equal(e.nodes.kchAccessSales.disabled, true); assert.equal(e.nodes.kchSaveAccess.disabled, true);
-  e.context.saveKchAccess({ preventDefault() {} }); assert.equal(e.requests.length, 1);
+test('loading or failed account panel cannot save stale email',()=>{
+ const e=panel();e.context.openKchAccessPanel();e.context.saveKchAccess({preventDefault(){}});assert.equal(e.requests.length,1);e.requests[0].failure({message:'offline'});assert.equal(e.nodes.kchSaveAccess.disabled,true);assert.match(e.nodes.kchAccessMessage.textContent,/offline/);
 });
-test('load failure removes stale profiles and blocks saving until data reloads', () => {
-  const e = panel(); e.context.openKchAccessPanel(); e.requests[0].success(response());
-  e.context.loadKchAccessUsers(); e.requests[1].failure(new Error('connection lost'));
-  assert.equal(e.nodes.kchAccessSales.children.length, 1); assert.equal(e.nodes.kchAccessSales.value, '');
-  assert.equal(e.nodes.kchAccessSales.disabled, true); assert.equal(e.nodes.kchSaveAccess.disabled, true);
-  assert.match(e.nodes.kchAccessMessage.textContent, /connection lost/);
+test('older account response cannot overwrite newer guest status',()=>{
+ const e=panel();e.context.loadKchAccessUsers();e.context.loadKchAccessUsers();const r=response();r.users[1].status='INACTIVE';e.requests[1].success(r);e.requests[0].success(response());assert.equal(e.nodes.kchAccessStatus.value,'INACTIVE');
 });
-test('out-of-order responses do not overwrite a newer loaded profile list', () => {
-  const e = panel(); e.context.openKchAccessPanel(); e.context.openKchAccessPanel();
-  e.requests[1].success(response());
-  e.requests[0].failure(new Error('old failed request'));
-  assert.equal(e.nodes.kchAccessSales.disabled, false);
-  assert.deepEqual(e.nodes.kchAccessSales.children.map(c => c.value), ['', 'S1', 'S2']);
-  assert.equal(e.nodes.kchAccessMessage.textContent, '');
+test('legacy or incomplete backend cannot enable account save',()=>{
+ for(const r of [{success:true,sales:[]}, {success:true,users:[]}, {success:true,users:[{role:'ADMIN'},{role:'SALES'}]}]){const e=panel();e.context.loadKchAccessUsers();e.requests[0].success(r);assert.equal(e.nodes.kchSaveAccess.disabled,true);assert.match(e.nodes.kchAccessMessage.textContent,/tidak lengkap/);}
 });
-test('an older backend produces an actionable message rather than an empty dropdown', () => {
-  const e = panel(); e.context.openKchAccessPanel();
-  e.requests[0].success({ success: true, users: response().users });
-  assert.match(e.nodes.kchAccessMessage.textContent, /auth.gs/); assert.equal(e.nodes.kchSaveAccess.disabled, true);
-});
-test('loaded profiles require an explicit selection before saving a new account', () => {
-  const e = panel(); e.context.openKchAccessPanel(); e.requests[0].success(response());
-  e.context.saveKchAccess({ preventDefault() {} });
-  assert.equal(e.requests.length, 1); assert.match(e.nodes.kchAccessMessage.textContent, /Pilih profil/);
+test('failed save shows failure and permits correction',()=>{
+ const e=panel();e.context.loadKchAccessUsers();e.requests[0].success(response());e.context.saveKchAccess({preventDefault(){}});e.requests[1].success({success:false,message:'Denied'});assert.equal(e.nodes.kchSaveAccess.disabled,false);assert.equal(e.nodes.kchAccessMessage.textContent,'Denied');
 });

@@ -91,7 +91,7 @@ test('repeated clicks during signout trigger only one Firebase operation', async
   await new Promise(resolve => setImmediate(resolve)); assert.equal(count, 1); done(); await pending;
 });
 
-test('same-page admin logout then sales login rebuilds UI without admin actions', async () => {
+test('same-page admin logout then guest login rebuilds UI without admin actions', async () => {
   const e = browser(); const c = e.context; let authListener;
   const auth = { setPersistence: () => Promise.resolve(), onAuthStateChanged: fn => { authListener = fn; },
     signOut: async () => { authListener(null); } };
@@ -104,14 +104,16 @@ test('same-page admin logout then sales login rebuilds UI without admin actions'
     getAuthProfile() { r.success({ user: profile }); } }; return r; };
   c.initKchAuthentication(); await new Promise(resolve => setImmediate(resolve));
   profile = { role: 'ADMIN', email: 'admin@gmail.com' }; authListener({ uid: 'A' });
-  assert.ok(e.get('userDropdownMenu').children.some(n => n.textContent === 'Kelola akses sales'));
+  assert.ok(e.get('userDropdownMenu').children.some(n => n.textContent === 'Kelola akun'));
   await c.signOutKch();
-  profile = { role: 'SALES', email: 'sales@gmail.com' }; authListener({ uid: 'S' });
+  profile = { role: 'GUEST', email: 'juniortlkchlse@gmail.com' }; authListener({ uid: 'S' });
   assert.equal(e.document.body.classList.contains('kch-locked'), false); assert.equal(e.get('kchAuthScreen').hidden, true);
-  assert.equal(e.get('dashboardData').textContent, 'sales@gmail.com');
-  assert.equal(e.get('userDropdownMenu').children.some(n => n.textContent === 'Kelola akses sales'), false);
+  assert.equal(e.get('dashboardData').textContent, 'juniortlkchlse@gmail.com');
+  assert.equal(e.get('userDropdownMenu').children.some(n => n.textContent === 'Kelola akun'), false);
   assert.equal(e.get('userDropdownMenu').children.filter(n => n.id === 'kchLogoutAction').length, 1);
-  assert.equal(e.document.querySelector('.user-role-header').textContent, 'Sales');
+  assert.equal(e.document.querySelector('.user-role-header').textContent, 'Tamu');
+  assert.equal(e.document.body.classList.contains('kch-readonly'), true);
+  assert.equal(e.get('userDropdownMenu').children.some(n=>n.textContent==='Edit profil'), false);
 });
 
 test('a late RPC response after logout cannot render old data', async () => {

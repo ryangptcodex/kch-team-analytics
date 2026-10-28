@@ -123,6 +123,7 @@ function accessDisplayNameColumn_(sheet, create) {
 
 function saveMyProfile_(payload) {
   var user = getCurrentUserInfo_();
+  if (user.role !== 'ADMIN') throw new Error('ACCESS_DENIED: Akun Tamu hanya boleh melihat data.');
   var name = payload && typeof payload.displayName === 'string' ? payload.displayName.trim() : '';
   if (name.length < 2 || name.length > 80 || /[\u0000-\u001f\u007f]/.test(name) || /^[=+@-]/.test(name)) {
     throw new Error('Nama tampilan tidak valid. Gunakan 2–80 karakter dalam satu baris.');
@@ -137,7 +138,7 @@ function saveMyProfile_(payload) {
       if (String(row[0]).trim().toLowerCase() === user.email) matches.push({ row: row, number: i + 2 });
     });
     if (matches.length !== 1 || matches[0].row[1] !== user.uid || normalizeKey_(matches[0].row[4]) !== 'ACTIVE' ||
-        ['ADMIN', 'SALES'].indexOf(normalizeKey_(matches[0].row[3])) < 0) {
+        normalizeKey_(matches[0].row[3]) !== 'ADMIN') {
       throw new Error('ACCESS_DENIED: Akses akun berubah. Silakan masuk kembali.');
     }
     var entry = matches[0];
@@ -156,7 +157,11 @@ function resolveAccessUser_(identity) {
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    var isBootstrap = identity.email === KCH_BOOTSTRAP_ADMIN_EMAIL_;
+    var email = String(identity.email || '').trim().toLowerCase();
+    var isBootstrap = email === KCH_BOOTSTRAP_ADMIN_EMAIL_;
+    var isGuest = email === KCH_GUEST_EMAIL_;
+    if (!isBootstrap && !isGuest) throw new Error('ACCESS_DENIED: Webapp hanya tersedia untuk akun Admin dan Tamu yang ditentukan.');
+    identity.email = email;
     var sheet = getAccessSheet_(isBootstrap);
     var rows = accessRows_(sheet);
     var matches = [];
@@ -171,28 +176,27 @@ function resolveAccessUser_(identity) {
       sheet.appendRow(row);
       matches.push({ row: row, number: sheet.getLastRow() });
     }
+    if (isGuest) {
+      // Config grants this exact Google identity read access, never a role from a sheet.
+      // Guest authentication does not create/bind/update rows or any business data.
+      if (matches.length) {
+        if (normalizeKey_(matches[0].row[4]) !== 'ACTIVE') throw new Error('ACCESS_DENIED: Akses akun tidak aktif. Hubungi admin.');
+        if (matches[0].row[1] && matches[0].row[1] !== identity.uid) throw new Error('ACCESS_DENIED: Identitas akun berubah. Hubungi admin.');
+      }
+      return { email: email, username: email, uid: identity.uid, role: 'GUEST', salesId: '', teamName: '', fullName: 'Tamu', shortName: 'Tamu' };
+    }
     if (!matches.length) throw new Error('ACCESS_DENIED: Akun belum terdaftar. Hubungi admin.');
     var entry = matches[0];
     var role = normalizeKey_(entry.row[3]);
     if (normalizeKey_(entry.row[4]) !== 'ACTIVE') {
       throw new Error('ACCESS_DENIED: Akses akun tidak aktif. Hubungi admin.');
     }
-    if (['ADMIN', 'SALES'].indexOf(role) < 0) {
+    if (role !== 'ADMIN') {
       throw new Error('ACCESS_DENIED: Role akun tidak valid. Hubungi admin.');
     }
     if (entry.row[1] && entry.row[1] !== identity.uid) throw new Error('ACCESS_DENIED: Identitas akun berubah. Hubungi admin.');
     var salesId = String(entry.row[2] || '').trim();
     var sales = null;
-    if (role === 'SALES') {
-      sales = getSheetData_('SALES').rows.filter(function(s) { return normalizeKey_(s.sales_id) === normalizeKey_(salesId); })[0];
-      if (!salesId || !sales || normalizeKey_(sales.status || 'ACTIVE') !== 'ACTIVE') {
-        throw new Error('ACCESS_DENIED: Profil sales belum terhubung atau tidak aktif.');
-      }
-      if (rows.some(function(row) { return String(row[0]).trim().toLowerCase() !== identity.email &&
-          normalizeKey_(row[4]) === 'ACTIVE' && normalizeKey_(row[2]) === normalizeKey_(salesId); })) {
-        throw new Error('ACCESS_DENIED: Profil sales terhubung ke beberapa akun aktif. Hubungi admin.');
-      }
-    }
     if (!entry.row[1]) {
       sheet.getRange(entry.number, 2).setValue(identity.uid);
       sheet.getRange(entry.number, 7).setValue(new Date());
@@ -210,7 +214,8 @@ function resolveAccessUser_(identity) {
 function filterAuthorizedRows_(sheetName, rows) {
   var user = KCH_REQUEST_USER_;
   if (!user || user.role === 'ADMIN') return rows;
-  if (['USERS', 'ACCESS_USERS', 'SKOR_EVENTS'].indexOf(sheetName) >= 0) return [];
+  if (['USERS', 'ACCESS_USERS', 'SKOR_EVENTS'].indexOf(sheetName) >= 0 || sheetName.indexOf('_KCH_') === 0) return [];
+  if (user.role === 'GUEST') return rows;
   if (['SALES', 'SALES_TRANSACTIONS', 'ATTENDANCE', 'VISIT_PHOTOS', 'TODAY_PLAN'].indexOf(sheetName) >= 0) {
     return rows.filter(function(row) { return normalizeKey_(row.sales_id) === normalizeKey_(user.salesId); });
   }
@@ -220,56 +225,40 @@ function filterAuthorizedRows_(sheetName, rows) {
 
 function assertOwnSales_(salesId) {
   var user = getCurrentUserInfo_();
-  if (user.role !== 'ADMIN' && normalizeKey_(salesId) !== normalizeKey_(user.salesId)) {
+  if (['ADMIN', 'GUEST'].indexOf(user.role) < 0 && normalizeKey_(salesId) !== normalizeKey_(user.salesId)) {
     throw new Error('ACCESS_DENIED: Sales hanya boleh mengelola data sendiri.');
   }
 }
 
 function listAccessUsers_() {
-  var sales = getSheetData_('SALES').rows.filter(function(row) {
-    return String(row.sales_id || '').trim();
-  }).map(function(row) {
-    return { sales_id: String(row.sales_id).trim(), full_name: row.full_name || row.sales_id,
-      team_name: row.team_name || '', status: row.status || 'ACTIVE' };
-  });
-  return { success: true, users: accessRows_(getAccessSheet_(false)).map(function(row) {
-    return { email: row[0], salesId: row[2], role: row[3], status: row[4] };
-  }), sales: sales };
+  if (getCurrentUserInfo_().role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin yang boleh mengelola akun.');
+  var rows = accessRows_(getAccessSheet_(false));
+  var guests = rows.filter(function(r) { return String(r[0]).trim().toLowerCase() === KCH_GUEST_EMAIL_; });
+  if (guests.length > 1) throw new Error('Email terdaftar ganda. Periksa ACCESS_USERS.');
+  return { success: true, users: [
+    { email: KCH_BOOTSTRAP_ADMIN_EMAIL_, salesId: '', role: 'ADMIN', status: 'ACTIVE' },
+    { email: KCH_GUEST_EMAIL_, salesId: '', role: 'GUEST', status: guests.length ? normalizeKey_(guests[0][4]) : 'ACTIVE' }
+  ] };
 }
 
 function saveAccessUser_(payload) {
+  var user = getCurrentUserInfo_();
+  if (user.role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin yang boleh mengelola akun.');
   payload = payload || {};
-  var email = String(payload.email || '').trim().toLowerCase();
-  var salesId = String(payload.salesId || '').trim();
-  var status = normalizeKey_(payload.status || 'ACTIVE');
-  if (!/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@gmail\.com$/.test(email) || email.length > 254) throw new Error('Gunakan alamat Gmail sales yang valid.');
-  if (email === KCH_BOOTSTRAP_ADMIN_EMAIL_) throw new Error('Akun admin utama tidak dapat diubah dari formulir sales.');
+  if (String(payload.email || '').trim().toLowerCase() !== KCH_GUEST_EMAIL_) throw new Error('Hanya status akun Tamu yang ditentukan dapat diubah. Akun lain tidak dapat ditambahkan.');
+  var status = normalizeKey_(payload.status);
   if (['ACTIVE', 'INACTIVE'].indexOf(status) < 0) throw new Error('Status tidak valid.');
-  var sales = getSheetData_('SALES').rows.filter(function(s) { return normalizeKey_(s.sales_id) === normalizeKey_(salesId); })[0];
-  if (!sales || (status === 'ACTIVE' && normalizeKey_(sales.status || 'ACTIVE') !== 'ACTIVE')) throw new Error('Pilih profil sales yang valid dan aktif.');
-  var lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  var lock = LockService.getScriptLock(); lock.waitLock(10000);
   try {
-    var sheet = getAccessSheet_(true);
-    var rows = accessRows_(sheet);
-    var index = -1;
-    rows.forEach(function(row, i) {
-      if (String(row[0]).toLowerCase() === email) {
-        if (index !== -1) throw new Error('Email terdaftar ganda. Periksa ACCESS_USERS.');
-        index = i;
-      } else if (status === 'ACTIVE' && normalizeKey_(row[4]) === 'ACTIVE' && normalizeKey_(row[2]) === normalizeKey_(salesId)) {
-        throw new Error('Profil sales sudah terhubung ke akun aktif lain.');
-      }
-    });
-    if (index >= 0 && normalizeKey_(rows[index][3]) !== 'SALES') throw new Error('Akun ini bukan akun sales.');
-    var now = new Date();
-    var row = [email, index < 0 ? '' : rows[index][1], sales.sales_id, 'SALES', status,
-      index < 0 ? now : sheet.getRange(index + 2, 6).getValue(), now];
-    if (index < 0) sheet.appendRow(row);
-    else sheet.getRange(index + 2, 1, 1, row.length).setValues([row]);
+    var sheet = getAccessSheet_(true), rows = accessRows_(sheet), matches = [];
+    rows.forEach(function(r, i) { if (String(r[0]).trim().toLowerCase() === KCH_GUEST_EMAIL_) matches.push(i); });
+    if (matches.length > 1) throw new Error('Email terdaftar ganda. Periksa ACCESS_USERS.');
+    var index = matches.length ? matches[0] : -1, now = new Date();
+    var row = [KCH_GUEST_EMAIL_, index < 0 ? '' : rows[index][1], '', 'GUEST', status, index < 0 ? now : sheet.getRange(index + 2, 6).getValue(), now];
+    if (index < 0) sheet.appendRow(row); else sheet.getRange(index + 2, 1, 1, row.length).setValues([row]);
     SpreadsheetApp.flush();
-    logActivity_(getCurrentUserInfo_().email, 'UPDATE_ACCESS_USER', email, JSON.stringify({ salesId: sales.sales_id, status: status }));
-    return { success: true, message: 'Akses sales berhasil disimpan.' };
+    logActivity_(user.email, 'UPDATE_GUEST_ACCESS', KCH_GUEST_EMAIL_, JSON.stringify({ status: status }));
+    return { success: true, message: 'Status akun Tamu berhasil disimpan.' };
   } finally { lock.releaseLock(); }
 }
 
@@ -299,7 +288,12 @@ function kchApi(token, method, args) {
   try {
     KCH_REQUEST_USER_ = resolveAccessUser_(verifyFirebaseIdentity_(token));
     var user = getCurrentUserInfo_();
-    var adminOnly = ['saveScoreAA', 'listAccessUsers', 'saveAccessUser', 'saveTodayPlan', 'archiveTodayPlan',
+    var guestReads = ['getAuthProfile', 'getInitialAppMetadata', 'getDashboardMetrics',
+      'getAttendanceByDate', 'getVisitPhotosByDate', 'getTodayPlans', 'getWeeklyMeetings', 'getKchNews',
+      'getTransactionsPaginated', 'getTransactionDetail', 'getAllTransactionsForExport', 'getMonthlyTeamReport',
+      'getScoreSetup', 'getScoreReport'];
+    if (user.role === 'GUEST' && guestReads.indexOf(method) < 0) throw new Error('ACCESS_DENIED: Akun Tamu hanya boleh melihat data.');
+    var adminOnly = ['saveMyProfile', 'saveScoreAA', 'listAccessUsers', 'saveAccessUser', 'saveTodayPlan', 'archiveTodayPlan',
       'saveWeeklyMeeting', 'archiveWeeklyMeeting', 'saveKchNewsArticle', 'archiveKchNewsArticle'];
     if (adminOnly.indexOf(method) >= 0 && user.role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin yang boleh melakukan operasi ini.');
     if (['saveSalesTransaction', 'saveSalesPhotoUpload'].indexOf(method) >= 0) {

@@ -1115,7 +1115,7 @@ function getTodayPlans_(dateStr) {
     var targetDate = normalizeDateString_(dateStr);
     if (!targetDate) targetDate = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
     var planSheet = getKchSpreadsheet_().getSheetByName('TODAY_PLAN');
-    if (!planSheet) setupTodayPlanSheet_();
+    if (!planSheet && getCurrentUserInfo_().role !== 'GUEST') setupTodayPlanSheet_();
 
     var rows = getSheetData_('TODAY_PLAN').rows;
     var plans = rows.filter(function(row) {
@@ -1957,34 +1957,36 @@ function getMonthlyTeamReport_(reportMonth, salesId) {
       ];
     });
 
-    var lock = LockService.getScriptLock();
-    lock.waitLock(30000);
-    try {
-      var reportSheet = setupMonthlyTeamReportSheet_();
-      var existing = getSheetData_('MONTHLY_TEAM_REPORT').rows;
-      var retainedRows = existing.filter(function(row) {
-        return !(String(row.report_month || '').trim() === reportMonth && normalizeKey_(row.sales_id) === normalizeKey_(salesId));
-      }).map(function(row) {
-        return MONTHLY_TEAM_REPORT_HEADERS.map(function(header) {
-          if (['total_sales', 'total_shj', 'total_hk', 'product_rank', 'quantity_sold', 'product_sales', 'product_shj'].indexOf(header) > -1) {
-            return parseCleanNumber_(row[header]);
-          }
-          return row[header] === undefined ? '' : row[header];
+    if (getCurrentUserInfo_().role !== 'GUEST') {
+      var lock = LockService.getScriptLock();
+      lock.waitLock(30000);
+      try {
+        var reportSheet = setupMonthlyTeamReportSheet_();
+        var existing = getSheetData_('MONTHLY_TEAM_REPORT').rows;
+        var retainedRows = existing.filter(function(row) {
+          return !(String(row.report_month || '').trim() === reportMonth && normalizeKey_(row.sales_id) === normalizeKey_(salesId));
+        }).map(function(row) {
+          return MONTHLY_TEAM_REPORT_HEADERS.map(function(header) {
+            if (['total_sales', 'total_shj', 'total_hk', 'product_rank', 'quantity_sold', 'product_sales', 'product_shj'].indexOf(header) > -1) {
+              return parseCleanNumber_(row[header]);
+            }
+            return row[header] === undefined ? '' : row[header];
+          });
         });
-      });
-      var output = retainedRows.concat(sheetRows);
-      var oldDataRows = Math.max(0, reportSheet.getLastRow() - 1);
-      if (oldDataRows > 0) reportSheet.getRange(2, 1, oldDataRows, MONTHLY_TEAM_REPORT_HEADERS.length).clearContent();
-      if (output.length) reportSheet.getRange(2, 1, output.length, MONTHLY_TEAM_REPORT_HEADERS.length).setValues(output);
-      if (output.length) {
-        reportSheet.getRange(2, 6, output.length, 2).setNumberFormat('"Rp" #,##0');
-        reportSheet.getRange(2, 13, output.length, 2).setNumberFormat('"Rp" #,##0');
-        reportSheet.getRange(2, 8, output.length, 2).setNumberFormat('#,##0');
-        reportSheet.getRange(2, 12, output.length, 1).setNumberFormat('#,##0');
+        var output = retainedRows.concat(sheetRows);
+        var oldDataRows = Math.max(0, reportSheet.getLastRow() - 1);
+        if (oldDataRows > 0) reportSheet.getRange(2, 1, oldDataRows, MONTHLY_TEAM_REPORT_HEADERS.length).clearContent();
+        if (output.length) reportSheet.getRange(2, 1, output.length, MONTHLY_TEAM_REPORT_HEADERS.length).setValues(output);
+        if (output.length) {
+          reportSheet.getRange(2, 6, output.length, 2).setNumberFormat('"Rp" #,##0');
+          reportSheet.getRange(2, 13, output.length, 2).setNumberFormat('"Rp" #,##0');
+          reportSheet.getRange(2, 8, output.length, 2).setNumberFormat('#,##0');
+          reportSheet.getRange(2, 12, output.length, 1).setNumberFormat('#,##0');
+        }
+        SpreadsheetApp.flush();
+      } finally {
+        lock.releaseLock();
       }
-      SpreadsheetApp.flush();
-    } finally {
-      lock.releaseLock();
     }
 
     return {
