@@ -120,6 +120,7 @@ function onOpen() {
   try {
     var ui = SpreadsheetApp.getUi();
     ui.createMenu('⚡ KCH Lhokseumawe')
+      .addItem('🔄 Siapkan Tab Pembaruan Sheet (Aman)', 'installKchSheetUpdates_')
       .addItem('📅 Siapkan Sheet HOLIDAYS (Libur Nasional/Aceh)', 'setupHolidaysSheet_')
       .addItem('📑 Satukan Transaksi & Item (All-in-One)', 'setupSalesTransactionsUnifiedSheet_')
       .addItem('📊 Siapkan Sheet MONTHLY_TEAM_REPORT', 'setupMonthlyTeamReportSheet_')

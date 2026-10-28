@@ -214,7 +214,7 @@ function resolveAccessUser_(identity) {
 function filterAuthorizedRows_(sheetName, rows) {
   var user = KCH_REQUEST_USER_;
   if (!user || user.role === 'ADMIN') return rows;
-  if (['USERS', 'ACCESS_USERS', 'SKOR_EVENTS'].indexOf(sheetName) >= 0 || sheetName.indexOf('_KCH_') === 0) return [];
+  if (['USERS', 'ACCESS_USERS', 'SKOR_EVENTS', 'PEMBARUAN_SHEET'].indexOf(sheetName) >= 0 || sheetName.indexOf('_KCH_') === 0) return [];
   if (user.role === 'GUEST') return rows;
   if (['SALES', 'SALES_TRANSACTIONS', 'ATTENDANCE', 'VISIT_PHOTOS', 'TODAY_PLAN'].indexOf(sheetName) >= 0) {
     return rows.filter(function(row) { return normalizeKey_(row.sales_id) === normalizeKey_(user.salesId); });
