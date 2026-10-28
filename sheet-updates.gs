@@ -7,6 +7,11 @@ function kchSheetUpdateAdmin_(ss, email) {
   if (!ss || ss.getId() !== KCH_TEST_SPREADSHEET_ID_) throw new Error('ACCESS_DENIED: Gunakan spreadsheet UJI COBA yang dikonfigurasi.');
 }
 
+// Visible editor entry point; the installer retains native admin/spreadsheet checks.
+function setupKchSheetUpdates() {
+  return installKchSheetUpdates_();
+}
+
 // Run once from the Sheet menu (or Apps Script editor), as the admin.
 function installKchSheetUpdates_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();

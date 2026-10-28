@@ -50,7 +50,7 @@ test('actual editor and target spreadsheet are checked before an owner-executed 
  e.c.kchSheetUpdateClick_({range,value:'FALSE',source:e.ss});assert.equal(e.events.length,0);
 });
 test('maintenance stays outside web RPC and guests cannot read control/backup contents',()=>{
- const e=fixture();e.actor({role:'GUEST'});assert.throws(()=>e.c.kchApi('MOCK','kchRunSheetUpdates_',[e.ss]),/tidak dikenal|tidak tersedia|tidak diizinkan|Unknown/i);
+ const e=fixture();e.actor({role:'GUEST'});assert.throws(()=>e.c.kchApi('MOCK','setupKchSheetUpdates',[]),/tidak dikenal|tidak tersedia|tidak diizinkan|Unknown/i);
  e.c.KCH_REQUEST_USER_={role:'GUEST'};assert.equal(e.c.filterAuthorizedRows_('PEMBARUAN_SHEET',[{secret:'backup'}]).length,0);
 });
 test('installing twice creates one action tab and one matching trigger without erasing status or other triggers',()=>{
@@ -62,5 +62,5 @@ test('installing twice creates one action tab and one matching trigger without e
  e.c.SpreadsheetApp.getActiveSpreadsheet=()=>ss;
  e.c.ScriptApp.getProjectTriggers=()=>triggers;
  e.c.ScriptApp.newTrigger=handler=>({forSpreadsheet:()=>({onEdit:()=>({create(){triggers.push({getHandlerFunction:()=>handler,getTriggerSourceId:()=>ss.getId()});}})})});
- e.c.installKchSheetUpdates_();cells.B8='Berhasil';e.c.installKchSheetUpdates_();assert.equal(triggers.length,1);assert.equal(calls.filter(c=>c==='insert').length,1);assert.equal(cells.B8,'Berhasil');assert.equal(calls.at(-1),25);
+ e.c.setupKchSheetUpdates();cells.B8='Berhasil';e.c.installKchSheetUpdates_();assert.equal(triggers.length,1);assert.equal(calls.filter(c=>c==='insert').length,1);assert.equal(cells.B8,'Berhasil');assert.equal(calls.at(-1),25);
 });

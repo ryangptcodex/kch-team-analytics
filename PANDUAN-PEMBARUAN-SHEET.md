@@ -9,7 +9,7 @@ Di proyek Apps Script **UJI COBA** yang terikat ke spreadsheet, sebagai Gmail ad
 1. Buat file **Script** baru bernama `sheet-updates`, lalu salin seluruh [sheet-updates.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/sheet-updates.gs) lewat Raw / Copy raw file. Jangan membuatnya sebagai HTML.
 2. Ganti seluruh isi Script `setup` dengan [setup.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/setup.gs).
 3. Ganti seluruh isi Script `auth` dengan [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth.gs). Tambahan ini melindungi tab kontrol/tautan cadangan dari pembacaan akun Tamu melalui webapp.
-4. Simpan, muat ulang spreadsheet. Pilih menu **⚡ KCH Lhokseumawe → 🔄 Siapkan Tab Pembaruan Sheet (Aman)**. Berikan izin Google yang diminta untuk menjalankan skrip dan memasang trigger edit. Alternatif: jalankan `installKchSheetUpdates_` sekali dari editor Apps Script.
+4. Simpan, muat ulang spreadsheet. Pilih menu **⚡ KCH Lhokseumawe → 🔄 Siapkan Tab Pembaruan Sheet (Aman)**. Berikan izin Google yang diminta untuk menjalankan skrip dan memasang trigger edit. Alternatif: jalankan `setupKchSheetUpdates` sekali dari editor Apps Script.
 5. Tab baru terbuka. Klik checkbox **A3** untuk memperbarui seluruh struktur. Lihat Status, Terakhir diperiksa, Cadangan, dan Rincian.
 
 Pemasang dapat dijalankan lagi: tidak menggandakan tab atau trigger dan mempertahankan status sebelumnya. Tab bernama sama yang bukan tab kontrol tidak ditimpa. Tidak perlu membuat Drawing, memasang trigger manual, atau menjalankan menu repair lama.
@@ -38,3 +38,5 @@ Jika status gagal, baca Rincian. Bila cadangan sudah tersedia, URL ditampilkan. 
 **217 tes Node lulus** (209 regresi + 8 tes pembaruan): penyisipan kolom tengah dengan formula/data tambahan tetap, klik ulang tanpa duplikasi, seluruh registry skema, header ambigu berhenti sebelum mutasi, backup sebelum batch, kegagalan backup/transaksi/batch, pembatasan editor/target, proteksi Tamu, serta pemasangan ulang tab/trigger.
 
 Pengujian menggunakan layanan Google tiruan. Agen belum memasang tab, membuat cadangan nyata, atau memverifikasi trigger/izin di Google pengguna. Setelah menyalin kode, uji satu klik di UJI COBA, pastikan Status Berhasil dan salinan cadangan tersedia di Drive; klik lagi untuk memastikan tidak ada sheet/kolom ganda.
+
+Jika editor menampilkan **Tidak ada fungsi** pada file lama, ganti isi sheet-updates.gs dengan versi terbaru, Simpan dan reload editor. Fungsi pemasangan publik **setupKchSheetUpdates** tersedia di dropdown Jalankan; fungsi internal berakhiran underscore dipertahankan untuk kompatibilitas.
