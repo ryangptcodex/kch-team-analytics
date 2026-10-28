@@ -6,7 +6,12 @@ const e=system();vm.runInContext(fs.readFileSync(root+'/score.gs','utf8'),e.cont
 for(const [id,[name]] of Object.entries(e.context.KCH_SCORE_PRODUCT_RULES_))e.rows('PRODUCTS').push([id,name,'ACTIVE']);
 e.actor({role:'ADMIN'});
 e.rows('SALES')[2][2]='MPR';
-function api(method,args){return e.context.kchApi('MOCK',method,args)}
+function api(method,args){
+ const result=e.context.kchApi('MOCK',method,args);
+ // Exercise explicit null and omitted empty fields across the browser response boundary.
+ for(const key of ['dailyAA','dailyBranding'])if(Array.isArray(result[key]))result[key].forEach((row,i)=>{if(row.count===null&&i%2===0)delete row.count;});
+ return result;
+}
 function tx(product,amount){const row={transaction_id:'INV-1',transaction_date:'2026-10-01',sales_id:'S1',product_id:product,quantity:1,selling_price:amount,subtotal_sales:amount};e.rows('SALES_TRANSACTIONS').push([...e.context.TABLE_SCHEMAS.SALES_TRANSACTIONS].map(h=>row[h]??''));}
 tx('LBMAV',3000000);tx('LKXOD',2000000);tx('LPRGQ',500000);tx('LPRGN',10000000);tx('P1',6000000);
 let html=fs.readFileSync(root+'/index.html','utf8').replace(/<\?!= include_\('([^']+)'\); \?>/g,(_,name)=>fs.readFileSync(root+'/'+name+'.html','utf8'));

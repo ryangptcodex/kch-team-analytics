@@ -73,3 +73,20 @@ test('branding validation rejects blank, negative and fractional counts before s
  const e=brandingClient();e.c.scoreState().report=e.report;e.node('scoreBrandingDate').value='2026-10-01';for(const v of ['','-1','1.5']){e.node('scoreBrandingCount').value=v;e.c.saveScoreBranding();assert.equal(e.requests.length,0);}
  e.node('scoreBrandingCount').value='0';e.c.saveScoreBranding();assert.equal(e.requests[0].args[0].count,0);
 });
+
+test('omitted or empty nullable daily AA counts render as unentered while saved 400 and explicit zero remain intact',()=>{
+ const e=client();e.report.totalAA=400;e.report.enteredDays=2;e.report.dailyAA=[{date:'2026-10-01',isWorkDay:true},{date:'2026-10-02',count:400,revision:'SAVED-400'},{date:'2026-10-03',count:0,revision:'SAVED-ZERO'},{date:'2026-10-04',count:''}];
+ e.c.loadScoreReport();assert.doesNotThrow(()=>e.requests[0].success(e.report));assert.doesNotMatch(e.node('scoreDailyRows').innerHTML,/Sedang memuat data/);assert.match(e.node('scoreDailyRows').innerHTML,/400/);assert.match(e.node('scoreDailyRows').innerHTML,/<td>0<\/td>/);assert.match(e.node('scoreDailyRows').innerHTML,/—/);assert.match(e.node('scoreAASummary').textContent,/AA: 400/);assert.equal(e.c.scoreState().report.dailyAA[0].count,null);
+});
+test('missing daily AA response cannot leave a permanent loading row or enable writes',()=>{
+ const e=client();delete e.report.dailyAA;e.c.loadScoreReport();assert.doesNotThrow(()=>e.requests[0].success(e.report));assert.doesNotMatch(e.node('scoreDailyRows').innerHTML,/Sedang memuat data/);assert.match(e.node('scoreMessage').textContent,/belum lengkap/);assert.equal(e.node('scoreAASave').disabled,true);assert.equal(e.c.scoreState().report,null);
+});
+test('missing count for a committed day is an explicit failure, never an invented zero or editable blank',()=>{
+ const e=client();e.report.dailyAA=[{date:'2026-10-01',revision:'COMMITTED'}];e.c.loadScoreReport();e.requests[0].success(e.report);assert.match(e.node('scoreMessage').textContent,/sudah tersimpan/);assert.equal(e.node('scoreAASave').disabled,true);assert.equal(e.c.scoreState().report,null);assert.doesNotMatch(e.node('scoreDailyRows').innerHTML,/Sedang memuat data/);
+});
+test('transport failure clears daily loading and keeps retry available through Muat ulang',()=>{
+ const e=client();e.c.loadScoreReport();e.requests[0].failure({message:'offline'});assert.doesNotMatch(e.node('scoreDailyRows').innerHTML,/Sedang memuat data/);assert.equal(e.node('scoreAASave').disabled,true);assert.equal(e.node('scoreCategory').textContent,'Gagal memuat');
+});
+test('branding accepts omitted empty counts through the same daily response boundary',()=>{
+ const e=brandingClient();e.report.dailyBranding=[{date:'2026-10-01'},{date:'2026-10-02',count:150,revision:'SAVED'}];e.c.loadScoreReport();e.requests[0].success(e.report);assert.match(e.node('scoreBrandingDailyRows').innerHTML,/150/);assert.match(e.node('scoreBrandingDailyRows').innerHTML,/—/);assert.equal(e.node('scoreBrandingCard').hidden,false);
+});

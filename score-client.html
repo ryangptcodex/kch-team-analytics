@@ -50,6 +50,29 @@
     scoreText('scoreMappingIssues', setup.mappingIssues.join('; ') || 'Kode dan nama master cocok dengan pemetaan yang disepakati.');
   }
 
+  // Handle omitted empty daily fields at the response boundary. Missing is not zero.
+  function scoreNormalizeDaily(rows, label) {
+    if (!Array.isArray(rows) || !rows.length) throw new Error('Rincian harian ' + label + ' belum lengkap. Muat ulang atau pastikan file Skor terbaru sudah terpasang.');
+    return rows.map(function(row) {
+      if (!row || typeof row.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(row.date)) throw new Error('Tanggal rincian ' + label + ' tidak valid.');
+      var count = row.count;
+      if (count === undefined || count === null || count === '') {
+        if (row.revision) throw new Error('Angka ' + label + ' yang sudah tersimpan belum dapat dibaca. Muat ulang data.');
+        count = null;
+      } else if (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 0) {
+        throw new Error('Angka rincian ' + label + ' tidak valid.');
+      }
+      return Object.assign({}, row, { count: count, revision: row.revision || '' });
+    });
+  }
+  function scoreReportFailure(message) {
+    scoreState().report = null;
+    scoreMessage(message || 'Gagal memuat rincian Skor. Tekan Muat ulang.');
+    ['scoreRows', 'scoreDailyRows', 'scoreBrandingDailyRows'].forEach(function(id) {
+      setHtml(id, '<tr><td colspan="7" class="text-muted">Data belum berhasil ditampilkan. Tekan Muat ulang.</td></tr>');
+    });
+    ['scoreAASave', 'scoreBrandingSave'].forEach(function(id) { var button = document.getElementById(id); if (button) button.disabled = true; });
+  }
   function loadScoreReport() {
     var state = scoreState(); if (!state.setup || state.pending) return;
     var month = document.getElementById('scoreMonth').value, salesId = document.getElementById('scoreSales').value;
@@ -63,7 +86,10 @@
     scoreMessage('Sedang memuat data');
     kchRun().withSuccessHandler(function(res) {
       if (seq !== scoreState().seq) return;
-      if (!res || !res.success) { scoreText('scoreTotal', '—'); scoreText('scoreCategory', 'Gagal memuat'); scoreMessage(res && res.message || 'Skor gagal dimuat.'); return; }
+      if (!res || !res.success) { scoreText('scoreTotal', '—'); scoreText('scoreCategory', 'Gagal memuat'); scoreReportFailure(res && res.message || 'Skor gagal dimuat.'); return; }
+      try {
+      res.dailyAA = scoreNormalizeDaily(res.dailyAA, 'AA');
+      if (res.brandingEnabled) res.dailyBranding = scoreNormalizeDaily(res.dailyBranding, 'branding');
       state.report = res; scoreMessage(res.message);
       scoreText('scoreTotal', res.total === null ? '—' : res.total.toLocaleString('id-ID', { maximumFractionDigits: 0 }) + ' / 100');
       scoreText('scoreCategory', res.category ? res.category + ' · ' + res.nextMonth : 'Pemetaan master perlu diperiksa');
@@ -81,9 +107,13 @@
       if (!input.value || input.value.slice(0, 7) !== month || input.value > input.max) input.value = today.slice(0, 7) === month ? today : res.dailyAA[0].date;
       selectScoreAADate();
       renderScoreBranding(res);
+      } catch (err) {
+        scoreText('scoreTotal', '—'); scoreText('scoreCategory', 'Gagal menampilkan data');
+        scoreReportFailure(/^(Rincian|Tanggal|Angka)/.test(err.message || '') ? err.message : 'Gagal menampilkan rincian Skor. Tekan Muat ulang dan pastikan file HTML Skor terbaru sudah terpasang.');
+      }
     }).withFailureHandler(function(err) {
       if (seq !== scoreState().seq) return;
-      scoreText('scoreTotal', '—'); scoreText('scoreCategory', 'Gagal memuat'); scoreMessage(err.message || 'Gagal memuat Skor.');
+      scoreText('scoreTotal', '—'); scoreText('scoreCategory', 'Gagal memuat'); scoreReportFailure(err.message || 'Gagal memuat Skor.');
     }).getScoreReport(month, salesId);
   }
   function selectScoreAADate() {
