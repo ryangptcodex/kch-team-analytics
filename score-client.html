@@ -60,11 +60,12 @@
     if (note.count) return note.label + ': Masih kurang ' + Number(note.remaining).toLocaleString('id-ID') + ' outlet lagi untuk skor maksimal.';
     var text = note.label + ': Masih kurang ' + formatRupiah(note.remaining) + '.';
     if (note.alternatives && note.alternatives.length) {
-      text += '\n\n' + note.alternatives.map(function(q) {
+      text += '\n' + note.alternatives.map(function(q) {
         var unit = q.unit.charAt(0).toUpperCase() + q.unit.slice(1);
         return q.quantity.toLocaleString('id-ID') + ' ' + unit + ' ' + (q.displayName || q.productName) + ' (acuan ' + formatRupiah(q.unitPrice) + '/' + q.unit + ')';
       }).join(', atau\n') + ' untuk skor maksimal.';
     }
+    if (note.label === 'Fokus B' && note.alternatives && note.alternatives.length) text += '\nKomix Herbal Family dan Promag Herbal bisa dikombinasikan.';
     if (note.warnings && note.warnings.length) text += '\n' + note.warnings.join(' ');
     return text;
   }

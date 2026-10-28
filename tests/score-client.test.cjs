@@ -122,6 +122,6 @@ test('recap loads independently alongside detail, so failed recap does not preve
 test('chasing notes put deficits and three master-price alternatives on separate lines',()=>{
  const e=client(),r=summaryResponse();r.rows[0].guidance=[{label:'Fokus B',remaining:4934800,count:false,alternatives:[{quantity:380,unit:'box',displayName:'Komix Herbal Sachet',unitPrice:13000},{quantity:494,unit:'box',displayName:'Komix Tube',unitPrice:10000},{quantity:294,unit:'box',productName:'Promag Herbal',unitPrice:16800}],warnings:[]},{label:'AA',remaining:400,count:true}];
  e.loadSummary('2026-10');e.requests[0].success(r);const html=e.node('scoreSummaryRows').innerHTML;
- assert.match(html,/Fokus B: Masih kurang Rp 4\.934\.800\.<br><br>380 Box Komix Herbal Sachet/);
- assert.match(html,/, atau<br>494 Box Komix Tube/);assert.match(html,/, atau<br>294 Box Promag Herbal/);assert.match(html,/AA: Masih kurang 400 outlet lagi untuk skor maksimal/);
+ assert.match(html,/Fokus B: Masih kurang Rp 4\.934\.800\.<br>380 Box Komix Herbal Sachet/);
+ assert.match(html,/, atau<br>494 Box Komix Tube/);assert.match(html,/, atau<br>294 Box Promag Herbal/);assert.match(html,/untuk skor maksimal\.<br>Komix Herbal Family dan Promag Herbal bisa dikombinasikan\./);assert.doesNotMatch(html,/<br><br>/);assert.match(html,/AA: Masih kurang 400 outlet lagi untuk skor maksimal/);
 });

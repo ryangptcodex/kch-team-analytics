@@ -323,3 +323,8 @@ Pengguna berhenti sementara untuk tidur dan ingin melanjutkan nanti.
 - Definisi terbaru Fokus B menggantikan daftar lama: hanya empat sachet Original/Jahe/Jeruk Nipis/Peppermint dan dua Tube Original/Lemon + Promag Herbal. LKXKA Kids dikeluarkan dari Fokus B tetapi tetap Total Value. Aktual dihitung ulang dari transaksi ketika dibaca; tidak mengubah transaksi historis. Target/bobot/rumus/izin/input lain tetap.
 - Acuan sachet dan tube terpisah, Original prioritas dengan fallback jenis sama; jika harga/satuan varian berbeda nama acuan eksplisit. CEIL sisa/harga: contoh4934800 harga10000 menghasilkan494, bukan120. Baris catatan di-escape sebelum newline menjadi br.
 - Paket aplikasi cukup **score.gs (Script), score-client.html, index.html (HTML)**. Simpan/refresh dev atau update versi exec sama. Tidak perlu auth baru/repair/input ulang. 209 tes Node lulus; browser1440/390/320 dan guest read-only/transisiakun lulus. Belum membaca master atau deploy Google nyata.
+
+### Catatan rekap lebih rapat — 28 Oktober 2026
+
+- Permintaan pengguna: hilangkan baris kosong antara sisa target dan kebutuhan produk; tambahkan “Komix Herbal Family dan Promag Herbal bisa dikombinasikan.” setelah alternatif Fokus B.
+- Hanya score-client.html untuk aplikasi: newline ganda menjadi tunggal, keterangan kombinasi pada baris berikutnya tanpa baris kosong. Harga, pengelompokan, rumus dan fitur lain tetap. Pasang cukup HTML score-client lengkap, Simpan/refresh dev atau update versi exec yang sama.
