@@ -41,7 +41,7 @@ Kode dan nama berikut dikonfirmasi pengguna dari sheet `PRODUCTS`. Klasifikasi m
 | LKXNA | Komix Herbal Sachet Jeruk Nipis | Fokus B |
 | LKXOB | Komix Herbal Tube Original | Fokus B |
 | LKXLA | Komix Herbal Tube Lemon | Fokus B |
-| LKXKA | Komix Herbal Kids | Fokus B |
+| LKXKA | Komix Herbal Kids | Total Value saja, bukan Fokus B (revisi 28 Oktober 2026) |
 | LPRGQ | Promag Herbal | Fokus B |
 | LPRGN | Promag Tablet | Dikecualikan dari omzet KPI |
 

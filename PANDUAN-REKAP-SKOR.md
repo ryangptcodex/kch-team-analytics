@@ -16,13 +16,19 @@ Misalnya sisa target Fokus A Rp3.000.000 dan harga master Bejo Rp100.000 per Box
 
 Estimasi = **sisa rupiah target ÷ harga jual aktif PRICE_MASTER sesuai tim**, dibulatkan ke atas. Aktual penjualan tetap berasal dari nilai transaksi historis; harga master terkini hanya menjadi acuan jumlah produk yang perlu dijual berikutnya.
 
-Untuk Fokus B, catatan menunjukkan satu varian Komix Herbal sebagai acuan **ATAU** Promag Herbal. Keduanya merupakan alternatif untuk menutup **satu sisa target gabungan**, bukan dua kewajiban terpisah. Komix Original LKXOD diprioritaskan bila harga/satuannya valid; jika tidak, dipakai varian Komix lain yang valid dan **nama varian ditampilkan jelas**. Kedua produk juga boleh dikombinasikan sesuai nilai sisa target.
+Untuk Fokus B, catatan menampilkan **Komix Herbal Sachet, Komix Tube, atau Promag Herbal**, pada baris terpisah. Masing-masing alternatif menutup satu sisa target gabungan; penjualan boleh dikombinasikan. Harga tetap dari PRICE_MASTER aktif sesuai tim, bukan angka contoh tetap.
 
-Contoh sisa Fokus B Rp4.500.000:
+Komix Herbal Family mencakup Sachet Original (LKXOD), Jahe (LKXJA), Jeruk Nipis (LKXNA), Peppermint (LKXPA), Tube Original (LKXOB), dan Tube Lemon (LKXLA), ditambah Promag Herbal (LPRGQ) untuk Fokus B. **Komix Herbal Kids (LKXKA) bukan Fokus B dan tetap masuk Total Value.**
 
-- Jika harga Komix Herbal Sachet Original Rp150.000/Box → 30 box.
-- Jika harga Promag Herbal Rp250.000/Box → 18 box.
-- Catatan menampilkan **30 box Komix ... ATAU 18 box Promag Herbal**, bukan meminta keduanya dijual seluruhnya.
+Acuan sachet/tube memprioritaskan Original lalu varian valid dalam jenis yang sama. Jika harga/satuan varian valid berbeda, nama varian acuan dicantumkan agar tidak mengesankan semua varian berharga sama.
+
+Contoh format (angka ilustrasi, harga aktual mengikuti master):
+
+Fokus B: Masih kurang Rp 4.934.800.
+
+380 Box Komix Herbal Sachet (acuan Rp 13.000/box), atau<br>
+494 Box Komix Tube (acuan Rp 10.000/box), atau<br>
+294 Box Promag Herbal (acuan Rp 16.800/box) untuk skor maksimal.
 
 Harga tidak dipinjam dari tim lain. Harga kosong/nol/tidak valid/ganda atau produk nonaktif tidak dipakai untuk membuat jumlah perkiraan. Satuan memakai PRICE_MASTER, atau PRODUCTS jika satuan harga tidak tercantum. Jika satuan keduanya bertentangan atau sama-sama tidak ada, tampilkan penjelasan dan sisa rupiah tanpa menebak jumlah box. Jika master menyatakan sachet/tube/dus, catatan memakai satuan itu, bukan mengubahnya otomatis menjadi box.
 
@@ -59,3 +65,7 @@ Jika data satu sales tidak valid, totalnya ditandai belum dapat dihitung dan ala
 Browser Chromium pada 1440/390/320px lulus: posisi widget, rekap dua sales, catatan produk, perbaruan rekap setelah koreksi AA/branding, pergantian periode/sesi dan pembacaan oleh Tamu. Rekap mengambil satu snapshot master/transaksi/histori melalui satu pembacaan batch, tanpa permintaan Google Sheets terpisah untuk setiap sales.
 
 Agen belum memasang atau memeriksa data Google nyata. Lakukan uji UJI COBA setelah penyalinan: cocokkan satu nilai rekap dengan detail sales, satu perkiraan Bejo dengan harga master timnya, alternatif Komix/Promag, serta sisa AA/branding.
+
+## Pembaruan format dan Family — 28 Oktober 2026
+
+Jika paket rekap sebelumnya sudah terpasang, cukup ganti **score.gs, score-client.html, dan index.html**. auth.gs tidak berubah. Simpan dan refresh /dev, atau terapkan versi baru pada deployment /exec yang sama. Tidak perlu input ulang AA/branding atau repair. Revisi ini menghitung ulang Fokus B tanpa Kids saat dibuka; transaksi historis tidak diubah. **209 tes Node lulus**, termasuk tiga alternatif, perubahan harga master, pemisahan Kids dari Fokus B dan pemisah baris/escaping.

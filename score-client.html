@@ -57,14 +57,15 @@
   }
   function scoreGuidanceText(note) {
     if (note.remaining === 0) return note.label + ': target tercapai — skor maksimal.';
-    if (note.count) return note.label + ': ' + Number(note.remaining).toLocaleString('id-ID') + ' outlet lagi untuk skor maksimal.';
-    var text = note.label + ': kurang ' + formatRupiah(note.remaining) + '.';
+    if (note.count) return note.label + ': Masih kurang ' + Number(note.remaining).toLocaleString('id-ID') + ' outlet lagi untuk skor maksimal.';
+    var text = note.label + ': Masih kurang ' + formatRupiah(note.remaining) + '.';
     if (note.alternatives && note.alternatives.length) {
-      text += ' ' + note.alternatives.map(function(q) {
-        return q.quantity.toLocaleString('id-ID') + ' ' + q.unit + ' ' + q.productName + ' lagi (acuan ' + formatRupiah(q.unitPrice) + '/' + q.unit + ')';
-      }).join(' ATAU ') + ' untuk skor maksimal.';
+      text += '\n\n' + note.alternatives.map(function(q) {
+        var unit = q.unit.charAt(0).toUpperCase() + q.unit.slice(1);
+        return q.quantity.toLocaleString('id-ID') + ' ' + unit + ' ' + (q.displayName || q.productName) + ' (acuan ' + formatRupiah(q.unitPrice) + '/' + q.unit + ')';
+      }).join(', atau\n') + ' untuk skor maksimal.';
     }
-    if (note.warnings && note.warnings.length) text += ' ' + note.warnings.join(' ');
+    if (note.warnings && note.warnings.length) text += '\n' + note.warnings.join(' ');
     return text;
   }
   function renderScoreTeamSummary(res) {
@@ -76,7 +77,7 @@
         var p = (row.parameters || [])[index];
         return !p ? '—' : p.score.toLocaleString('id-ID', { maximumFractionDigits: 2 }) + ' / ' + p.max;
       }
-      return '<tr><td style="min-width:280px;max-width:440px;white-space:normal"><strong>' + escapeHtml(row.sales.name) + (row.active ? '' : ' (nonaktif)') + '</strong><ul style="padding-left:16px;margin-top:6px;font-size:12px;color:#64748b;line-height:1.6">' + notes.map(function(note) { return '<li>' + escapeHtml(note) + '</li>'; }).join('') + '</ul></td><td>' + escapeHtml(row.sales.team) + '</td><td>' + points(0) + '</td><td>' + points(1) + '</td><td>' + points(2) + '</td><td>' + points(3) + '</td><td>' + points(4) + '</td><td class="font-semibold">' + (row.total == null ? '—' : row.total.toLocaleString('id-ID', { maximumFractionDigits: 2 })) + '</td><td>' + escapeHtml(row.category || 'Belum dapat dihitung') + '</td></tr>';
+      return '<tr><td style="min-width:280px;max-width:440px;white-space:normal"><strong>' + escapeHtml(row.sales.name) + (row.active ? '' : ' (nonaktif)') + '</strong><ul style="padding-left:16px;margin-top:6px;font-size:12px;color:#64748b;line-height:1.6">' + notes.map(function(note) { return '<li>' + escapeHtml(note).replace(/\n/g, '<br>') + '</li>'; }).join('') + '</ul></td><td>' + escapeHtml(row.sales.team) + '</td><td>' + points(0) + '</td><td>' + points(1) + '</td><td>' + points(2) + '</td><td>' + points(3) + '</td><td>' + points(4) + '</td><td class="font-semibold">' + (row.total == null ? '—' : row.total.toLocaleString('id-ID', { maximumFractionDigits: 2 })) + '</td><td>' + escapeHtml(row.category || 'Belum dapat dihitung') + '</td></tr>';
     }).join(''));
   }
   function loadScoreTeamSummary(month) {

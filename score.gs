@@ -11,7 +11,6 @@ var KCH_SCORE_PRODUCT_RULES_ = {
   LKXNA: ['Komix Herbal Sachet Jeruk Nipis', 'FOCUS_B'],
   LKXOB: ['Komix Herbal Tube Original', 'FOCUS_B'],
   LKXLA: ['Komix Herbal Tube Lemon', 'FOCUS_B'],
-  LKXKA: ['Komix Herbal Kids', 'FOCUS_B'],
   LPRGQ: ['Promag Herbal', 'FOCUS_B'],
   LPRGN: ['Promag Tablet', 'EXCLUDE']
 };
@@ -154,7 +153,7 @@ function scoreParameters_(actuals, teamName) {
   var branding = scoreBrandingTeam_(teamName);
   var rules = [
     ['Fokus A · Bejo Jahe Merah', branding ? 6400000 : 5000000, 0.40, 40],
-    ['Fokus B · Komix Herbal All/Family + Promag Herbal', branding ? 8200000 : 5000000, 0.25, 25],
+    ['Fokus B · Komix Herbal Family + Promag Herbal', branding ? 8200000 : 5000000, 0.25, 25],
     ['Total Value (non Promag Tablet)', branding ? 80000000 : 27000000, 0.25, 25],
     ['Active Account (AA)', 400, branding ? 0.05 : 0.10, branding ? 5 : 10]
   ];
@@ -255,13 +254,19 @@ function scoreGuidance_(data, prices, report, priceError) {
     }
     if (i === 0) { var bejo = quote('LBMAV'); if (bejo) note.alternatives.push(bejo); }
     else {
-      // Use one named Komix variant as an explicit reference, not a blended price.
-      var komix = null;
-      ['LKXOD', 'LKXJA', 'LKXPA', 'LKXNA', 'LKXOB', 'LKXLA', 'LKXKA'].some(function(id) {
-        try { komix = scorePriceQuote_(data, prices, id, report.sales.team, cents); return true; }
-        catch (err) { return false; }
+      // Keep sachet and tube as separate alternatives, each covering the full combined gap.
+      [['Komix Herbal Sachet', ['LKXOD', 'LKXJA', 'LKXNA', 'LKXPA']], ['Komix Tube', ['LKXOB', 'LKXLA']]].forEach(function(group) {
+        var quotes = [];
+        group[1].forEach(function(id) {
+          try { quotes.push(scorePriceQuote_(data, prices, id, report.sales.team, cents)); }
+          catch (err) { /* An unavailable variant must not borrow another team's price. */ }
+        });
+        if (!quotes.length) { note.warnings.push(group[0] + ': belum ada harga dan satuan aktif yang valid untuk tim ini.'); return; }
+        var reference = quotes[0];
+        reference.displayName = group[0];
+        if (quotes.some(function(q) { return q.unitPrice !== reference.unitPrice || q.unit !== reference.unit; })) reference.displayName += ' (' + reference.productName + ')';
+        note.alternatives.push(reference);
       });
-      if (komix) note.alternatives.push(komix); else note.warnings.push('Komix Herbal: belum ada harga dan satuan aktif yang valid untuk tim ini.');
       var promag = quote('LPRGQ'); if (promag) note.alternatives.push(promag);
     }
     return note;

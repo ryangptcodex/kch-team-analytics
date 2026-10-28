@@ -21,13 +21,14 @@ function fixture() {
   e.add=(name,rows)=>{const ctx={id:'test-book',token:'TEST_ONLY_OAUTH'},meta=c.txMetadata_(ctx),req=[]; const sheet=c.txAddSheet_(meta,req,name,rows[0],false); if(rows.length>1)req.push(c.txAppend_(sheet.sheetId,rows.slice(1)));c.txBatch_(ctx,req);};
   return e;
 }
-test('exact confirmed product codes: all eight B products count; mixed invoice excludes only tablet line',()=>{
+test('exact confirmed product codes: six Family variants plus Promag count; Kids is ordinary turnover; mixed invoice excludes only tablet line',()=>{
   const e=fixture();
   e.tx('LBMAV',5000000);
-  for(const id of ['LKXOD','LKXJA','LKXPA','LKXNA','LKXOB','LKXLA','LKXKA','LPRGQ'])e.tx(id,625000);
+  for(const id of ['LKXOD','LKXJA','LKXPA','LKXNA','LKXOB','LKXLA','LPRGQ'])e.tx(id,625000);
+  e.rows('PRODUCTS').push(['LKXKA','Komix Herbal Kids','ACTIVE']);e.tx('LKXKA',625000);
   e.tx('LPRGN',90000000);e.tx('P1',17000000);
-  const r=e.report(); assert.equal(r.mappingReady,true); assert.deepEqual(copy(r.parameters.map(p=>p.actual)),[5000000,5000000,27000000,0]);
-  assert.equal(r.total,90);assert.equal(r.parameters[1].score,25);assert.equal(r.category,'LANJUT BULAN BERIKUTNYA');
+  const r=e.report(); assert.equal(r.mappingReady,true); assert.deepEqual(copy(r.parameters.map(p=>p.actual)),[5000000,4375000,27000000,0]);
+  assert.equal(r.total,86.875);assert.equal(r.parameters[1].score,21.875);assert.equal(r.category,'LANJUT BULAN BERIKUTNYA');
 });
 test('Excel ratios, decimal weights, individual caps, no carryover between parameters',()=>{
   const e=fixture();e.tx('LBMAV',10000000);
@@ -272,4 +273,15 @@ test('guest recap has full read access with identical scores and no sheet/stock/
 });
 test('summary invalid periods and incomplete product mapping never show made-up totals or product notes',()=>{
  const e=summaryFixture();assert.throws(()=>e.summary('2026-13'),/bulan/);e.rows('PRODUCTS').find(r=>r[0]==='LBMAV')[1]='Wrong master name';for(const row of e.summary().rows){assert.equal(row.total,null);assert.equal(row.guidance.length,0);assert.match(row.message,/master produk/);}
+});
+test('Family recap separates sachet, tube and Promag alternatives using live team master prices',()=>{
+ const e=summaryFixture();
+ for(const [id,price] of [['LKXOD',13000],['LPRGQ',16800]])e.rows('PRICE_MASTER').find(r=>r[0]===id&&r[1]==='Motoris')[3]=price;
+ e.price('LKXOB','Motoris',10000);e.tx('LPRGQ',65200);
+ let b=e.summary().rows.find(r=>r.sales.salesId==='S1').guidance[1];
+ assert.equal(b.remaining,4934800);assert.deepEqual(copy(b.alternatives.map(q=>[q.productId,q.quantity])),[['LKXOD',380],['LKXOB',494],['LPRGQ',294]]);
+ assert.deepEqual(copy(b.alternatives.map(q=>q.displayName||q.productName)),['Komix Herbal Sachet','Komix Tube','Promag Herbal']);
+ e.price('LKXJA','Motoris',14000);b=e.summary().rows.find(r=>r.sales.salesId==='S1').guidance[1];assert.match(b.alternatives[0].displayName,/Komix Herbal Sachet Original/);
+ e.rows('PRICE_MASTER').find(r=>r[0]==='LKXOB'&&r[1]==='Motoris')[3]=20000;
+ assert.equal(e.summary().rows.find(r=>r.sales.salesId==='S1').guidance[1].alternatives[1].quantity,247);
 });

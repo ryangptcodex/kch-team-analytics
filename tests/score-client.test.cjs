@@ -98,7 +98,7 @@ function summaryResponse(month='2026-10'){
 }
 test('team recap renders named product/unit alternatives under each sales and preserves the backend category',()=>{
  const e=client();e.loadSummary('2026-10');e.requests[0].success(summaryResponse());const html=e.node('scoreSummaryRows').innerHTML;
- assert.match(html,/Amul Husni/);assert.match(html,/30 box Bejo Jahe Merah/);assert.match(html,/Komix Herbal Sachet Original.*ATAU.*18 box Promag Herbal/);assert.match(html,/AA: target tercapai/);assert.match(html,/EVALUASI/);assert.match(html,/39,?99|40/);
+ assert.match(html,/Amul Husni/);assert.match(html,/30 Box Bejo Jahe Merah/);assert.match(html,/Komix Herbal Sachet Original.*atau<br>18 Box Promag Herbal/);assert.match(html,/AA: target tercapai/);assert.match(html,/EVALUASI/);assert.match(html,/39,?99|40/);
 });
 test('same-period sales selection reuses recap; period changes ignore stale results and failures',()=>{
  const e=client();e.loadSummary('2026-10');const old=e.requests[0];e.loadSummary('2026-10');assert.equal(e.requests.length,1);e.loadSummary('2026-09');e.requests[1].success(summaryResponse('2026-09'));const html=e.node('scoreSummaryRows').innerHTML;old.success(summaryResponse());old.failure({message:'old error'});assert.equal(e.node('scoreSummaryRows').innerHTML,html);assert.match(e.node('scoreSummaryPeriod').textContent,/2026-09/);
@@ -118,4 +118,10 @@ test('invalid recap month clears stale period and makes no request',()=>{
 
 test('recap loads independently alongside detail, so failed recap does not prevent daily AA rendering',()=>{
  const e=client();e.c.loadScoreTeamSummary=e.loadSummary;e.c.loadScoreReport();assert.equal(e.requests[0].method,'getScoreTeamSummary');assert.equal(e.requests[1].method,'getScoreReport');e.requests[0].failure({message:'offline'});e.requests[1].success(e.report);assert.equal(e.c.scoreState().report,e.report);assert.match(e.node('scoreDailyRows').innerHTML,/2026-10-01/);assert.match(e.node('scoreSummaryRows').innerHTML,/offline/);
+});
+test('chasing notes put deficits and three master-price alternatives on separate lines',()=>{
+ const e=client(),r=summaryResponse();r.rows[0].guidance=[{label:'Fokus B',remaining:4934800,count:false,alternatives:[{quantity:380,unit:'box',displayName:'Komix Herbal Sachet',unitPrice:13000},{quantity:494,unit:'box',displayName:'Komix Tube',unitPrice:10000},{quantity:294,unit:'box',productName:'Promag Herbal',unitPrice:16800}],warnings:[]},{label:'AA',remaining:400,count:true}];
+ e.loadSummary('2026-10');e.requests[0].success(r);const html=e.node('scoreSummaryRows').innerHTML;
+ assert.match(html,/Fokus B: Masih kurang Rp 4\.934\.800\.<br><br>380 Box Komix Herbal Sachet/);
+ assert.match(html,/, atau<br>494 Box Komix Tube/);assert.match(html,/, atau<br>294 Box Promag Herbal/);assert.match(html,/AA: Masih kurang 400 outlet lagi untuk skor maksimal/);
 });
