@@ -1,6 +1,6 @@
 <script>
   function scoreState() {
-    if (!appState.score) appState.score = { seq: 0, setupSeq: 0, setup: null, report: null, pending: null };
+    if (!appState.score) appState.score = { seq: 0, setupSeq: 0, summarySeq: 0, summaryMonth: '', setup: null, report: null, pending: null };
     return appState.score;
   }
   function scoreText(id, value) { var el = document.getElementById(id); if (el) { el.textContent = value; if (el.setAttribute) el.setAttribute('data-loading', value === 'Sedang memuat data' ? 'true' : 'false'); } }
@@ -15,6 +15,8 @@
   function openScore() {
     var state = scoreState();
     if (state.pending) { scoreMessage('Ada kiriman yang perlu dipastikan. Tekan Periksa / ulangi simpan.'); return; }
+    state.summarySeq = (state.summarySeq || 0) + 1; state.summaryMonth = '';
+    scoreSummaryStatus('Sedang memuat data', true);
     var seq = ++state.setupSeq;
     ++state.seq; state.report = null; state.setup = null;
     scoreText('scoreTotal', 'Sedang memuat data'); scoreText('scoreCategory', 'Sedang memuat data');
@@ -25,7 +27,7 @@
     scoreBusy(true); scoreMessage('Sedang memuat data');
     kchRun().withSuccessHandler(function(res) {
       if (seq !== scoreState().setupSeq) return;
-      if (!res || !res.success) { scoreBusy(false); scoreText('scoreTotal', '—'); scoreText('scoreCategory', 'Gagal memuat'); scoreMessage(res && res.message || 'Gagal memuat Skor.'); return; }
+      if (!res || !res.success) { scoreBusy(false); scoreText('scoreTotal', '—'); scoreText('scoreCategory', 'Gagal memuat'); scoreMessage(res && res.message || 'Gagal memuat Skor.'); scoreSummaryStatus('Rekap belum dapat dimuat. Tekan Muat ulang.'); return; }
       state.setup = res;
       var select = document.getElementById('scoreSales'), previous = select.value;
       select.innerHTML = res.sales.map(function(s) { return '<option value="' + escapeHtml(s.salesId) + '">' + escapeHtml(s.name + ' · ' + s.team + (s.active ? '' : ' (nonaktif)')) + '</option>'; }).join('');
@@ -34,11 +36,11 @@
       document.getElementById('scoreAdminAA').hidden = !res.canManage;
       document.getElementById('scoreMapping').hidden = !res.canManage;
       renderScoreMapping(); scoreBusy(false);
-      if (!res.sales.length) { scoreMessage('Skor hanya tersedia untuk Motoris, MMTW, MPR dan Canvasser. Tidak ada profil yang dapat ditampilkan.'); scoreText('scoreTotal', '—'); scoreText('scoreCategory', 'Tidak tersedia'); return; }
+      if (!res.sales.length) { scoreMessage('Skor hanya tersedia untuk Motoris, MMTW, MPR dan Canvasser. Tidak ada profil yang dapat ditampilkan.'); scoreText('scoreTotal', '—'); scoreText('scoreCategory', 'Tidak tersedia'); scoreSummaryStatus('Belum ada profil sales yang masuk penilaian.'); return; }
       loadScoreReport();
     }).withFailureHandler(function(err) {
       if (seq !== scoreState().setupSeq) return;
-      scoreBusy(false); scoreText('scoreTotal', '—'); scoreText('scoreCategory', 'Gagal memuat'); scoreMessage(err.message || 'Gagal memuat Skor.');
+      scoreBusy(false); scoreText('scoreTotal', '—'); scoreText('scoreCategory', 'Gagal memuat'); scoreMessage(err.message || 'Gagal memuat Skor.'); scoreSummaryStatus('Rekap belum dapat dimuat. Tekan Muat ulang.');
     }).getScoreSetup();
   }
   function renderScoreMapping() {
@@ -48,6 +50,54 @@
       return '<tr><td>' + escapeHtml(p.productId) + '</td><td>' + escapeHtml(p.productName) + '</td><td>' + groups[p.group] + '</td></tr>';
     }).join('');
     scoreText('scoreMappingIssues', setup.mappingIssues.join('; ') || 'Kode dan nama master cocok dengan pemetaan yang disepakati.');
+  }
+
+  function scoreSummaryStatus(message, loading) {
+    setHtml('scoreSummaryRows', '<tr><td colspan="9" class="text-muted">' + (loading ? '<span class="widget-loading">' : '<span>') + escapeHtml(message) + '</span></td></tr>');
+  }
+  function scoreGuidanceText(note) {
+    if (note.remaining === 0) return note.label + ': target tercapai — skor maksimal.';
+    if (note.count) return note.label + ': ' + Number(note.remaining).toLocaleString('id-ID') + ' outlet lagi untuk skor maksimal.';
+    var text = note.label + ': kurang ' + formatRupiah(note.remaining) + '.';
+    if (note.alternatives && note.alternatives.length) {
+      text += ' ' + note.alternatives.map(function(q) {
+        return q.quantity.toLocaleString('id-ID') + ' ' + q.unit + ' ' + q.productName + ' lagi (acuan ' + formatRupiah(q.unitPrice) + '/' + q.unit + ')';
+      }).join(' ATAU ') + ' untuk skor maksimal.';
+    }
+    if (note.warnings && note.warnings.length) text += ' ' + note.warnings.join(' ');
+    return text;
+  }
+  function renderScoreTeamSummary(res) {
+    scoreText('scoreSummaryPeriod', 'Periode penilaian: ' + res.month + ' · ' + res.rows.length + ' sales');
+    if (!res.rows.length) { scoreSummaryStatus('Belum ada profil sales yang masuk penilaian.'); return; }
+    setHtml('scoreSummaryRows', res.rows.map(function(row) {
+      var notes = row.message ? [row.message] : (row.guidance || []).map(scoreGuidanceText);
+      function points(index) {
+        var p = (row.parameters || [])[index];
+        return !p ? '—' : p.score.toLocaleString('id-ID', { maximumFractionDigits: 2 }) + ' / ' + p.max;
+      }
+      return '<tr><td style="min-width:280px;max-width:440px;white-space:normal"><strong>' + escapeHtml(row.sales.name) + (row.active ? '' : ' (nonaktif)') + '</strong><ul style="padding-left:16px;margin-top:6px;font-size:12px;color:#64748b;line-height:1.6">' + notes.map(function(note) { return '<li>' + escapeHtml(note) + '</li>'; }).join('') + '</ul></td><td>' + escapeHtml(row.sales.team) + '</td><td>' + points(0) + '</td><td>' + points(1) + '</td><td>' + points(2) + '</td><td>' + points(3) + '</td><td>' + points(4) + '</td><td class="font-semibold">' + (row.total == null ? '—' : row.total.toLocaleString('id-ID', { maximumFractionDigits: 2 })) + '</td><td>' + escapeHtml(row.category || 'Belum dapat dihitung') + '</td></tr>';
+    }).join(''));
+  }
+  function loadScoreTeamSummary(month) {
+    var state = scoreState();
+    if (!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month || '')) {
+      state.summarySeq = (state.summarySeq || 0) + 1; state.summaryMonth = '';
+      scoreText('scoreSummaryPeriod', ''); scoreSummaryStatus('Pilih bulan penilaian untuk melihat rekap.'); return;
+    }
+    if (state.summaryMonth === month) return;
+    state.summaryMonth = month; var seq = state.summarySeq = (state.summarySeq || 0) + 1;
+    scoreText('scoreSummaryPeriod', 'Periode penilaian: ' + month); scoreSummaryStatus('Sedang memuat data', true);
+    kchRun().withSuccessHandler(function(res) {
+      if (seq !== scoreState().summarySeq) return;
+      try {
+        if (!res || !res.success || res.month !== month || !Array.isArray(res.rows)) throw new Error(res && res.message || 'Respons rekap belum lengkap.');
+        renderScoreTeamSummary(res);
+      } catch (err) { state.summaryMonth = ''; scoreSummaryStatus('Rekap gagal ditampilkan. Tekan Muat ulang.'); }
+    }).withFailureHandler(function(err) {
+      if (seq !== scoreState().summarySeq) return;
+      state.summaryMonth = ''; scoreSummaryStatus('Rekap gagal dimuat: ' + (err && err.message || 'Koneksi terputus') + ' Tekan Muat ulang.');
+    }).getScoreTeamSummary(month);
   }
 
   // Handle omitted empty daily fields at the response boundary. Missing is not zero.
@@ -76,6 +126,7 @@
   function loadScoreReport() {
     var state = scoreState(); if (!state.setup || state.pending) return;
     var month = document.getElementById('scoreMonth').value, salesId = document.getElementById('scoreSales').value;
+    loadScoreTeamSummary(month);
     var seq = ++state.seq; state.report = null;
     document.getElementById('scoreBrandingCard').hidden = true;
     document.getElementById('scoreBrandingSave').disabled = true;

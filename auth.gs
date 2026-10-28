@@ -264,6 +264,7 @@ function saveAccessUser_(payload) {
 
 function kchApi(token, method, args) {
   var handlers = {
+    getScoreTeamSummary: function(month) { return getScoreTeamSummary_(month); },
     getScoreSetup: function() { return getScoreSetup_(); },
     getScoreReport: function(month, salesId) { return getScoreReport_(month, salesId); },
     saveScoreBranding: function(input) { return saveScoreBranding_(input); },
@@ -292,7 +293,7 @@ function kchApi(token, method, args) {
     var guestReads = ['getAuthProfile', 'getInitialAppMetadata', 'getDashboardMetrics',
       'getAttendanceByDate', 'getVisitPhotosByDate', 'getTodayPlans', 'getWeeklyMeetings', 'getKchNews',
       'getTransactionsPaginated', 'getTransactionDetail', 'getAllTransactionsForExport', 'getMonthlyTeamReport',
-      'getScoreSetup', 'getScoreReport'];
+      'getScoreSetup', 'getScoreReport', 'getScoreTeamSummary'];
     if (user.role === 'GUEST' && guestReads.indexOf(method) < 0) throw new Error('ACCESS_DENIED: Akun Tamu hanya boleh melihat data.');
     var adminOnly = ['saveScoreBranding', 'saveMyProfile', 'saveScoreAA', 'listAccessUsers', 'saveAccessUser', 'saveTodayPlan', 'archiveTodayPlan',
       'saveWeeklyMeeting', 'archiveWeeklyMeeting', 'saveKchNewsArticle', 'archiveKchNewsArticle'];

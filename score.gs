@@ -35,11 +35,12 @@ function scoreAdmin_() {
   if (user.role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin yang boleh menginput AA dan branding.');
   return user;
 }
-function scoreContext_(withTransactions) {
+function scoreContext_(withTransactions, withPrices) {
   var ctx = { id: getKchSpreadsheet_().getId(), token: ScriptApp.getOAuthToken() };
   var meta = txMetadata_(ctx);
   var names = ['SALES', 'PRODUCTS', KCH_SCORE_EVENTS_, 'HOLIDAYS', 'HARI_LIBUR', 'LIBUR'];
   if (withTransactions) names.push('SALES_TRANSACTIONS');
+  if (withPrices) names.push('PRICE_MASTER');
   var raw = txRead_(ctx, names.filter(function(n) { return !!meta[n]; }));
   function table(name, headers) {
     if (!meta[name]) throw new Error('Sheet ' + name + ' tidak tersedia.');
@@ -166,7 +167,10 @@ function scoreParameters_(actuals, teamName) {
 function scoreCategory_(total) { return total < 40 ? 'EVALUASI' : total < 60 ? 'DISPENSASI LANJUT' : 'LANJUT BULAN BERIKUTNYA'; }
 function getScoreReport_(month, salesId) {
   getCurrentUserInfo_(); assertOwnSales_(salesId); scoreMonth_(month);
-  var data = scoreContext_(true), sales = scoreSales_(data, salesId), ledger = scoreLedger_(data.events), mapping = scoreMapping_(data);
+  return scoreBuildReport_(scoreContext_(true), month, salesId);
+}
+function scoreBuildReport_(data, month, salesId, prepared) {
+  var sales = scoreSales_(data, salesId), ledger = prepared ? prepared.ledger : scoreLedger_(data.events), mapping = prepared ? prepared.mapping : scoreMapping_(data);
   var today = scoreToday_(), start = month + '-01', end = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).toISOString().slice(0, 10);
   var holidayName = ['HOLIDAYS', 'HARI_LIBUR', 'LIBUR'].filter(function(n) { return !!data.meta[n]; })[0], holidays = Object.create(null);
   if (holidayName) {
@@ -194,7 +198,8 @@ function getScoreReport_(month, salesId) {
   // No persisted report snapshot: committed transaction edits are reflected on reload.
   if (mapping.ready) {
     if (!data.meta.SALES_TRANSACTIONS) throw new Error('Sheet SALES_TRANSACTIONS tidak tersedia.');
-    txTable_('SALES_TRANSACTIONS', data.raw.SALES_TRANSACTIONS, ['sales_id', 'transaction_date', 'product_id', 'quantity', 'selling_price'], false).rows.forEach(function(row) {
+    var transactionRows = prepared ? (prepared.transactionsBySales[normalizeKey_(salesId)] || []) : txTable_('SALES_TRANSACTIONS', data.raw.SALES_TRANSACTIONS, ['sales_id', 'transaction_date', 'product_id', 'quantity', 'selling_price'], false).rows;
+    transactionRows.forEach(function(row) {
       if (normalizeKey_(row.sales_id) !== normalizeKey_(salesId)) return;
       var date = scoreDate_(row.transaction_date);
       if (date.slice(0, 7) !== month || date > today) return;
@@ -222,4 +227,68 @@ function getScoreReport_(month, salesId) {
     brandingEnteredDays: dailyBranding.filter(function(d) { return d.count !== null && d.date <= today; }).length,
     dailyAA: daily, totalAA: totalAA, enteredDays: daily.filter(function(d) { return d.count !== null && d.date <= today; }).length,
     message: mapping.ready ? '' : 'Periksa master produk: ' + mapping.issues.join('; ') };
+}
+
+// Recap reads one shared spreadsheet snapshot, never one network request per sales.
+function scorePriceQuote_(data, prices, productId, teamName, remainingCents) {
+  var product = txUnique_(data.products, function(p) { return normalizeKey_(p.product_id) === productId; }, 'Produk ' + productId);
+  if (!txActive_(product)) throw new Error(product.product_name + ': produk tidak aktif.');
+  var rows = prices.filter(function(p) { return normalizeKey_(p.product_id) === productId && txTeamKey_(p.team_name) === txTeamKey_(teamName) && txActive_(p); });
+  if (rows.length !== 1) throw new Error(product.product_name + ': harga aktif untuk tim ' + teamName + (rows.length ? ' terdaftar ganda.' : ' belum tersedia.'));
+  var price = txMoney_(rows[0].selling_price, 'Harga ' + product.product_name);
+  if (!price) throw new Error(product.product_name + ': harga jual harus lebih dari nol.');
+  var priceUnit = String(rows[0].unit || '').trim(), productUnit = String(product.unit || '').trim();
+  if (priceUnit && productUnit && normalizeKey_(priceUnit) !== normalizeKey_(productUnit)) throw new Error(product.product_name + ': satuan PRODUCTS dan PRICE_MASTER berbeda.');
+  var unit = priceUnit || productUnit;
+  if (!unit) throw new Error(product.product_name + ': satuan harga belum tersedia.');
+  return { productId: productId, productName: String(product.product_name), unit: unit.toLowerCase(), unitPrice: price / 100, quantity: Math.ceil(remainingCents / price) };
+}
+function scoreGuidance_(data, prices, report, priceError) {
+  return report.parameters.map(function(p, i) {
+    var remaining = Math.max(0, p.target - p.actual), note = { label: ['Fokus A', 'Fokus B', 'Total Value', 'AA', 'Branding'][i], remaining: remaining, count: i >= 3, alternatives: [], warnings: [] };
+    if (i >= 2 || !remaining) return note;
+    if (priceError) { note.warnings.push(priceError); return note; }
+    var cents = txMoney_(remaining, 'Sisa target');
+    function quote(id) {
+      try { return scorePriceQuote_(data, prices, id, report.sales.team, cents); }
+      catch (err) { note.warnings.push(err.message); return null; }
+    }
+    if (i === 0) { var bejo = quote('LBMAV'); if (bejo) note.alternatives.push(bejo); }
+    else {
+      // Use one named Komix variant as an explicit reference, not a blended price.
+      var komix = null;
+      ['LKXOD', 'LKXJA', 'LKXPA', 'LKXNA', 'LKXOB', 'LKXLA', 'LKXKA'].some(function(id) {
+        try { komix = scorePriceQuote_(data, prices, id, report.sales.team, cents); return true; }
+        catch (err) { return false; }
+      });
+      if (komix) note.alternatives.push(komix); else note.warnings.push('Komix Herbal: belum ada harga dan satuan aktif yang valid untuk tim ini.');
+      var promag = quote('LPRGQ'); if (promag) note.alternatives.push(promag);
+    }
+    return note;
+  });
+}
+function getScoreTeamSummary_(month) {
+  var user = getCurrentUserInfo_();
+  if (['ADMIN', 'GUEST'].indexOf(user.role) < 0) throw new Error('ACCESS_DENIED: Rekap seluruh tim hanya tersedia untuk Admin dan Tamu.');
+  scoreMonth_(month);
+  var data = scoreContext_(true, true), prepared = { ledger: scoreLedger_(data.events), mapping: scoreMapping_(data), transactionsBySales: Object.create(null) };
+  if (data.meta.SALES_TRANSACTIONS) txTable_('SALES_TRANSACTIONS', data.raw.SALES_TRANSACTIONS, ['sales_id', 'transaction_date', 'product_id', 'quantity', 'selling_price'], false).rows.forEach(function(row) {
+    var id = normalizeKey_(row.sales_id); if (!prepared.transactionsBySales[id]) prepared.transactionsBySales[id] = []; prepared.transactionsBySales[id].push(row);
+  });
+  var prices = [], priceError = '';
+  try {
+    if (!data.meta.PRICE_MASTER) throw new Error('PRICE_MASTER belum tersedia; estimasi jumlah produk belum dapat dihitung.');
+    prices = txTable_('PRICE_MASTER', data.raw.PRICE_MASTER, ['product_id', 'team_name', 'selling_price'], false).rows;
+  } catch (err) { priceError = err.message; }
+  var rows = data.sales.filter(scoreEligible_).map(function(sales) {
+    var row = { sales: { salesId: String(sales.sales_id), name: String(sales.full_name), team: String(sales.team_name) }, active: txActive_(sales), parameters: [], total: null, category: null, guidance: [], message: '' };
+    try {
+      var report = scoreBuildReport_(data, month, sales.sales_id, prepared);
+      row.parameters = report.parameters; row.total = report.total; row.category = report.category; row.message = report.message;
+      if (report.mappingReady) row.guidance = scoreGuidance_(data, prices, report, priceError);
+    } catch (err) { row.message = err.message; }
+    return row;
+  });
+  rows.sort(function(a, b) { if (a.total === null && b.total !== null) return 1; if (a.total !== null && b.total === null) return -1; return (b.total || 0) - (a.total || 0) || a.sales.name.localeCompare(b.sales.name); });
+  return { success: true, month: month, rows: rows, priceBasis: 'Harga jual aktif PRICE_MASTER sesuai tim dan satuan master saat rekap dimuat. Jumlah dibulatkan ke atas; alternatif Fokus B bukan kewajiban ganda.' };
 }

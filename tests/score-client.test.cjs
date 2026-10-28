@@ -11,11 +11,13 @@ function client(){
   for(const name of ['js.html','score-client.html'])vm.runInContext(fs.readFileSync(path.join(__dirname,'..',name),'utf8').replace(/^\s*<script>/,'').replace(/<\/script>\s*$/,''),c);
   c.kchRun=()=>{let success,failure;const p=new Proxy({},{get(_,key){if(key==='withSuccessHandler')return fn=>{success=fn;return p;};if(key==='withFailureHandler')return fn=>{failure=fn;return p;};return(...args)=>requests.push({method:key,args,success,failure});}});return p;};
   c.showToast=()=>{};
+  const loadSummary=c.loadScoreTeamSummary;
+  c.loadScoreTeamSummary=()=>{};
   const setup={success:true,canManage:true,today:'2026-10-25',mappingReady:true,mappingIssues:[],products:[],sales:[{salesId:'S1',name:'One',team:'Motoris',active:true}]};
   const report={success:true,mappingReady:true,month:'2026-10',sales:{salesId:'S1'},parameters:[{name:'A',actual:0,target:5000000,weight:0.4,max:40,achievement:0,points:0,score:0}],total:39.999999,category:'EVALUASI',nextMonth:'November 2026',workDays:27,workDaysPassed:21,dailyAA:[{date:'2026-10-01',isWorkDay:true,count:null,revision:''}],totalAA:0,enteredDays:0};
   node('scoreSales').value='S1';node('scoreMonth').value='2026-10';
   c.scoreState().setup=setup;
-  return {c,node,requests,setup,report};
+  return {c,node,requests,setup,report,loadSummary};
 }
 test('render uses backend unrounded category even when displayed total rounds to 40',()=>{
   const e=client();e.c.loadScoreReport();e.requests[0].success(e.report);
@@ -89,4 +91,31 @@ test('transport failure clears daily loading and keeps retry available through M
 });
 test('branding accepts omitted empty counts through the same daily response boundary',()=>{
  const e=brandingClient();e.report.dailyBranding=[{date:'2026-10-01'},{date:'2026-10-02',count:150,revision:'SAVED'}];e.c.loadScoreReport();e.requests[0].success(e.report);assert.match(e.node('scoreBrandingDailyRows').innerHTML,/150/);assert.match(e.node('scoreBrandingDailyRows').innerHTML,/—/);assert.equal(e.node('scoreBrandingCard').hidden,false);
+});
+
+function summaryResponse(month='2026-10'){
+ return {success:true,month,rows:[{sales:{salesId:'S1',name:'Amul Husni',team:'Motoris'},active:true,total:39.999999,category:'EVALUASI',parameters:[{score:10,max:40},{score:5,max:25},{score:15,max:25},{score:10,max:10}],guidance:[{label:'Fokus A',remaining:3000000,count:false,alternatives:[{quantity:30,unit:'box',productName:'Bejo Jahe Merah',unitPrice:100000}],warnings:[]},{label:'Fokus B',remaining:4500000,count:false,alternatives:[{quantity:30,unit:'box',productName:'Komix Herbal Sachet Original',unitPrice:150000},{quantity:18,unit:'box',productName:'Promag Herbal',unitPrice:250000}],warnings:[]},{label:'AA',remaining:0,count:true,alternatives:[],warnings:[]}],message:''}]};
+}
+test('team recap renders named product/unit alternatives under each sales and preserves the backend category',()=>{
+ const e=client();e.loadSummary('2026-10');e.requests[0].success(summaryResponse());const html=e.node('scoreSummaryRows').innerHTML;
+ assert.match(html,/Amul Husni/);assert.match(html,/30 box Bejo Jahe Merah/);assert.match(html,/Komix Herbal Sachet Original.*ATAU.*18 box Promag Herbal/);assert.match(html,/AA: target tercapai/);assert.match(html,/EVALUASI/);assert.match(html,/39,?99|40/);
+});
+test('same-period sales selection reuses recap; period changes ignore stale results and failures',()=>{
+ const e=client();e.loadSummary('2026-10');const old=e.requests[0];e.loadSummary('2026-10');assert.equal(e.requests.length,1);e.loadSummary('2026-09');e.requests[1].success(summaryResponse('2026-09'));const html=e.node('scoreSummaryRows').innerHTML;old.success(summaryResponse());old.failure({message:'old error'});assert.equal(e.node('scoreSummaryRows').innerHTML,html);assert.match(e.node('scoreSummaryPeriod').textContent,/2026-09/);
+});
+test('recap errors/empty results clear loading, allow retry and never invalidate the selected sales AA form',()=>{
+ const e=client();e.c.scoreState().report=e.report;e.loadSummary('2026-10');e.requests[0].failure({message:'offline'});assert.match(e.node('scoreSummaryRows').innerHTML,/offline/);assert.doesNotMatch(e.node('scoreSummaryRows').innerHTML,/Sedang memuat data/);assert.equal(e.c.scoreState().report,e.report);e.loadSummary('2026-10');assert.equal(e.requests.length,2);e.requests[1].success({success:true,month:'2026-10',rows:[]});assert.match(e.node('scoreSummaryRows').innerHTML,/Belum ada profil/);
+});
+test('recap escapes sales/product names and price diagnostics rather than injecting sheet content into the page',()=>{
+ const e=client(),r=summaryResponse();r.rows[0].sales.name='<img src=x onerror=alert(1)>';r.rows[0].guidance[0].alternatives[0].productName='<script>alert(1)</script>';e.loadSummary('2026-10');e.requests[0].success(r);const html=e.node('scoreSummaryRows').innerHTML;assert.doesNotMatch(html,/<img|<script>/);assert.match(html,/&lt;img/);assert.match(html,/&lt;script/);
+});
+test('recap states incomplete scores as unavailable and cannot turn missing data into zero',()=>{
+ for(const total of [null,undefined]){const e=client(),r=summaryResponse();r.rows[0].total=total;r.rows[0].category=null;r.rows[0].parameters=[];r.rows[0].guidance=[];r.rows[0].message='Master belum valid';e.loadSummary('2026-10');e.requests[0].success(r);assert.match(e.node('scoreSummaryRows').innerHTML,/Belum dapat dihitung/);assert.match(e.node('scoreSummaryRows').innerHTML,/Master belum valid/);}
+});
+test('invalid recap month clears stale period and makes no request',()=>{
+ const e=client();e.loadSummary('');assert.equal(e.requests.length,0);assert.match(e.node('scoreSummaryRows').innerHTML,/Pilih bulan/);
+});
+
+test('recap loads independently alongside detail, so failed recap does not prevent daily AA rendering',()=>{
+ const e=client();e.c.loadScoreTeamSummary=e.loadSummary;e.c.loadScoreReport();assert.equal(e.requests[0].method,'getScoreTeamSummary');assert.equal(e.requests[1].method,'getScoreReport');e.requests[0].failure({message:'offline'});e.requests[1].success(e.report);assert.equal(e.c.scoreState().report,e.report);assert.match(e.node('scoreDailyRows').innerHTML,/2026-10-01/);assert.match(e.node('scoreSummaryRows').innerHTML,/offline/);
 });

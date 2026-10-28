@@ -215,3 +215,61 @@ test('MPR/Canvasser half-target sales and manual counts produce exactly 50 point
     const r=e.report();assert.deepEqual(copy(r.parameters.map(p=>p.score)),[20,12.5,12.5,2.5,2.5]);assert.equal(r.total,50);assert.equal(r.category,'DISPENSASI LANJUT');
   }
 });
+
+function summaryFixture(){
+ const e=fixture();e.rows('SALES').push(['S3','Amul Husni','MPR','ACTIVE'],['S4','Canvasser One','Canvasser','ACTIVE'],['S5','Other','Asisten MPR','ACTIVE']);
+ const h=e.rows('PRICE_MASTER')[0];h.push('unit');e.rows('PRICE_MASTER').slice(1).forEach(r=>r.push('Box'));
+ e.price=(id,team,price,unit='Box',status='ACTIVE')=>e.rows('PRICE_MASTER').push(h.map(k=>({product_id:id,team_name:team,selling_price:price,cost_price:0,shj:0,status,unit})[k]??''));
+ for(const team of ['Motoris','MMTW','MPR','Canvasser']){e.price('LBMAV',team,100000);e.price('LKXOD',team,150000);e.price('LPRGQ',team,250000);}
+ e.summary=(month='2026-10')=>e.api('getScoreTeamSummary',month);
+ return e;
+}
+test('all-team recap matches every individual report with team-specific targets, original category and no extra network reads per sales',()=>{
+ const e=summaryFixture();e.tx('LBMAV',2000000);e.aa(100);const before=e.calls.length,r=e.summary();assert.equal(e.calls.length-before,2);assert.equal(r.rows.length,4);
+ for(const row of r.rows){const detail=e.report('2026-10',row.sales.salesId);assert.equal(row.total,detail.total);assert.equal(row.category,detail.category);assert.deepEqual(copy(row.parameters),copy(detail.parameters));}
+ assert.equal(r.rows.some(r=>r.sales.salesId==='S5'),false);assert.equal(r.rows.find(r=>r.sales.salesId==='S3').parameters[0].target,6400000);
+});
+test('guidance uses remaining revenue and current team-specific prices, rounded upward; Komix OR Promag each covers the same combined gap',()=>{
+ const e=summaryFixture();e.tx('LBMAV',2000000);e.tx('LPRGQ',500000);const row=e.summary().rows.find(r=>r.sales.salesId==='S1');
+ assert.equal(row.guidance[0].remaining,3000000);assert.equal(row.guidance[0].alternatives[0].quantity,30);assert.equal(row.guidance[0].alternatives[0].unit,'box');
+ const b=row.guidance[1];assert.equal(b.remaining,4500000);assert.deepEqual(copy(b.alternatives.map(q=>[q.productId,q.quantity])),[['LKXOD',30],['LPRGQ',18]]);
+ const p=e.rows('PRICE_MASTER').find(r=>r[0]==='LBMAV'&&r[1]==='Motoris');p[3]=130000;
+ assert.equal(e.summary().rows.find(r=>r.sales.salesId==='S1').guidance[0].alternatives[0].quantity,24);
+});
+test('guidance honors count units rather than relabeling non-box prices; product-unit fallback is explicit and mismatches have no quantity',()=>{
+ const e=summaryFixture(),p=e.rows('PRICE_MASTER').find(r=>r[0]==='LBMAV'&&r[1]==='Motoris');p[6]='Sachet';assert.equal(e.summary().rows.find(r=>r.sales.salesId==='S1').guidance[0].alternatives[0].unit,'sachet');
+ e.rows('PRODUCTS')[0].push('unit');e.rows('PRODUCTS').find(r=>r[0]==='LBMAV')[3]='Box';let note=e.summary().rows.find(r=>r.sales.salesId==='S1').guidance[0];assert.equal(note.alternatives.length,0);assert.match(note.warnings[0],/satuan.*berbeda/);
+ p[6]='';note=e.summary().rows.find(r=>r.sales.salesId==='S1').guidance[0];assert.equal(note.alternatives[0].unit,'box');
+});
+test('missing, zero, invalid, duplicate, inactive price and missing units never produce invented product quantities',()=>{
+ for(const change of [p=>p[3]=0,p=>p[3]='bad',p=>p[5]='INACTIVE',p=>p[6]='']){
+  const e=summaryFixture(),p=e.rows('PRICE_MASTER').find(r=>r[0]==='LBMAV'&&r[1]==='Motoris');change(p);
+  const row=e.summary().rows.find(r=>r.sales.salesId==='S1');assert.equal(row.total,0);assert.equal(row.guidance[0].alternatives.length,0);assert.ok(row.guidance[0].warnings.length);
+ }
+ const dup=summaryFixture();dup.price('LBMAV','Motoris',123);assert.match(dup.summary().rows.find(r=>r.sales.salesId==='S1').guidance[0].warnings[0],/ganda/);
+ const missing=summaryFixture();missing.remove('PRICE_MASTER');assert.match(missing.summary().rows[0].guidance[0].warnings[0],/belum tersedia/);
+});
+test('price reference never falls back to another team, and a usable named Komix variant can replace unavailable Original',()=>{
+ const e=summaryFixture();e.rows('PRICE_MASTER').find(r=>r[0]==='LBMAV'&&r[1]==='MPR')[5]='INACTIVE';e.rows('PRICE_MASTER').find(r=>r[0]==='LKXOD'&&r[1]==='MPR')[5]='INACTIVE';e.price('LKXJA','MPR',200000);
+ const row=e.summary().rows.find(r=>r.sales.salesId==='S3');assert.equal(row.guidance[0].alternatives.length,0);assert.equal(row.guidance[1].alternatives[0].productId,'LKXJA');assert.equal(row.guidance[1].alternatives[0].quantity,41);
+});
+test('met targets generate no negative gaps or unnecessary quotes; AA and branding deficits use manual counts per team',()=>{
+ const e=summaryFixture();e.tx('LBMAV',10000000);e.aa(401);e.api('saveScoreBranding',{requestId:'SUMMARY-BRANDING-0001',salesId:'S3',date:'2026-10-01',count:120,expectedRevision:''});
+ const rows=e.summary().rows,s1=rows.find(r=>r.sales.salesId==='S1'),s3=rows.find(r=>r.sales.salesId==='S3');assert.equal(s1.guidance[0].remaining,0);assert.equal(s1.guidance[0].alternatives.length,0);assert.equal(s1.guidance[3].remaining,0);assert.equal(s1.guidance.length,4);assert.equal(s3.guidance[4].remaining,180);assert.equal(s3.guidance[3].remaining,400);
+});
+test('recap filters month and reflects committed transaction edits without storing report or changing master prices',()=>{
+ const e=summaryFixture();const saved=e.save();const first=e.summary().rows.find(r=>r.sales.salesId==='S1');assert.equal(first.parameters[2].actual,200);
+ const snapshot=e.api('getSalesTransactionForEdit',saved.transactionId);const r=e.api('editSalesTransaction',{transactionId:saved.transactionId,requestId:'SUMMARY-EDIT-00000001',expectedRevision:snapshot.revision,salesId:snapshot.header.salesId,distributor:snapshot.header.distributor,date:'2026-09-30',notes:snapshot.header.notes,items:snapshot.items,reason:'Koreksi periode'});assert.equal(r.success,true);
+ assert.equal(e.summary().rows.find(r=>r.sales.salesId==='S1').parameters[2].actual,0);assert.equal(e.summary('2026-09').rows.find(r=>r.sales.salesId==='S1').parameters[2].actual,200);assert.equal(e.exists('MONTHLY_TEAM_REPORT'),false);
+});
+test('an invalid sales report is flagged without falsely scoring zero or blocking valid colleagues',()=>{
+ const e=summaryFixture();e.tx('P1',100,{quantity:0});const rows=e.summary().rows;const bad=rows.find(r=>r.sales.salesId==='S1');assert.equal(bad.total,null);assert.ok(bad.message);assert.equal(bad.guidance.length,0);assert.equal(rows.find(r=>r.sales.salesId==='S2').total,0);
+});
+test('guest recap has full read access with identical scores and no sheet/stock/audit mutations, while unsupported roles are denied',()=>{
+ const e=summaryFixture(),before=JSON.stringify(['SALES','PRODUCTS','PRICE_MASTER','SALES_TRANSACTIONS','INVENTORY','ACTIVITY_LOGS'].map(n=>e.rows(n))),admin=e.summary();
+ e.actor({role:'GUEST',email:'juniortlkchlse@gmail.com',salesId:''});assert.deepEqual(copy(e.summary()),copy(admin));assert.equal(JSON.stringify(['SALES','PRODUCTS','PRICE_MASTER','SALES_TRANSACTIONS','INVENTORY','ACTIVITY_LOGS'].map(n=>e.rows(n))),before);assert.equal(e.exists('SKOR_EVENTS'),false);
+ e.actor({role:'SALES',salesId:'S1'});assert.throws(()=>e.summary(),/Admin dan Tamu/);
+});
+test('summary invalid periods and incomplete product mapping never show made-up totals or product notes',()=>{
+ const e=summaryFixture();assert.throws(()=>e.summary('2026-13'),/bulan/);e.rows('PRODUCTS').find(r=>r[0]==='LBMAV')[1]='Wrong master name';for(const row of e.summary().rows){assert.equal(row.total,null);assert.equal(row.guidance.length,0);assert.match(row.message,/master produk/);}
+});
