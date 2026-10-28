@@ -155,11 +155,11 @@ function brandingFixture(team='MPR') {
   e.brand=(count=10,date='2026-10-01',salesId='S1',extra={})=>e.api('saveScoreBranding',{requestId:'BRANDING-REQUEST-'+String(++seq).padStart(12,'0'),expectedRevision:'',count,date,salesId,...extra});
   return e;
 }
-test('MPR and Canvasser receive 5% AA plus branding 300 at 5%, with all other targets unchanged',()=>{
+test('MPR and Canvasser use their own 6.4m/8.2m/80m targets, AA 400 and branding 300',()=>{
   for(const team of ['MPR','Canvasser','TEAM-01']){
-    const e=brandingFixture(team);e.tx('LBMAV',5000000);e.tx('LKXOD',5000000);e.tx('P1',17000000);e.aa(400);e.brand(300);
+    const e=brandingFixture(team);e.tx('LBMAV',6400000);e.tx('LKXOD',8200000);e.tx('P1',65400000);e.aa(400);e.brand(300);
     const r=e.report();assert.equal(r.brandingEnabled,true);assert.equal(r.total,100);
-    assert.deepEqual(copy(r.parameters.map(p=>[p.target,p.weight,p.max])),[[5000000,.4,40],[5000000,.25,25],[27000000,.25,25],[400,.05,5],[300,.05,5]]);
+    assert.deepEqual(copy(r.parameters.map(p=>[p.target,p.weight,p.max])),[[6400000,.4,40],[8200000,.25,25],[80000000,.25,25],[400,.05,5],[300,.05,5]]);
   }
 });
 test('Motoris/MMTW remain exactly four parameters with AA 10 and reject branding writes',()=>{
@@ -207,4 +207,11 @@ test('uncertain branding response reuses its event ID without appending or count
 test('branding IDs cannot collide with AA or another day, and unsafe total is rejected',()=>{
   const e=brandingFixture(),id='BRANDING-CROSS-0000001';e.brand(1,'2026-10-01','S1',{requestId:id});assert.throws(()=>e.aa(1,'2026-10-01','S1',{requestId:id}),/data lain/);assert.throws(()=>e.brand(1,'2026-10-02','S1',{requestId:id}),/data lain/);
   const huge=brandingFixture();huge.brand(Number.MAX_SAFE_INTEGER);huge.brand(1,'2026-10-02');assert.throws(()=>huge.report(),/Total branding terlalu besar/);
+});
+
+test('MPR/Canvasser half-target sales and manual counts produce exactly 50 points at full monthly targets',()=>{
+  for(const team of ['MPR','Canvasser']){
+    const e=brandingFixture(team);e.tx('LBMAV',3200000);e.tx('LKXOD',4100000);e.tx('P1',32700000);e.aa(200);e.brand(150);
+    const r=e.report();assert.deepEqual(copy(r.parameters.map(p=>p.score)),[20,12.5,12.5,2.5,2.5]);assert.equal(r.total,50);assert.equal(r.category,'DISPENSASI LANJUT');
+  }
 });

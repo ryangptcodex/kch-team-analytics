@@ -152,9 +152,9 @@ function saveScoreDailyCount_(input, metric) {
 function scoreParameters_(actuals, teamName) {
   var branding = scoreBrandingTeam_(teamName);
   var rules = [
-    ['Fokus A · Bejo Jahe Merah', 5000000, 0.40, 40],
-    ['Fokus B · Komix Herbal All/Family + Promag Herbal', 5000000, 0.25, 25],
-    ['Total Value (non Promag Tablet)', 27000000, 0.25, 25],
+    ['Fokus A · Bejo Jahe Merah', branding ? 6400000 : 5000000, 0.40, 40],
+    ['Fokus B · Komix Herbal All/Family + Promag Herbal', branding ? 8200000 : 5000000, 0.25, 25],
+    ['Total Value (non Promag Tablet)', branding ? 80000000 : 27000000, 0.25, 25],
     ['Active Account (AA)', 400, branding ? 0.05 : 0.10, branding ? 5 : 10]
   ];
   if (branding) rules.push(['Branding', 300, 0.05, 5]);

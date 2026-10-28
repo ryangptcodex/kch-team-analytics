@@ -4,15 +4,15 @@ Paket ini hanya memperluas fitur Skor ke **MPR** dan **Canvasser** serta menamba
 
 ## Aturan per tim
 
-| Parameter | Target bulanan | MPR/Canvasser: bobot / maks. poin | Motoris/MMTW (tetap) |
-| --- | ---: | ---: | ---: |
-| Fokus A · Bejo Jahe Merah | Rp5.000.000 | 40% / 40 | 40% / 40 |
-| Fokus B · Komix Herbal All/Family + Promag Herbal | Rp5.000.000 | 25% / 25 | 25% / 25 |
-| Total Value (non Promag Tablet) | Rp27.000.000 | 25% / 25 | 25% / 25 |
-| Active Account (AA) | 400 | **5% / 5** | **10% / 10** |
-| Branding | **300** | **5% / 5** | Tidak termasuk |
+| Parameter | Target MPR/Canvasser | Bobot / maks. poin MPR/Canvasser | Target Motoris/MMTW (tetap) | Bobot / maks. poin Motoris/MMTW |
+| --- | ---: | ---: | ---: | ---: |
+| Fokus A · Bejo Jahe Merah | **Rp6.400.000** | 40% / 40 | Rp5.000.000 | 40% / 40 |
+| Fokus B · Komix Herbal Family + Promag Herbal | **Rp8.200.000** | 25% / 25 | Rp5.000.000 | 25% / 25 |
+| Total Value (non Promag Tablet) | **Rp80.000.000** | 25% / 25 | Rp27.000.000 | 25% / 25 |
+| Active Account (AA) | **400 outlet** | 5% / 5 | 400 | 10% / 10 |
+| Branding | **300 outlet** | 5% / 5 | Tidak termasuk | Tidak termasuk |
 
-Pengguna mengonfirmasi parameter/target lain dan kategori tetap sama, serta branding diinput admin **per sales per hari**, kemudian dijumlahkan untuk bulan terpilih. Total skor maksimal tetap 100. Tidak ada prorata target berdasarkan tanggal atau jumlah hari kerja. Pencapaian = aktual/target; poin = bobot desimal × pencapaian ×100; skor tiap parameter dibatasi maksimum; total asli tanpa ROUND menentukan kategori lama. Semua produk fokus tetap masuk Total Value; hanya kode Promag Tablet LPRGN dikecualikan, sama seperti paket sebelumnya.
+Target MPR/Canvasser di atas mengikuti koreksi pengguna; bobot dan kategori tetap. Branding diinput admin **per sales per hari**, kemudian dijumlahkan untuk bulan terpilih. Total skor maksimal tetap 100. Tidak ada prorata target berdasarkan tanggal atau jumlah hari kerja. Pencapaian = aktual/target; poin = bobot desimal × pencapaian ×100; skor tiap parameter dibatasi maksimum; total asli tanpa ROUND menentukan kategori lama. Semua produk fokus tetap masuk Total Value; hanya kode Promag Tablet LPRGN dikecualikan, sama seperti paket sebelumnya.
 
 MPR dan Canvasser mengikuti nama tim pada master SALES; kode lama TEAM-01 tetap dikenali sebagai Canvasser. Tim yang berbeda seperti Junior Canvasser, Asisten MPR, Motoris Ultimate, dan SPG tidak otomatis dimasukkan ke aturan baru ini.
 
@@ -57,6 +57,9 @@ Akun **Tamu** bisa membaca Skor, angka branding, serta riwayat harian seluruh MP
 
 ## Validasi pengembangan
 
-**184 tes Node lulus, 0 gagal, 0 dilewati.** Tes baru meliputi aturan MPR/Canvasser, perlindungan aturan Motoris/MMTW, batas poin/presisi, input/koreksi branding, bulan/sales, validasi, audit/revisi, replay setelah respons hilang, benturan ID antara AA/branding, serta larangan tulis Tamu. Seluruh suite transaksi/edit/stok tetap dijalankan.
+**185 tes Node lulus, 0 gagal, 0 dilewati.** Tes baru meliputi aturan MPR/Canvasser, perlindungan aturan Motoris/MMTW, batas poin/presisi, input/koreksi branding, bulan/sales, validasi, audit/revisi, replay setelah respons hilang, benturan ID antara AA/branding, serta larangan tulis Tamu. Seluruh suite transaksi/edit/stok tetap dijalankan.
 
 Chromium pada 1440/390/320px lulus untuk input/koreksi/replay branding, AA tetap terpisah, perpindahan MPR ↔ Motoris, lima/empat parameter, serta branding hanya baca bagi Tamu. Pemeriksaan browser akun Tamu dengan resolver/gateway asli dan layanan Google tiruan juga tetap lulus. Agen belum memasang atau menguji deployment Google nyata; lakukan uji penerimaan di UJI COBA setelah pemasangan.
+
+
+Koreksi target MPR/Canvasser setelah paket awal: jika kelima file paket branding sudah terpasang, cukup ganti seluruh isi **Script score.gs** dari tautan di atas, Simpan, lalu refresh /dev atau perbarui versi deployment /exec. Empat file aplikasi lainnya tidak berubah dalam koreksi target ini.
