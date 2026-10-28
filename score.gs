@@ -1,4 +1,4 @@
-// Skor Motoris/MMTW. Uses existing authenticated gateway and literal Sheets API writes.
+// Skor Motoris/MMTW and MPR/Canvasser. Uses existing authenticated gateway and literal Sheets API writes.
 // AA is a manually reported daily count, never inferred from invoices or attendance.
 var KCH_SCORE_EVENTS_ = 'SKOR_EVENTS';
 var KCH_SCORE_HEADERS_ = ['event_id', 'scope', 'previous_id', 'payload_json', 'actor_email', 'actor_uid', 'actor_role', 'created_at'];
@@ -28,10 +28,11 @@ function scoreMonth_(month) {
   if (typeof month !== 'string' || !/^(20\d{2})-(0[1-9]|1[0-2])$/.test(month)) throw new Error('Pilih bulan penilaian yang valid (2000–2099).');
   return month;
 }
-function scoreEligible_(sales) { return ['MOTORIS', 'MMTW'].indexOf(txTeamKey_(sales.team_name)) >= 0; }
+function scoreBrandingTeam_(teamName) { return ['MPR', 'CANVASSER'].indexOf(txTeamKey_(teamName)) >= 0; }
+function scoreEligible_(sales) { return ['MOTORIS', 'MMTW'].indexOf(txTeamKey_(sales.team_name)) >= 0 || scoreBrandingTeam_(sales.team_name); }
 function scoreAdmin_() {
   var user = getCurrentUserInfo_();
-  if (user.role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin yang boleh menginput AA.');
+  if (user.role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin yang boleh menginput AA dan branding.');
   return user;
 }
 function scoreContext_(withTransactions) {
@@ -52,7 +53,7 @@ function scoreContext_(withTransactions) {
 function scoreSales_(data, salesId) {
   assertOwnSales_(salesId);
   var sales = txUnique_(data.sales, function(s) { return normalizeKey_(s.sales_id) === normalizeKey_(salesId); }, 'Sales');
-  if (!scoreEligible_(sales)) throw new Error('Skor hanya tersedia untuk Motoris dan MMTW (bukan Motoris Ultimate).');
+  if (!scoreEligible_(sales)) throw new Error('Skor hanya tersedia untuk Motoris, MMTW, MPR dan Canvasser.');
   return sales;
 }
 function scoreCatalog_(data) {
@@ -113,7 +114,7 @@ function getScoreSetup_() {
 function scoreWriteEvent_(data, ledger, scope, payload, input, user) {
   var requestId = txRequestId_(input.requestId), previous = String(input.expectedRevision || '');
   var body = JSON.stringify(payload);
-  if (body.length > 45000) throw new Error('Data AA terlalu besar.');
+  if (body.length > 45000) throw new Error('Data Skor terlalu besar.');
   var existing = ledger.ids[requestId];
   if (existing) {
     var e = existing.event;
@@ -132,25 +133,31 @@ function scoreWriteEvent_(data, ledger, scope, payload, input, user) {
   }
   return { success: true, revision: requestId, message: 'Data Skor berhasil disimpan.' };
 }
-function saveScoreAA_(input) {
+function saveScoreAA_(input) { return saveScoreDailyCount_(input, 'AA'); }
+function saveScoreBranding_(input) { return saveScoreDailyCount_(input, 'BRANDING'); }
+function saveScoreDailyCount_(input, metric) {
+  var label = metric === 'BRANDING' ? 'Branding' : 'AA';
   var user = scoreAdmin_(), lock = LockService.getScriptLock(); lock.waitLock(10000);
   try {
-    if (!input || typeof input.count !== 'number' || !Number.isSafeInteger(input.count) || input.count < 0) throw new Error('AA harus bilangan bulat minimal 0.');
+    if (!input || typeof input.count !== 'number' || !Number.isSafeInteger(input.count) || input.count < 0) throw new Error(label + ' harus bilangan bulat minimal 0.');
     var date = scoreDate_(input.date);
-    if (date !== input.date || date > scoreToday_()) throw new Error('Tanggal AA tidak boleh di masa depan dan harus berformat yyyy-MM-dd.');
+    if (date !== input.date || date > scoreToday_()) throw new Error('Tanggal ' + label + ' tidak boleh di masa depan dan harus berformat yyyy-MM-dd.');
     var data = scoreContext_(false), sales = scoreSales_(data, input.salesId);
+    if (metric === 'BRANDING' && !scoreBrandingTeam_(sales.team_name)) throw new Error('Branding Skor hanya tersedia untuk MPR dan Canvasser.');
     if (!txActive_(sales)) throw new Error('Profil sales tidak aktif.');
     var id = normalizeKey_(sales.sales_id), ledger = scoreLedger_(data.events);
-    return scoreWriteEvent_(data, ledger, 'AA:' + id + ':' + date, { salesId: id, date: date, count: input.count }, input, user);
+    return scoreWriteEvent_(data, ledger, metric + ':' + id + ':' + date, { salesId: id, date: date, count: input.count }, input, user);
   } finally { lock.releaseLock(); }
 }
-function scoreParameters_(actuals) {
+function scoreParameters_(actuals, teamName) {
+  var branding = scoreBrandingTeam_(teamName);
   var rules = [
     ['Fokus A · Bejo Jahe Merah', 5000000, 0.40, 40],
     ['Fokus B · Komix Herbal All/Family + Promag Herbal', 5000000, 0.25, 25],
     ['Total Value (non Promag Tablet)', 27000000, 0.25, 25],
-    ['Active Account (AA)', 400, 0.10, 10]
+    ['Active Account (AA)', 400, branding ? 0.05 : 0.10, branding ? 5 : 10]
   ];
+  if (branding) rules.push(['Branding', 300, 0.05, 5]);
   return rules.map(function(r, i) {
     var achievement = actuals[i] / r[1], points = r[2] * achievement * 100;
     return { name: r[0], actual: actuals[i], target: r[1], weight: r[2], max: r[3], achievement: achievement, points: points, score: Math.min(points, r[3]) };
@@ -175,6 +182,13 @@ function getScoreReport_(month, salesId) {
     if (day.date <= today && count !== null) { totalAA += count; if (!Number.isSafeInteger(totalAA)) throw new Error('Total AA terlalu besar.'); }
     daily.push({ date: day.date, isWorkDay: day.isWorkDay, count: count, revision: event ? event.event_id : '', actor: event ? event.actor : '', updatedAt: event ? event.updatedAt : '' });
   });
+  var brandingEnabled = scoreBrandingTeam_(sales.team_name), dailyBranding = [], totalBranding = 0;
+  if (brandingEnabled) calendar.dates.forEach(function(day) {
+    var event = ledger.latest['BRANDING:' + normalizeKey_(salesId) + ':' + day.date], count = event ? event.payload.count : null;
+    if (event && (!Number.isSafeInteger(count) || count < 0 || event.payload.salesId !== normalizeKey_(salesId) || event.payload.date !== day.date)) throw new Error('Histori branding tidak valid.');
+    if (day.date <= today && count !== null) { totalBranding += count; if (!Number.isSafeInteger(totalBranding)) throw new Error('Total branding terlalu besar.'); }
+    dailyBranding.push({ date: day.date, isWorkDay: day.isWorkDay, count: count, revision: event ? event.event_id : '', actor: event ? event.actor : '', updatedAt: event ? event.updatedAt : '' });
+  });
   var totals = [0, 0, 0, totalAA], products = Object.create(null);
   mapping.products.forEach(function(p) { products[p.productId] = p; });
   // No persisted report snapshot: committed transaction edits are reflected on reload.
@@ -196,13 +210,16 @@ function getScoreReport_(month, salesId) {
     });
   }
   for (var i = 0; i < 3; i++) { if (!Number.isSafeInteger(totals[i])) throw new Error('Total transaksi terlalu besar.'); totals[i] /= 100; }
-  var parameters = mapping.ready ? scoreParameters_(totals) : [], total = parameters.reduce(function(sum, p) { return sum + p.score; }, 0);
+  if (brandingEnabled) totals.push(totalBranding);
+  var parameters = mapping.ready ? scoreParameters_(totals, sales.team_name) : [], total = parameters.reduce(function(sum, p) { return sum + p.score; }, 0);
   var months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
   var next = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 1));
   return { success: true, mappingReady: mapping.ready, month: month, sales: { salesId: String(sales.sales_id), name: String(sales.full_name), team: String(sales.team_name) },
     parameters: parameters, total: mapping.ready ? total : null, category: mapping.ready ? scoreCategory_(total) : null,
     nextMonth: months[next.getUTCMonth()] + ' ' + next.getUTCFullYear(), holidaySource: holidayName || '', workDays: calendar.workDays,
     workDaysPassed: daily.filter(function(d) { return d.isWorkDay && d.date <= today; }).length,
+    brandingEnabled: brandingEnabled, dailyBranding: dailyBranding, totalBranding: totalBranding,
+    brandingEnteredDays: dailyBranding.filter(function(d) { return d.count !== null && d.date <= today; }).length,
     dailyAA: daily, totalAA: totalAA, enteredDays: daily.filter(function(d) { return d.count !== null && d.date <= today; }).length,
     message: mapping.ready ? '' : 'Periksa master produk: ' + mapping.issues.join('; ') };
 }

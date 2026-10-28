@@ -1027,7 +1027,7 @@
         </section>
 
         <section class="content-view" id="view-skor">
-          <div class="page-title-box"><div><h2 class="page-title">Skor</h2><div class="page-subtitle">Evaluasi bulanan Motoris dan MMTW</div></div></div>
+          <div class="page-title-box"><div><h2 class="page-title">Skor</h2><div class="page-subtitle">Evaluasi bulanan Motoris/MMTW dan MPR/Canvasser</div></div></div>
           <div class="table-card" style="padding:16px;margin-bottom:18px">
             <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
               <div style="flex:1;min-width:180px"><label class="form-label" for="scoreSales">Sales</label><select class="form-control" id="scoreSales" onchange="loadScoreReport()"></select></div>
@@ -1052,6 +1052,19 @@
               </div>
             </div>
             <div class="table-responsive"><table class="app-table"><thead><tr><th>Tanggal</th><th>Kalender</th><th>AA</th><th id="scoreActorHeader" hidden>Diinput oleh</th></tr></thead><tbody id="scoreDailyRows"></tbody></table></div>
+          </div>
+          <div class="table-card" id="scoreBrandingCard" hidden style="padding:16px;margin-bottom:18px">
+            <h3>Branding · khusus MPR/Canvasser</h3><p id="scoreBrandingSummary"></p>
+            <p>Target bulanan 300 branding, bobot 5%, maksimal 5 poin. Angka dijumlahkan dari input harian admin.</p>
+            <div data-kch-write id="scoreAdminBranding" hidden>
+              <p>Isi total branding pada tanggal tersebut. Koreksi mengganti angka harian, bukan menambah angka sebelumnya. Isi 0 jika sudah diperiksa dan tidak ada branding.</p>
+              <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;margin-bottom:16px">
+                <div><label class="form-label" for="scoreBrandingDate">Tanggal</label><input type="date" class="form-control" id="scoreBrandingDate" onchange="selectScoreBrandingDate()"></div>
+                <div><label class="form-label" for="scoreBrandingCount">Jumlah branding</label><input type="number" min="0" step="1" class="form-control" id="scoreBrandingCount" inputmode="numeric"></div>
+                <button type="button" class="btn btn-primary btn-sm" id="scoreBrandingSave" onclick="saveScoreBranding()" disabled>Simpan branding</button>
+              </div>
+            </div>
+            <div class="table-responsive"><table class="app-table"><thead><tr><th>Tanggal</th><th>Kalender</th><th>Branding</th><th id="scoreBrandingActorHeader" hidden>Diinput oleh</th></tr></thead><tbody id="scoreBrandingDailyRows"></tbody></table></div>
           </div>
           <details class="table-card" id="scoreMapping" hidden style="padding:16px;margin-bottom:18px">
             <summary class="font-semibold">Pemetaan kode produk · khusus admin</summary>

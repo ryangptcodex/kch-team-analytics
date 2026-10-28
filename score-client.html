@@ -6,11 +6,11 @@
   function scoreText(id, value) { var el = document.getElementById(id); if (el) { el.textContent = value; if (el.setAttribute) el.setAttribute('data-loading', value === 'Sedang memuat data' ? 'true' : 'false'); } }
   function scoreMessage(message) { scoreText('scoreMessage', message || ''); }
   function scoreBusy(busy) {
-    ['scoreSales', 'scoreMonth', 'scoreAADate', 'scoreAACount'].forEach(function(id) {
+    ['scoreSales', 'scoreMonth', 'scoreAADate', 'scoreAACount', 'scoreBrandingDate', 'scoreBrandingCount'].forEach(function(id) {
       var el = document.getElementById(id); if (el) el.disabled = busy;
     });
     var pending = scoreState().pending;
-    ['scoreAASave'].forEach(function(id) { var el = document.getElementById(id); if (el) el.disabled = busy && (!pending || pending.button !== id); });
+    ['scoreAASave', 'scoreBrandingSave'].forEach(function(id) { var el = document.getElementById(id); if (el) el.disabled = busy && (!pending || pending.button !== id); });
   }
   function openScore() {
     var state = scoreState();
@@ -19,6 +19,7 @@
     ++state.seq; state.report = null; state.setup = null;
     scoreText('scoreTotal', 'Sedang memuat data'); scoreText('scoreCategory', 'Sedang memuat data');
     setHtml('scoreRows', '<tr><td colspan="7"><span class="widget-loading">Sedang memuat data</span></td></tr>'); setHtml('scoreDailyRows', '<tr><td colspan="4"><span class="widget-loading">Sedang memuat data</span></td></tr>');
+    document.getElementById('scoreBrandingCard').hidden = true;
     document.getElementById('scoreAdminAA').hidden = true;
     document.getElementById('scoreMapping').hidden = true;
     scoreBusy(true); scoreMessage('Sedang memuat data');
@@ -33,7 +34,7 @@
       document.getElementById('scoreAdminAA').hidden = !res.canManage;
       document.getElementById('scoreMapping').hidden = !res.canManage;
       renderScoreMapping(); scoreBusy(false);
-      if (!res.sales.length) { scoreMessage('Skor hanya tersedia untuk Motoris dan MMTW. Tidak ada profil yang dapat ditampilkan.'); scoreText('scoreTotal', '—'); scoreText('scoreCategory', 'Tidak tersedia'); return; }
+      if (!res.sales.length) { scoreMessage('Skor hanya tersedia untuk Motoris, MMTW, MPR dan Canvasser. Tidak ada profil yang dapat ditampilkan.'); scoreText('scoreTotal', '—'); scoreText('scoreCategory', 'Tidak tersedia'); return; }
       loadScoreReport();
     }).withFailureHandler(function(err) {
       if (seq !== scoreState().setupSeq) return;
@@ -53,6 +54,8 @@
     var state = scoreState(); if (!state.setup || state.pending) return;
     var month = document.getElementById('scoreMonth').value, salesId = document.getElementById('scoreSales').value;
     var seq = ++state.seq; state.report = null;
+    document.getElementById('scoreBrandingCard').hidden = true;
+    document.getElementById('scoreBrandingSave').disabled = true;
     scoreText('scoreTotal', 'Sedang memuat data'); scoreText('scoreCategory', 'Sedang memuat data'); scoreText('scoreCalendar', '');
     setHtml('scoreRows', '<tr><td colspan="7"><span class="widget-loading">Sedang memuat data</span></td></tr>'); setHtml('scoreDailyRows', '<tr><td colspan="4"><span class="widget-loading">Sedang memuat data</span></td></tr>'); scoreText('scoreAASummary', '');
     document.getElementById('scoreAASave').disabled = true; document.getElementById('scoreAACount').value = '';
@@ -66,7 +69,7 @@
       scoreText('scoreCategory', res.category ? res.category + ' · ' + res.nextMonth : 'Pemetaan master perlu diperiksa');
       scoreText('scoreCalendar', res.workDaysPassed + ' dari ' + res.workDays + ' hari kerja · Minggu dikecualikan; libur mengikuti ' + (res.holidaySource || 'sheet HOLIDAYS yang belum tersedia') + '. Target tetap sebulan penuh.');
       document.getElementById('scoreRows').innerHTML = res.parameters.map(function(p, i) {
-        return '<tr><td>' + escapeHtml(p.name) + '</td><td>' + (i === 3 ? p.actual.toLocaleString('id-ID') : formatRupiah(p.actual)) + '</td><td>' + (i === 3 ? p.target : formatRupiah(p.target)) + '</td><td>' + (p.weight * 100) + '%</td><td>' + (p.achievement * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '%</td><td>' + p.points.toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '</td><td>' + p.score.toLocaleString('id-ID', { maximumFractionDigits: 2 }) + ' / ' + p.max + '</td></tr>';
+        return '<tr><td>' + escapeHtml(p.name) + '</td><td>' + (i >= 3 ? p.actual.toLocaleString('id-ID') : formatRupiah(p.actual)) + '</td><td>' + (i >= 3 ? p.target : formatRupiah(p.target)) + '</td><td>' + (p.weight * 100) + '%</td><td>' + (p.achievement * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '%</td><td>' + p.points.toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '</td><td>' + p.score.toLocaleString('id-ID', { maximumFractionDigits: 2 }) + ' / ' + p.max + '</td></tr>';
       }).join('');
       scoreText('scoreAASummary', 'AA: ' + res.totalAA.toLocaleString('id-ID') + ' / 400 · ' + res.enteredDays + ' hari sudah diinput. Tanda — berarti belum diinput, bukan angka nol.');
       document.getElementById('scoreDailyRows').innerHTML = res.dailyAA.map(function(d) {
@@ -77,6 +80,7 @@
       input.min = res.dailyAA[0].date; input.max = res.dailyAA[res.dailyAA.length - 1].date < today ? res.dailyAA[res.dailyAA.length - 1].date : today;
       if (!input.value || input.value.slice(0, 7) !== month || input.value > input.max) input.value = today.slice(0, 7) === month ? today : res.dailyAA[0].date;
       selectScoreAADate();
+      renderScoreBranding(res);
     }).withFailureHandler(function(err) {
       if (seq !== scoreState().seq) return;
       scoreText('scoreTotal', '—'); scoreText('scoreCategory', 'Gagal memuat'); scoreMessage(err.message || 'Gagal memuat Skor.');
@@ -101,6 +105,40 @@
     state.pending = { method: 'saveScoreAA', button: 'scoreAASave', payload: { requestId: 'SCORE-' + crypto.randomUUID(), expectedRevision: day.revision, salesId: state.report.sales.salesId, date: date, count: Number(text) } };
     sendScoreSave();
   }
+  function renderScoreBranding(res) {
+    var state = scoreState();
+    document.getElementById('scoreBrandingCard').hidden = !res.brandingEnabled;
+    document.getElementById('scoreAdminBranding').hidden = !state.setup.canManage || !res.brandingEnabled;
+    if (!res.brandingEnabled) return;
+    scoreText('scoreBrandingSummary', 'Branding: ' + res.totalBranding.toLocaleString('id-ID') + ' / 300 · ' + res.brandingEnteredDays + ' hari sudah diinput. Tanda — berarti belum diinput.');
+    document.getElementById('scoreBrandingDailyRows').innerHTML = res.dailyBranding.map(function(d) {
+      return '<tr><td>' + escapeHtml(d.date) + '</td><td>' + (d.isWorkDay ? 'Hari kerja' : 'Minggu / libur') + '</td><td>' + (d.count === null ? '—' : d.count.toLocaleString('id-ID')) + '</td>' + (state.setup.canManage ? '<td>' + escapeHtml(d.actor || '—') + '<br><small>' + escapeHtml(d.updatedAt || '') + '</small></td>' : '') + '</tr>';
+    }).join('');
+    document.getElementById('scoreBrandingActorHeader').hidden = !state.setup.canManage;
+    var input = document.getElementById('scoreBrandingDate'), today = state.setup.today;
+    input.min = res.dailyBranding[0].date; input.max = res.dailyBranding[res.dailyBranding.length - 1].date < today ? res.dailyBranding[res.dailyBranding.length - 1].date : today;
+    if (!input.value || input.value.slice(0, 7) !== res.month || input.value > input.max) input.value = today.slice(0, 7) === res.month ? today : res.dailyBranding[0].date;
+    selectScoreBrandingDate();
+  }
+  function selectScoreBrandingDate() {
+    var state = scoreState(); if (!state.report || !state.report.brandingEnabled || state.pending) return;
+    var date = document.getElementById('scoreBrandingDate').value;
+    var day = state.report.dailyBranding.filter(function(d) { return d.date === date; })[0];
+    document.getElementById('scoreBrandingCount').value = day && day.count !== null ? day.count : '';
+    var sales = state.setup.sales.filter(function(s) { return s.salesId === state.report.sales.salesId; })[0];
+    document.getElementById('scoreBrandingSave').disabled = !state.setup.canManage || !sales || !sales.active || !day || date > state.setup.today;
+  }
+  function saveScoreBranding() {
+    var state = scoreState();
+    if (state.pending) { if (state.pending.method === 'saveScoreBranding') sendScoreSave(); return; }
+    if (!state.report || !state.report.brandingEnabled || !state.setup.canManage) return;
+    var text = document.getElementById('scoreBrandingCount').value.trim(), date = document.getElementById('scoreBrandingDate').value;
+    if (!/^\d+$/.test(text) || !Number.isSafeInteger(Number(text))) { scoreMessage('Isi branding dengan bilangan bulat minimal 0.'); return; }
+    var day = state.report.dailyBranding.filter(function(d) { return d.date === date; })[0];
+    if (!day || date > state.setup.today) { scoreMessage('Pilih tanggal dalam periode yang tidak melebihi hari ini.'); return; }
+    state.pending = { method: 'saveScoreBranding', button: 'scoreBrandingSave', payload: { requestId: 'SCORE-' + crypto.randomUUID(), expectedRevision: day.revision, salesId: state.report.sales.salesId, date: date, count: Number(text) } };
+    sendScoreSave();
+  }
   function sendScoreSave() {
     var state = scoreState(), pending = state.pending; if (!pending || pending.sending) return;
     pending.sending = true; scoreBusy(true);
@@ -111,8 +149,8 @@
     }
     var runner = kchRun().withSuccessHandler(function(res) {
       if (!res || res.code === 'SAVE_UNCERTAIN') { uncertain(res && res.message || 'Hasil belum pasti. Periksa / ulangi simpan.'); return; }
-      state.pending = null; button.textContent = 'Simpan AA'; scoreBusy(false);
-      if (!res.success) { state.report = null; document.getElementById('scoreAASave').disabled = true; scoreMessage((res.message || 'Data gagal disimpan.') + ' Tekan Muat ulang sebelum menginput lagi.'); return; }
+      state.pending = null; button.textContent = pending.method === 'saveScoreBranding' ? 'Simpan branding' : 'Simpan AA'; scoreBusy(false);
+      if (!res.success) { state.report = null; document.getElementById('scoreAASave').disabled = true; document.getElementById('scoreBrandingSave').disabled = true; scoreMessage((res.message || 'Data gagal disimpan.') + ' Tekan Muat ulang sebelum menginput lagi.'); return; }
       showToast(res.message || 'Data Skor disimpan.', 'success'); openScore();
     }).withFailureHandler(function(err) { uncertain((err && err.message || 'Koneksi terputus.') + ' Periksa / ulangi simpan dengan kiriman yang sama.'); });
     runner[pending.method](pending.payload);

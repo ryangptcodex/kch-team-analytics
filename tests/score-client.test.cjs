@@ -54,3 +54,22 @@ test('backend-controlled sales scope hides admin inputs and read-only mapping',(
   e.requests[1].success(e.report);assert.equal(e.node('scoreAASave').disabled,true);
   e.node('scoreAACount').value='12';e.c.saveScoreAA();assert.equal(e.requests.length,2);
 });
+
+function brandingClient(){const e=client();e.report.brandingEnabled=true;e.report.totalBranding=150;e.report.brandingEnteredDays=1;e.report.dailyBranding=[{date:'2026-10-01',isWorkDay:true,count:150,revision:'BRANDING-REV-1'}];e.report.parameters.push(...[2,3,4].map(i=>({...e.report.parameters[0],name:'Parameter '+i})));e.report.parameters.push({name:'Branding',actual:150,target:300,weight:.05,max:5,achievement:.5,points:2.5,score:2.5});return e;}
+test('MPR branding renders as a count, and Motoris response hides the branding card',()=>{
+ const e=brandingClient();e.c.loadScoreReport();e.requests[0].success(e.report);assert.equal(e.node('scoreBrandingCard').hidden,false);assert.equal(e.node('scoreAdminBranding').hidden,false);assert.match(e.node('scoreBrandingSummary').textContent,/150 \/ 300/);assert.match(e.node('scoreRows').innerHTML,/<td>Branding<\/td><td>150<\/td><td>300<\/td>/);
+ e.c.loadScoreReport();assert.equal(e.node('scoreBrandingCard').hidden,true);e.requests[1].success({...e.report,brandingEnabled:false});assert.equal(e.node('scoreBrandingCard').hidden,true);
+});
+test('branding save uses daily revision and locks AA/date/period during an uncertain retry',()=>{
+ const e=brandingClient();e.c.scoreState().report=e.report;e.node('scoreBrandingDate').value='2026-10-01';e.node('scoreBrandingCount').value='16';e.c.saveScoreBranding();
+ assert.equal(e.requests[0].method,'saveScoreBranding');assert.equal(e.requests[0].args[0].expectedRevision,'BRANDING-REV-1');assert.equal(e.node('scoreAACount').disabled,true);assert.equal(e.node('scoreBrandingCount').disabled,true);e.c.saveScoreAA();assert.equal(e.requests.length,1);
+ e.requests[0].success({success:false,code:'SAVE_UNCERTAIN',message:'Unknown'});e.c.saveScoreBranding();assert.deepEqual(e.requests[0].args,e.requests[1].args);
+});
+test('guest may see branding history but has no branding input and cannot initiate a save',()=>{
+ const e=brandingClient();e.setup.canManage=false;e.c.loadScoreReport();e.requests[0].success(e.report);assert.equal(e.node('scoreBrandingCard').hidden,false);assert.equal(e.node('scoreAdminBranding').hidden,true);assert.equal(e.node('scoreBrandingSave').disabled,true);
+ e.node('scoreBrandingCount').value='12';e.c.saveScoreBranding();assert.equal(e.requests.length,1);
+});
+test('branding validation rejects blank, negative and fractional counts before sending RPC',()=>{
+ const e=brandingClient();e.c.scoreState().report=e.report;e.node('scoreBrandingDate').value='2026-10-01';for(const v of ['','-1','1.5']){e.node('scoreBrandingCount').value=v;e.c.saveScoreBranding();assert.equal(e.requests.length,0);}
+ e.node('scoreBrandingCount').value='0';e.c.saveScoreBranding();assert.equal(e.requests[0].args[0].count,0);
+});

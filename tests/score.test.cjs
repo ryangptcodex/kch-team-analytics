@@ -97,9 +97,9 @@ test('only admins may write AA; sales reports/setup disclose only own sales, not
   assert.equal(e.report().totalAA,13);assert.equal(e.context.KCH_REQUEST_USER_,null);
   e.context.KCH_REQUEST_USER_={role:'SALES',salesId:'S1'};assert.deepEqual(copy(e.context.filterAuthorizedRows_('SKOR_EVENTS',[{secret:true}])),[]);
 });
-test('Motoris and MMTW share exact rules; excludes Ultimate, Canvasser and unrelated teams',()=>{
+test('Motoris and MMTW share exact rules; excludes Ultimate and unrelated teams',()=>{
   const e=fixture(); assert.deepEqual(copy(e.report().parameters),copy(e.report('2026-10','S2').parameters));
-  for(const team of ['Motoris Ultimate','Canvasser','SPG Kelontong']){e.rows('SALES')[2][2]=team; assert.throws(()=>e.report('2026-10','S2'),/hanya tersedia/);}
+  for(const team of ['Motoris Ultimate','SPG Kelontong']){e.rows('SALES')[2][2]=team; assert.throws(()=>e.report('2026-10','S2'),/hanya tersedia/);}
   e.rows('SALES')[2][2]='TEAM-02';assert.equal(e.report('2026-10','S2').sales.team,'TEAM-02');
 });
 test('AA rejects negative, fractional, blank/string/unsafe counts, invalid/future dates and inactive or unknown sales',()=>{
@@ -148,4 +148,63 @@ test('guest can view Motoris and MMTW scores/AA across sales, with no write acce
   const setup=e.api('getScoreSetup');assert.equal(setup.canManage,false);assert.equal(setup.sales.length,2);assert.equal(setup.products.length,0);
   assert.equal(e.report().totalAA,10);assert.equal(e.report('2026-10','S2').totalAA,20);assert.throws(()=>e.aa(99),/Tamu hanya boleh melihat/);
   assert.equal(JSON.stringify(e.rows('SKOR_EVENTS')),before);
+});
+
+function brandingFixture(team='MPR') {
+  const e=fixture();e.rows('SALES')[1][2]=team;e.rows('SALES')[2][2]='Canvasser';let seq=0;
+  e.brand=(count=10,date='2026-10-01',salesId='S1',extra={})=>e.api('saveScoreBranding',{requestId:'BRANDING-REQUEST-'+String(++seq).padStart(12,'0'),expectedRevision:'',count,date,salesId,...extra});
+  return e;
+}
+test('MPR and Canvasser receive 5% AA plus branding 300 at 5%, with all other targets unchanged',()=>{
+  for(const team of ['MPR','Canvasser','TEAM-01']){
+    const e=brandingFixture(team);e.tx('LBMAV',5000000);e.tx('LKXOD',5000000);e.tx('P1',17000000);e.aa(400);e.brand(300);
+    const r=e.report();assert.equal(r.brandingEnabled,true);assert.equal(r.total,100);
+    assert.deepEqual(copy(r.parameters.map(p=>[p.target,p.weight,p.max])),[[5000000,.4,40],[5000000,.25,25],[27000000,.25,25],[400,.05,5],[300,.05,5]]);
+  }
+});
+test('Motoris/MMTW remain exactly four parameters with AA 10 and reject branding writes',()=>{
+  for(const team of ['Motoris','MMTW']){
+    const e=brandingFixture(team);e.aa(400);const r=e.report();assert.equal(r.parameters.length,4);assert.equal(r.parameters[3].score,10);assert.equal(r.brandingEnabled,false);assert.equal(r.dailyBranding.length,0);
+    assert.throws(()=>e.brand(300),/hanya tersedia untuk MPR dan Canvasser/);
+  }
+});
+test('MPR/Canvasser fractional AA/branding scores follow original Excel precision and independent caps',()=>{
+  const e=brandingFixture();e.aa(123);e.brand(117);let r=e.report();assert.equal(r.parameters[3].score,.05*(123/400)*100);assert.equal(r.parameters[4].score,.05*(117/300)*100);
+  assert.equal(r.total,r.parameters.reduce((n,p)=>n+p.score,0));assert.equal(r.parameters[3].max,5);
+  const c=brandingFixture();c.aa(1000);c.brand(1000);r=c.report();assert.equal(r.parameters[3].score,5);assert.equal(r.parameters[4].score,5);
+});
+test('branding daily counts accumulate by month/sales and never come from invoice counts',()=>{
+  const e=brandingFixture();e.tx('P1',500);assert.equal(e.report().totalBranding,0);assert.equal(e.report().dailyBranding[0].count,null);
+  e.brand(10);e.brand(20,'2026-10-02');e.brand(99,'2026-09-01');e.brand(88,'2026-10-01','S2');
+  const r=e.report();assert.equal(r.totalBranding,30);assert.equal(r.brandingEnteredDays,2);assert.equal(e.report('2026-09').totalBranding,99);assert.equal(e.report('2026-10','S2').totalBranding,88);assert.equal(r.totalAA,0);
+});
+test('branding correction replaces a day, replays safely and is independent of AA revisions',()=>{
+  const e=brandingFixture(),a=e.brand(10);e.aa(7);
+  const id='BRANDING-CORRECT-00001';assert.equal(e.brand(12,'2026-10-01','S1',{requestId:id,expectedRevision:a.revision}).success,true);
+  assert.equal(e.brand(12,'2026-10-01','S1',{requestId:id,expectedRevision:a.revision}).replayed,true);
+  assert.equal(e.report().totalBranding,12);assert.equal(e.report().totalAA,7);assert.equal(e.rows('SKOR_EVENTS').length,4);
+  assert.equal(e.brand(99,'2026-10-01','S1',{expectedRevision:a.revision}).code,'REVISION_CONFLICT');
+  assert.equal(e.rows('SKOR_EVENTS').at(-1)[1],'BRANDING:S1:2026-10-01');assert.equal(e.rows('SKOR_EVENTS').at(-1)[6],'ADMIN');
+});
+test('branding validates counts, active sales and real nonfuture dates before writing',()=>{
+  const e=brandingFixture();for(const n of [-1,1.5,'1','',null,Infinity,Number.MAX_SAFE_INTEGER+1])assert.throws(()=>e.brand(n),/bilangan bulat/);
+  for(const d of ['2026-10-26','2026-02-30','bad','2026-10-01 12:00:00'])assert.throws(()=>e.brand(1,d),/Tanggal/);
+  e.rows('SALES')[1][3]='INACTIVE';assert.throws(()=>e.brand(1),/tidak aktif/);assert.equal(e.exists('SKOR_EVENTS'),false);
+});
+test('new scoring eligibility excludes Junior Canvasser, Asisten MPR, Ultimate and unrelated teams',()=>{
+  for(const team of ['Junior Canvasser','Asisten MPR','Motoris Ultimate','SPG Kelontong']){const e=brandingFixture(team);assert.throws(()=>e.report(),/hanya tersedia/);assert.throws(()=>e.brand(),/hanya tersedia/);}
+});
+test('guest can read both MPR/Canvasser branding, but cannot write or mutate AA/history',()=>{
+  const e=brandingFixture();e.brand(10);e.brand(20,'2026-10-01','S2');const before=JSON.stringify(e.rows('SKOR_EVENTS'));
+  e.actor({role:'GUEST',uid:'guest',email:'juniortlkchlse@gmail.com',salesId:''});assert.equal(e.api('getScoreSetup').sales.length,2);assert.equal(e.report().totalBranding,10);assert.equal(e.report('2026-10','S2').totalBranding,20);
+  assert.throws(()=>e.brand(100),/Tamu hanya boleh melihat/);assert.equal(JSON.stringify(e.rows('SKOR_EVENTS')),before);
+});
+test('uncertain branding response reuses its event ID without appending or counting twice',()=>{
+  const e=brandingFixture(),original=e.context.UrlFetchApp.fetch;let lose=true;
+  e.context.UrlFetchApp.fetch=(url,req)=>{const r=original(url,req);if(lose&&url.endsWith(':batchUpdate')){lose=false;throw Error('lost');}return r;};
+  const input={requestId:'BRANDING-LOST-00000001'};assert.equal(e.brand(17,'2026-10-01','S1',input).code,'SAVE_UNCERTAIN');assert.equal(e.brand(17,'2026-10-01','S1',input).replayed,true);assert.equal(e.report().totalBranding,17);assert.equal(e.rows('SKOR_EVENTS').length,2);
+});
+test('branding IDs cannot collide with AA or another day, and unsafe total is rejected',()=>{
+  const e=brandingFixture(),id='BRANDING-CROSS-0000001';e.brand(1,'2026-10-01','S1',{requestId:id});assert.throws(()=>e.aa(1,'2026-10-01','S1',{requestId:id}),/data lain/);assert.throws(()=>e.brand(1,'2026-10-02','S1',{requestId:id}),/data lain/);
+  const huge=brandingFixture();huge.brand(Number.MAX_SAFE_INTEGER);huge.brand(1,'2026-10-02');assert.throws(()=>huge.report(),/Total branding terlalu besar/);
 });

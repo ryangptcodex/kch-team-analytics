@@ -216,7 +216,7 @@ test('access status edits retain an existing custom display name', () => {
 });
 test('guest cannot invoke any write, edit snapshot, profile, access or request-status endpoint',()=>{
   const e=environment(),before=JSON.stringify([...e.sheets.values()].map(s=>s.rows));
-  for(const method of ['saveMyProfile','listAccessUsers','saveAccessUser','saveTodayPlan','archiveTodayPlan','saveWeeklyMeeting','archiveWeeklyMeeting','saveKchNewsArticle','archiveKchNewsArticle','saveScoreAA','saveSalesTransaction','editSalesTransaction','saveSalesPhotoUpload','getSalesTransactionForEdit','getSalesTransactionRequestStatus','logClientActivity'])assert.throws(()=>e.call(method,[{}]),/Tamu hanya boleh melihat/);
+  for(const method of ['saveMyProfile','listAccessUsers','saveAccessUser','saveTodayPlan','archiveTodayPlan','saveWeeklyMeeting','archiveWeeklyMeeting','saveKchNewsArticle','archiveKchNewsArticle','saveScoreAA','saveScoreBranding','saveSalesTransaction','editSalesTransaction','saveSalesPhotoUpload','getSalesTransactionForEdit','getSalesTransactionRequestStatus','logClientActivity'])assert.throws(()=>e.call(method,[{}]),/Tamu hanya boleh melihat/);
   assert.equal(JSON.stringify([...e.sheets.values()].map(s=>s.rows)),before);assert.equal(e.context.KCH_REQUEST_USER_,null);
 });
 test('guest can read all sales history, export and details without changing sheet data',()=>{

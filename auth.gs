@@ -266,6 +266,7 @@ function kchApi(token, method, args) {
   var handlers = {
     getScoreSetup: function() { return getScoreSetup_(); },
     getScoreReport: function(month, salesId) { return getScoreReport_(month, salesId); },
+    saveScoreBranding: function(input) { return saveScoreBranding_(input); },
     saveScoreAA: function(input) { return saveScoreAA_(input); },
     getAuthProfile: function() { return { success: true, user: getCurrentUserInfo_() }; },
     saveMyProfile: saveMyProfile_,
@@ -293,7 +294,7 @@ function kchApi(token, method, args) {
       'getTransactionsPaginated', 'getTransactionDetail', 'getAllTransactionsForExport', 'getMonthlyTeamReport',
       'getScoreSetup', 'getScoreReport'];
     if (user.role === 'GUEST' && guestReads.indexOf(method) < 0) throw new Error('ACCESS_DENIED: Akun Tamu hanya boleh melihat data.');
-    var adminOnly = ['saveMyProfile', 'saveScoreAA', 'listAccessUsers', 'saveAccessUser', 'saveTodayPlan', 'archiveTodayPlan',
+    var adminOnly = ['saveScoreBranding', 'saveMyProfile', 'saveScoreAA', 'listAccessUsers', 'saveAccessUser', 'saveTodayPlan', 'archiveTodayPlan',
       'saveWeeklyMeeting', 'archiveWeeklyMeeting', 'saveKchNewsArticle', 'archiveKchNewsArticle'];
     if (adminOnly.indexOf(method) >= 0 && user.role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin yang boleh melakukan operasi ini.');
     if (['saveSalesTransaction', 'saveSalesPhotoUpload'].indexOf(method) >= 0) {
