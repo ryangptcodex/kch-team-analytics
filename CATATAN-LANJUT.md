@@ -328,3 +328,7 @@ Pengguna berhenti sementara untuk tidur dan ingin melanjutkan nanti.
 
 - Permintaan pengguna: hilangkan baris kosong antara sisa target dan kebutuhan produk; tambahkan “Komix Herbal Family dan Promag Herbal bisa dikombinasikan.” setelah alternatif Fokus B.
 - Hanya score-client.html untuk aplikasi: newline ganda menjadi tunggal, keterangan kombinasi pada baris berikutnya tanpa baris kosong. Harga, pengelompokan, rumus dan fitur lain tetap. Pasang cukup HTML score-client lengkap, Simpan/refresh dev atau update versi exec yang sama.
+
+### Header rekap Skor — 28 Oktober 2026
+
+- Sesuai permintaan pengguna, header widget Rekap Skor Seluruh Tim menjadi Fokus A, Fokus B, Total Value, AA, Branding, Total tanpa /maks. Hanya index.html untuk aplikasi; isi tabel/perhitungan tetap. Pasang HTML index lengkap, Simpan/refresh dev atau update versi exec sama. Verifikasi diff hanya lima label header.
