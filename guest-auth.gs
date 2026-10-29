@@ -1,5 +1,5 @@
 // Password authentication is exclusively for the single read-only Guest account.
-var KCH_GUEST_ACCESS_HEADERS_ = ['auth_type', 'username', 'password_hash', 'password_salt', 'password_iterations', 'session_version'];
+var KCH_GUEST_ACCESS_HEADERS_ = ['auth_type', 'username', 'password_hash', 'password_salt', 'password_iterations', 'session_version', 'password'];
 var KCH_GUEST_PASSWORD_ITERATIONS_ = 600000;
 var KCH_GUEST_SESSION_MS_ = 8 * 60 * 60 * 1000;
 
@@ -25,7 +25,7 @@ function guestCredential_() {
   if (!matches.length) return null;
   var cols = guestAccessColumns_(sheet, false), values = sheet.getRange(matches[0].number, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
   var item = { updatedAt: matches[0].row[6] || '', status: normalizeKey_(matches[0].row[4]), role: normalizeKey_(matches[0].row[3]) };
-  Object.keys(cols).forEach(function(h) { item[h] = cols[h] ? values[cols[h] - 1] : ''; });
+  Object.keys(cols).filter(function(h) { return h !== 'password'; }).forEach(function(h) { item[h] = cols[h] ? values[cols[h] - 1] : ''; });
   return item;
 }
 
@@ -135,6 +135,8 @@ function saveGuestCredentials_(payload) {
     sheet.getRange(rowNumber, 5).setValue('INACTIVE'); SpreadsheetApp.flush();
     var data = { auth_type: 'PASSWORD', username: username, password_hash: hash, password_salt: salt, password_iterations: KCH_GUEST_PASSWORD_ITERATIONS_, session_version: Utilities.getUuid().replace(/-/g, '') };
     Object.keys(data).forEach(function(h) { sheet.getRange(rowNumber, columns[h]).setNumberFormat('@').setValue(data[h]); });
+    // Requested readable copy, stored as literal text, never evaluated as a formula.
+    if (password.length) sheet.getRange(rowNumber, columns.password).setNumberFormat('@').setRichTextValue(SpreadsheetApp.newRichTextValue().setText(password).build());
     sheet.getRange(rowNumber, 3, 1, 3).setValues([['', 'GUEST', status]]);
     sheet.getRange(rowNumber, 7).setValue(now); SpreadsheetApp.flush();
     return { success: true, message: 'Akun Tamu berhasil disimpan.' };

@@ -15,11 +15,11 @@ function system(options = {}) {
     const sheet = store[name]; if (!sheet) return null;
     return { getSheetId:()=>sheet.sheetId, appendRow(row){sheet.rows.push([...row]);}, setFrozenRows(){}, getLastRow: () => sheet.rows.length, getLastColumn: () => Math.max(0, ...sheet.rows.map(r => r.length)),
       getRange(r, c, h=1, w=1) { const values = () => Array.from({length:h},(_,y)=>Array.from({length:w},(_,x)=>sheet.rows[r-1+y]?.[c-1+x]??''));
-        const range={ getValues: values, getDisplayValues: () => values().map(row => row.map(String)),getValue:()=>values()[0][0],setValue(v){return range.setValues([[v]]);},setValues(v){v.forEach((row,y)=>row.forEach((cell,x)=>{if(!sheet.rows[r-1+y])sheet.rows[r-1+y]=[];sheet.rows[r-1+y][c-1+x]=cell;}));return range;},setNumberFormat(){return range;}};return range; } };
+        const range={ getValues: values, getDisplayValues: () => values().map(row => row.map(String)),getValue:()=>values()[0][0],setValue(v){return range.setValues([[v]]);},setValues(v){v.forEach((row,y)=>row.forEach((cell,x)=>{if(!sheet.rows[r-1+y])sheet.rows[r-1+y]=[];sheet.rows[r-1+y][c-1+x]=cell;}));return range;},setRichTextValue(v){return range.setValue(v.getText());},setNumberFormat(){return range;}};return range; } };
   }
   const properties={};
   const context = { console, PropertiesService:{getScriptProperties:()=>({getProperty:k=>properties[k]??null,setProperty(k,v){properties[k]=v;},deleteProperty(k){delete properties[k];},getProperties:()=>({...properties})})}, ScriptApp: { getOAuthToken: () => 'TEST_ONLY_OAUTH' },
-    SpreadsheetApp: { flush() {} }, Session: { getActiveUser: () => ({getEmail:()=> 'mhmdryyan7@gmail.com'}) },
+    SpreadsheetApp: { newRichTextValue:()=>({setText(text){return {build:()=>({getText:()=>text})};}}), flush() {} }, Session: { getActiveUser: () => ({getEmail:()=> 'mhmdryyan7@gmail.com'}) },
     LockService: { getScriptLock: () => ({ waitLock() { if(options.busy) throw Error('busy'); }, releaseLock() {} }) },
     Utilities: { DigestAlgorithm: { SHA_256: 'sha256' }, Charset: { UTF_8: 'utf8' },
       computeDigest: (algorithm, text) => [...crypto.createHash(algorithm).update(text).digest()], getUuid: () => crypto.randomUUID(),

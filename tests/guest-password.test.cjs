@@ -13,10 +13,10 @@ test('only admin may configure credentials, and invalid usernames/short password
  const e=environment({guestSession:true}),before=JSON.stringify(e.sheets.get('ACCESS_USERS').rows);assert.throws(()=>e.call('saveGuestCredentials',[{}]),/Tamu hanya boleh/);assert.equal(JSON.stringify(e.sheets.get('ACCESS_USERS').rows),before);
  const a=admin();for(const payload of [{username:'x',password:'private-test-password',status:'ACTIVE'},{username:'tamu',password:'short',status:'ACTIVE'},{username:'tamu',password:'',status:'ACTIVE'}])assert.throws(()=>a.call('saveGuestCredentials',[payload]));
 });
-test('credentials live only as salted hash in ACCESS_USERS, preserving admin, old profiles and custom columns',()=>{
+test('credentials include requested readable password and salted hash in ACCESS_USERS, preserving admin, old profiles and custom columns',()=>{
  const e=admin(),sheet=e.sheets.get('ACCESS_USERS'),before=[...sheet.rows[1]];sheet.rows[0].push('display_name');sheet.rows[2][7]='Keep this';
  e.call('saveGuestCredentials',[{username:'Tamu',password:'private-test-password',status:'ACTIVE',role:'ADMIN',salesId:'S1'}]);
- assert.deepEqual(sheet.rows[1],before);assert.equal(sheet.rows[2][7],'Keep this');assert.equal(sheet.rows[2][3],'GUEST');assert.equal(sheet.rows[2][2],'');assert.doesNotMatch(JSON.stringify(sheet.rows),/private-test-password/);
+ assert.deepEqual(sheet.rows[1],before);assert.equal(sheet.rows[2][7],'Keep this');assert.equal(sheet.rows[2][3],'GUEST');assert.equal(sheet.rows[2][2],'');assert.equal(sheet.rows[2][sheet.rows[0].indexOf('password')],'private-test-password');
  const c=e.context.guestCredential_();assert.equal(c.username,'tamu');assert.equal(c.password_hash.length,64);assert.equal(c.password_salt.length,64);assert.equal(c.auth_type,'PASSWORD');
  const listing=JSON.stringify(e.call('listAccessUsers'));assert.match(listing,/"username":"tamu"/);assert.doesNotMatch(listing,/password_hash|password_salt|session_version/);
 });
@@ -55,4 +55,10 @@ test('first-time native Guest setup adds its account/credential columns without 
  const e=environment({access:false,identity:{email:'admin@gmail.com',localId:'admin-uid'}});e.context.KCH_GUEST_PASSWORD_ITERATIONS_=1000;
  assert.equal(e.call('saveGuestCredentials',[{username:'tamu',password:'private-test-password',status:'ACTIVE'}]).success,true);assert.equal(e.sheets.get('ACCESS_USERS').rows.length,3);assert.equal(login(e).user.role,'GUEST');
  const header=e.sheets.get('ACCESS_USERS').rows[0];for(const h of e.context.KCH_GUEST_ACCESS_HEADERS_)assert.equal(header.filter(v=>v===h).length,1);
+});
+test('readable password mirrors saves, preserves blank edits, stays out of RPC responses and accepts literal formula-looking text',()=>{
+ const e=configured(),rows=e.sheets.get('ACCESS_USERS').rows,col=rows[0].indexOf('password');
+ assert.equal(rows[2][col],'private-test-password');e.call('saveGuestCredentials',[{username:'tamu',password:'',status:'ACTIVE'}]);assert.equal(rows[2][col],'private-test-password');
+ const password='=SUM(100,200)-secret';e.call('saveGuestCredentials',[{username:'tamu',password,status:'ACTIVE'}]);assert.equal(rows[2][col],password);assert.equal(e.context.kchGuestLogin('tamu',password).success,true);
+ assert.doesNotMatch(JSON.stringify(e.call('listAccessUsers')),/SUM\(100/);assert.equal('password' in e.context.guestCredential_(),false);
 });

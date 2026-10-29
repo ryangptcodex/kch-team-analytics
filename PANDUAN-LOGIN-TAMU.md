@@ -41,12 +41,13 @@ Tujuh kolom lama tidak dihapus/dipindah. Kolom `display_name` tetap dipertahanka
 - `password_salt` = salt acak per penggantian password.
 - `password_iterations` = 600000.
 - `session_version` = versi acak untuk mencabut sesi lama.
+- `password` = salinan password yang bisa dibaca di sheet, sesuai permintaan terbaru pengguna.
 
 Admin menyimpan lewat Kelola akun; kolom yang kurang dibuat otomatis sehingga tidak perlu menambahkan header secara manual atau menekan pembaruan sheet terlebih dahulu. Kontrol **PEMBARUAN_SHEET** juga mengenali kolom baru setelah script-nya diganti.
 
 Baris Gmail Tamu lama tetap dipakai sebagai **penanda internal satu akun Tamu** agar status/data lama tidak hilang. Kolom email/Firebase UID lama tidak memberi izin login Google lagi. Username/password tidak bisa mempromosikan akun menjadi Admin, walaupun payload dimanipulasi; perubahan role/status yang tidak valid pada sheet ditolak.
 
-Password asli tidak ditulis ke sheet, log, GitHub, atau Script Properties. Password tidak ditampilkan kembali di panel admin. Jangan mengisi password asli ke kolom `password_hash`; gunakan Kelola akun agar hash/salt/versi konsisten.
+Sesuai revisi 29 Oktober 2026, password asli ditulis ke kolom `password` di sheet setelah admin menyimpannya, tetapi tidak dikirim kembali ke browser/panel, log, GitHub, atau Script Properties. Siapa pun yang dapat membaca spreadsheet/cadangan dapat membaca password ini. Jangan mengisi password asli ke kolom `password_hash`; gunakan Kelola akun agar hash/salt/versi konsisten.
 
 ## Sesi dan pembatasan login
 
@@ -64,3 +65,9 @@ Password asli tidak ditulis ke sheet, log, GitHub, atau Script Properties. Passw
 Chromium memakai HTML/JS dan gateway/login/sesi asli dengan layanan Google tiruan: Tamu masuk tanpa Firebase currentUser, password salah, Skor dan semua tim terbaca tanpa perubahan data bisnis, kontrol input tersembunyi, logout mencabut token, Admin Google mengatur kredensial, perpindahan Tamu → Admin → Tamu, pencabutan akun membersihkan UI, serta lebar 1440/390/320. Pengujian browser Skor/input AA/branding juga lulus.
 
 Belum dipasang atau diuji langsung pada Google/deployment pengguna oleh agen. Setelah memasang, cocokkan login Admin, Tamu pada tab samaran `/exec`, pembacaan Skor dan penolakan input. Akun Google Tamu lama seharusnya ditolak oleh versi terbaru.
+
+## Revisi password terlihat di sheet
+
+Cukup ganti **guest-auth.gs** terbaru. Registry pada sheet-updates.gs otomatis membaca kolom tambahan dari deklarasi tersebut; tidak perlu mengganti file aplikasi lain. Simpan, refresh dev atau update versi exec yang sama. Klik Perbarui jika ingin membuat kolom password terlebih dahulu (berada setelah session_version), tetapi updater tidak bisa memulihkan password dari hash.
+
+Login Admin → Kelola akun → **isi kembali password yang diinginkan** → Simpan akses. Kolom password terisi otomatis dan terbaca; jika password dikosongkan saat simpan, nilai sebelumnya dipertahankan. Untuk akun lama yang kolomnya baru ditambahkan, nilai tetap kosong sampai password diisi dan disimpan ulang. Ubah password melalui Kelola akun agar hash dan salinannya sinkron; mengedit kolom password saja tidak mengganti password login karena autentikasi tetap memakai hash. Password yang diawali tanda sama dengan disimpan sebagai teks literal, bukan formula. **232 tes lulus**.

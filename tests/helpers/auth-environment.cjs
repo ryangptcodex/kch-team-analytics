@@ -23,7 +23,7 @@ function environment(options = {}) {
             if (!rows[r - 1 + y]) rows[r - 1 + y] = [];
             rows[r - 1 + y][c - 1 + x] = v;
           })); return range; },
-          setNumberFormat() { return range; }
+          setRichTextValue(v){return range.setValue(v.getText());}, setNumberFormat() { return range; }
         };
         return range;
       }
@@ -45,7 +45,7 @@ function environment(options = {}) {
     PropertiesService: { getScriptProperties: () => ({getProperty: k => properties[k] ?? null,setProperty(k,v){properties[k]=v;},deleteProperty(k){delete properties[k];},getProperties:()=>({...properties})}) },
     Date, console,
     Session: { getActiveUser: () => ({ getEmail: () => options.editorEmail || '' }) },
-    SpreadsheetApp: { openById: () => ss, flush() {} },
+    SpreadsheetApp: { newRichTextValue:()=>({setText(text){return {build:()=>({getText:()=>text})};}}), openById: () => ss, flush() {} },
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
     Utilities: {
       getUuid: () => require('node:crypto').randomUUID(),
