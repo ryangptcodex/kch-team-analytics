@@ -12,3 +12,7 @@ test('monthly adjustment copy explicitly says 50% below gate and 100% at gate an
  assert.match(e.node('incentiveGate').textContent,/dibayar 50%.*Bonus triwulan tidak dipotong/);assert.equal(e.node('incentiveMonthlyTotal').textContent,'Rp 200.000');assert.equal(e.node('incentiveDailyTotal').textContent,'Rp 1.300.000');
  e.c.loadIncentiveReport();e.requests[1].success(report());assert.match(e.node('incentiveGate').textContent,/dibayar 100%/);
 });
+test('combined formula shows gross inputs, one percentage and separately reconciled received amounts',()=>{
+ const e=client(),r=report();r.monthly.eligible=false;r.dailyScheduledTotal=50000;r.dailyTotal=25000;r.monthly.scheduledTotal=625000;r.monthly.total=312500;r.monthSubtotal=675000;r.monthTotal=337500;e.c.loadIncentiveReport();e.requests[0].success(r);
+ assert.match(e.node('incentiveCombined').textContent,/harian Rp 50\.000 \+ bulanan Rp 625\.000 = Rp 675\.000/);assert.match(e.node('incentiveCombined').textContent,/Rp 675\.000 × 50% = Rp 337\.500/);assert.match(e.node('incentiveCombined').textContent,/harian Rp 25\.000 dan bulanan Rp 312\.500/);
+});

@@ -12,7 +12,7 @@
       setHtml(id, '<tr><td colspan="7" class="text-muted">' + (loading ? '<span class="widget-loading">' : '<span>') + escapeHtml(message) + '</span></td></tr>');
     });
     ['incentiveDailyTotal', 'incentiveMonthlyTotal', 'incentiveMonthTotal', 'incentiveQuarterTotal'].forEach(function(id) { incentiveText(id, loading ? 'Sedang memuat data' : '—'); });
-    ['incentiveGate', 'incentivePeriod', 'incentiveQuarterStatus', 'incentiveWarnings'].forEach(function(id) { incentiveText(id, ''); });
+    ['incentiveGate', 'incentivePeriod', 'incentiveQuarterStatus', 'incentiveWarnings', 'incentiveCombined'].forEach(function(id) { incentiveText(id, ''); });
   }
   function openIncentives() {
     var state = incentiveState(), seq = ++state.setupSeq;
@@ -59,8 +59,9 @@
     incentiveText('incentiveMonthlyTotal', formatRupiah(m.total));
     incentiveText('incentiveMonthTotal', res.monthTotal == null ? 'Belum dapat dihitung' : formatRupiah(res.monthTotal));
     incentiveText('incentiveQuarterTotal', formatRupiah(q.amount));
+    incentiveText('incentiveCombined', res.monthSubtotal == null ? 'Total gabungan belum dapat dihitung karena kalender harian belum tersedia.' : 'Sebelum penyesuaian: harian ' + formatRupiah(res.dailyScheduledTotal) + ' + bulanan ' + formatRupiah(m.scheduledTotal) + ' = ' + formatRupiah(res.monthSubtotal) + '. Total diterima: ' + formatRupiah(res.monthSubtotal) + ' × ' + (m.eligible ? '100%' : '50%') + ' = ' + formatRupiah(res.monthTotal) + '. Rincian diterima: harian ' + formatRupiah(res.dailyTotal) + ' dan bulanan ' + formatRupiah(m.total) + '.');
     incentiveText('incentivePeriod', res.month + ' · ' + (res.monthlyClosed ? 'Periode bulanan selesai' : 'Estimasi bulan berjalan/belum selesai') + ' · ' + res.paidDays + ' hari mendapat insentif dari ' + res.workDays + ' HK · Data sampai ' + res.today);
-    incentiveText('incentiveGate', (m.eligible ? 'Memenuhi' : 'Belum memenuhi') + ' syarat klaim bulanan: Total Value ' + formatRupiah(m.actualValue) + ' / minimal ' + formatRupiah(m.minimumValue) + ' (70%). ' + (m.eligible ? 'Insentif harian dan bulanan A–D dibayar 100% dari tarif sesuai pencapaian. ' : 'Insentif harian dan bulanan A–D dibayar 50% dari tarif sesuai pencapaian. Bonus triwulan tidak dipotong. ') + 'AA: ' + m.aaTotal.toLocaleString('id-ID') + ' outlet · ' + m.aaEnteredDays + ' hari sudah diinput.');
+    incentiveText('incentiveGate', (m.eligible ? 'Memenuhi' : 'Belum memenuhi') + ' syarat klaim bulanan: Total Value ' + formatRupiah(m.actualValue) + ' / minimal ' + formatRupiah(m.minimumValue) + ' (70%). ' + 'Total gabungan harian + bulanan dibayar ' + (m.eligible ? '100%' : '50%') + '. Bonus triwulan tidak dipotong. ' + 'AA: ' + m.aaTotal.toLocaleString('id-ID') + ' outlet · ' + m.aaEnteredDays + ' hari sudah diinput.');
     incentiveText('incentiveQuarterStatus', 'TW' + q.number + ' ' + q.year + ' · ' + (q.closed ? 'Periode triwulan selesai' : 'Estimasi triwulan belum selesai') + ' · ' + q.reachedMonths + ' dari 3 bulan mencapai target ≥100% · Akumulasi ' + formatRupiah(q.actual) + ' / ' + formatRupiah(q.target) + ' (' + incentivePercent(q.achievement) + ') · Tingkat ' + (q.tier ? q.tier + '%' : 'belum mencapai 100%'));
     incentiveText('incentiveWarnings', (res.warnings || []).join(' '));
     setHtml('incentiveMonthlyRows', m.parameters.map(function(p, index) {

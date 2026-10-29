@@ -98,3 +98,11 @@ Jika menu Insentif sudah terpasang, cukup ganti seluruh isi **incentives.gs, inc
 Pengguna memperluas aturan pada 29 Oktober 2026: pencapaian Total Value **bulanan** <70% menghasilkan pembayaran **50% insentif harian dan bulanan**; >=70% menghasilkan 100%. Bonus **triwulan tetap penuh sesuai skemanya**, tanpa faktor potongan ini. Aturan ini menggantikan catatan versi sebelumnya yang hanya memotong bulanan. Tarif dasar harian/tangga bulanan tidak berubah. Rincian harian sekarang memperlihatkan tarif sebelum faktor dan insentif dibayar sesudah faktor. Contoh tarif harian terkumpul Rp110.000 dan TV bulanan di bawah70% → dibayar Rp55.000. Pemotongan sekali, tidak dipotong kembali pada kartu total harian+bulanan atau saat Muat ulang.
 
 Paket tetap tiga file: incentives.gs, incentive-client.html, index.html. Simpan/refresh dev atau perbarui Versi baru pada exec yang sama. **259 tes lulus**, termasuk daily mixed tiers, batas tepat70%, reload tanpa potongan ganda, dan triwulan tetap.
+
+## Penyajian gabungan yang disepakati terakhir
+
+Rumus utama adalah **(insentif harian sebelum penyesuaian + insentif bulanan sebelum penyesuaian) × faktor pembayaran**. Faktor50% untuk TV bulanan<70%, faktor100% untuk TV bulanan>=70%. Server menghitung total diterima langsung dari subtotal gabungan ini; rincian harian/bulanan diterima adalah pembagian proporsionalnya, bukan potongan kedua. Bonus triwulan tetap terpisah.
+
+Halaman menampilkan rumus lengkap sebelum/sesudah serta rincian diterima. Contoh harian50.000 + bulanan625.000 = subtotal675.000; dibawah70% mendapat675.000×50%=337.500. Rincian diterima harian25.000 + bulanan312.500 =337.500. Kartu harian/bulanan kini diberi judul **diterima** agar tidak tertukar dengan nilai sebelum penyesuaian. Tepat70% dibayar penuh seperti kesepakatan sebelumnya.
+
+Paket pengganti tetap **incentives.gs, incentive-client.html, index.html**; Simpan/refresh dev atau update versi exec yang sama. **261 tes lulus** termasuk rekonsiliasi total gabungan dan rincian diterima serta batas tepat70%.

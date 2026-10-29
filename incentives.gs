@@ -33,7 +33,7 @@ function incentiveMonthly_(report) {
       scheduled: earned, amount: earned * (eligible ? 1 : 0.5), tariffs: tariffs[i] };
   });
   return { eligible: eligible, payoutFactor: eligible ? 1 : 0.5, minimumValue: tv.target * 0.7, actualValue: tv.actual,
-    parameters: parameters, total: parameters.reduce(function(sum, p) { return sum + p.amount; }, 0),
+    parameters: parameters, scheduledTotal: parameters.reduce(function(sum, p) { return sum + p.scheduled; }, 0), total: parameters.reduce(function(sum, p) { return sum + p.amount; }, 0),
     aaEnteredDays: report.enteredDays, aaTotal: report.totalAA };
 }
 function incentiveQuarter_(month) {
@@ -83,10 +83,12 @@ function getIncentiveReport_(month, salesId) {
   var dailyScheduledTotal = dailyTotal;
   daily.forEach(function(d) { d.scheduled = d.amount; if (d.amount !== null) d.amount *= monthly.payoutFactor; });
   if (dailyTotal !== null) dailyTotal *= monthly.payoutFactor;
+  var monthSubtotal = dailyScheduledTotal === null ? null : dailyScheduledTotal + monthly.scheduledTotal;
   return { success: true, month: month, today: today, sales: report.sales, monthlyClosed: today > monthEnd,
     workDays: report.workDays, holidaySource: report.holidaySource,
     daily: daily, dailyScheduledTotal: dailyScheduledTotal, dailyTotal: dailyTotal, paidDays: daily.filter(function(d) { return d.amount > 0; }).length,
-    monthly: monthly, monthTotal: dailyTotal === null ? null : dailyTotal + monthly.total,
+    monthly: monthly, monthSubtotal: monthSubtotal, payoutFactor: monthly.payoutFactor,
+    monthTotal: monthSubtotal === null ? null : monthSubtotal * monthly.payoutFactor,
     quarter: { number: quarter.number, year: quarter.year, months: quarterMonths, end: quarter.end, closed: today > quarter.end,
       actual: quarterActual / 100, target: quarterTarget / 100, achievement: quarterActual / quarterTarget, reachedMonths: reached, tier: tier, amount: quarterAmount },
     warnings: (report.holidaySource ? [] : ['Sheet HOLIDAYS belum tersedia; insentif harian belum dapat dipastikan.'])

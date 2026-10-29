@@ -80,3 +80,7 @@ test('same 70% monthly threshold halves mixed daily tariffs once; reload is not 
  let r=e.report();assert.equal(r.dailyScheduledTotal,110000);assert.equal(r.dailyTotal,55000);assert.equal(e.report().dailyTotal,55000);assert.equal(r.monthTotal,r.monthly.total+55000);
  e.tx('P1',14399999);r=e.report();assert.equal(r.monthly.actualValue,18900000);assert.equal(r.monthly.payoutFactor,1);assert.equal(r.dailyScheduledTotal,140000);assert.equal(r.dailyTotal,140000);
 });
+test('payout percentage is applied to combined gross daily plus monthly total with net detail reconciliation',()=>{
+ const e=fixture();e.tx('LBMAV',5000000);e.tx('LPRGQ',4500000);e.aa(400);let r=e.report();assert.equal(r.dailyScheduledTotal,50000);assert.equal(r.monthly.scheduledTotal,625000);assert.equal(r.monthSubtotal,675000);assert.equal(r.payoutFactor,.5);assert.equal(r.monthTotal,337500);assert.equal(r.dailyTotal,25000);assert.equal(r.monthly.total,312500);assert.equal(r.monthTotal,r.dailyTotal+r.monthly.total);
+ e.tx('P1',9400000);r=e.report();assert.equal(r.monthly.actualValue,18900000);assert.equal(r.payoutFactor,1);assert.equal(r.monthTotal,r.monthSubtotal);
+});

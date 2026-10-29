@@ -397,3 +397,9 @@ Pengguna berhenti sementara untuk tidur dan ingin melanjutkan nanti.
 - Pengguna mengoreksi lagi: TVbulanan<70% membayar50% untuk **HARIAN dan BULANAN**, bukanquarter. Ini menggantikan pernyataan sebelumnya monthlyonly. Tepat>=70%full.
 - incentives.gs mempertahankantarifdailyscheduleddan dailyScheduledTotal, mengalikan daily.amount/dailyTotaldengan monthly.payoutFactorsekalisaja setelahhitung monthly; monthTotalmenjumlah hasilsesudahfaktor. Quartertidakdiubah. UIgatecopyharian+bulanan, indexdailytablekolomTarifharian vs Insentifdibayar.
 - Paket3filetetap incentives.gs,incentive-client.html,index.html. 259tesNodelulus (mixedtiers55kvs110k, tepat70%kembalifull, reloadtidakdoublepotong, quarterutuh), belumGooglelive.
+
+### Total persentase diterapkan pada gabungan harian+bulanan — 29 Oktober 2026
+
+- Pengguna memperjelas ingin harian+bulanan dijumlah dahulu baru totalgabungan*50/100%, rincian tetapagar tahu diterima perjenis. Secaraaritmetiksamadenganproportionalversisebelum, tetapiUI/rumusserverdiperjelas. Tepat70% tetapfullmengikutipersetujuanawal, bukanstrict>70. Quarterterpisah.
+- incentives.gs menambahmonthly.scheduledTotal, monthSubtotal, payoutFactor dan authoritative monthTotal=monthSubtotal*payoutFactor. Detailnetdaily/monthlytetap untukrekonsiliasi. incentive-client menampilkanpersamaan grossdaily+grossmonthly=subtotal×factor=totalnet dan detailnet. IndexcardsjudulHarian/Bulananditerima, combinedpenjelasansebelumtabel, rumuscopybaru. Tidakdoublepotong.
+- 261tesNode lulus (2tesbaru subtotal675000→337500=25000+312500, tepat70%full, UIformula), paket3file incentives.gs,incentive-client.html,index.html sama, tidakperluperbaruisheet. BelumGooglelive.
