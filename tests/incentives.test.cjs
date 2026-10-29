@@ -30,9 +30,9 @@ test('each monthly parameter uses 90/100/110 steps independently, with no interp
  const e=fixture(team);e.tx('LBMAV',5000000*factor);e.tx('LPRGQ',5000000*factor);e.tx('P1',17000000*factor);e.aa(Math.floor(400*factor));const r=e.report();assert.equal(r.monthly.total,amount,team+' '+factor);assert.equal(r.monthly.parameters[0].tier,level);assert.equal(r.monthly.parameters[0].target,5000000);
  }
 });
-test('70% monthly Total Value gate blocks all four monthly parameters but never daily or quarterly rules',()=>{
- const e=fixture();e.tx('LBMAV',5500000);e.tx('LPRGQ',5500000);e.tx('P1',7899999.99);e.aa(440);let r=e.report();assert.equal(r.monthly.eligible,false);assert.equal(r.monthly.total,0);assert.equal(r.monthly.parameters[0].scheduled,500000);assert.equal(r.dailyTotal,50000);
- e.tx('P1',.01);r=e.report();assert.equal(r.monthly.eligible,true);assert.equal(r.monthly.minimumValue,18900000);assert.equal(r.monthly.total,937500);assert.equal(r.monthly.parameters[2].amount,0);
+test('below 70% monthly Total Value halves all four monthly parameters, with full payout at exactly 70%',()=>{
+ const e=fixture();e.tx('LBMAV',5500000);e.tx('LPRGQ',5500000);e.tx('P1',7899999.99);e.aa(440);let r=e.report();assert.equal(r.monthly.eligible,false);assert.equal(r.monthly.total,468750);assert.equal(r.monthly.payoutFactor,.5);assert.equal(r.monthly.parameters[0].amount,250000);assert.equal(r.monthly.parameters[3].amount,62500);assert.equal(r.monthly.parameters[0].scheduled,500000);assert.equal(r.dailyTotal,50000);
+ e.tx('P1',.01);r=e.report();assert.equal(r.monthly.eligible,true);assert.equal(r.monthly.payoutFactor,1);assert.equal(r.monthly.minimumValue,18900000);assert.equal(r.monthly.total,937500);assert.equal(r.monthly.parameters[2].amount,0);
 });
 test('monthly AA comes only from manual ledger counts, never invoice count or attendance',()=>{
  const e=fixture();for(let n=0;n<10;n++)e.tx('P1',2700000);let r=e.report();assert.equal(r.monthly.parameters[3].actual,0);assert.equal(r.monthly.parameters[3].amount,0);e.aa(360);r=e.report();assert.equal(r.monthly.parameters[3].tier,90);assert.equal(r.monthly.parameters[3].amount,50000);
@@ -69,4 +69,9 @@ test('missing holidays disable daily estimates instead of assuming no holidays; 
 test('incentive monthly actuals match Skor and reflect edited transaction rows on reload',()=>{
  const e=fixture();e.tx('LBMAV',4500000);e.tx('LPRGQ',5000000);e.tx('P1',17500000);e.aa(400);let r=e.report(),s=e.context.kchApi('MOCK','getScoreReport',['2026-10','S1']);assert.deepEqual(copy(r.monthly.parameters.map(p=>p.actual)),copy(s.parameters.map(p=>p.actual)));
  const h=e.rows('SALES_TRANSACTIONS')[0],row=e.rows('SALES_TRANSACTIONS')[1];row[h.indexOf('subtotal_sales')]=5500000;r=e.report();assert.equal(r.monthly.parameters[0].amount,500000);
+});
+test('monthly 50% adjustment preserves scheduled tiers and leaves daily/quarter payouts intact',()=>{
+ const e=fixture();e.tx('LBMAV',5000000);e.tx('LPRGQ',4500000);e.aa(400);e.tx('P1',40000000,'2026-11-02');e.tx('P1',40000000,'2026-12-02');
+ const r=e.report();assert.equal(r.monthly.total,(400000+125000+100000)/2);assert.equal(r.monthTotal,50000+r.monthly.total);assert.equal(r.dailyTotal,50000);assert.equal(r.quarter.amount,1050000);
+ assert.deepEqual(copy(r.monthly.parameters.map(p=>p.amount)),copy(r.monthly.parameters.map(p=>p.scheduled*.5)));
 });

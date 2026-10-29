@@ -30,9 +30,9 @@ function incentiveMonthly_(report) {
     var actual = i < 3 ? txMoney_(p.actual, 'Aktual') : p.actual, target = i < 3 ? txMoney_(p.target, 'Target') : p.target;
     var tier = incentiveLevel_(actual, target, [90, 100, 110]), earned = tier ? tariffs[i][[90, 100, 110].indexOf(tier)] : 0;
     return { name: p.name, actual: p.actual, target: p.target, achievement: p.achievement, tier: tier,
-      scheduled: earned, amount: eligible ? earned : 0, tariffs: tariffs[i] };
+      scheduled: earned, amount: earned * (eligible ? 1 : 0.5), tariffs: tariffs[i] };
   });
-  return { eligible: eligible, minimumValue: tv.target * 0.7, actualValue: tv.actual,
+  return { eligible: eligible, payoutFactor: eligible ? 1 : 0.5, minimumValue: tv.target * 0.7, actualValue: tv.actual,
     parameters: parameters, total: parameters.reduce(function(sum, p) { return sum + p.amount; }, 0),
     aaEnteredDays: report.enteredDays, aaTotal: report.totalAA };
 }

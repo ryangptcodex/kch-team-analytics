@@ -57,7 +57,7 @@ Setiap parameter memakai pencapaiannya sendiri, tanpa interpolasi atau pembulata
 - ≥100% dan <110%: tarif 100%.
 - ≥110%: tarif maksimal 110%, tidak bertambah lagi di atasnya.
 
-**Syarat klaim seluruh parameter bulanan A–D: Total Value minimal 70% target = Rp18.900.000.** Jika tidak tercapai, insentif yang dapat diklaim seluruh parameter adalah nol. Tabel tetap menunjukkan tarif menurut pencapaian untuk membedakannya dari nilai yang benar-benar dapat diklaim. Syarat ini berlaku untuk parameter bulanan; tidak dipindahkan menjadi syarat tambahan harian/triwulan.
+**Revisi pengguna: Total Value di bawah 70% target (Rp18.900.000) membayar 50% dari hasil tarif parameter bulanan A–D, bukan nol. Tepat 70% atau lebih membayar 100% tarif.** Pilih dahulu tangga tiap parameter, lalu kalikan hasilnya dengan faktor 0,5 atau 1. Tabel menampilkan tarif sebelum penyesuaian dan nilai yang dapat diklaim sesudahnya. Parameter di bawah 90% tetap nol. Penyesuaian ini hanya untuk bulanan; harian dan triwulan tidak dipotong. Contoh hasil tarif bulanan Rp625.000 dan TV kurang dari 70% menghasilkan Rp312.500.
 
 AA dijumlah dari input harian admin di SKOR_EVENTS yang sama dengan Skor, bukan faktur/absensi. Hari AA yang belum diinput belum menambah aktual; jumlah hari input ditampilkan agar kekurangan data terlihat. Tidak ada branding untuk Motoris/MMTW berdasarkan juklak ini.
 
@@ -83,8 +83,12 @@ Akumulasi <100% tidak mendapat bonus. Nilai tepat batas diterima pada tingkat te
 
 ## Pengujian
 
-**256 tes Node lulus**, termasuk 20 tes baru Insentif: semua batas harian; penggabungan faktur/mixed invoice; 26 HK tanpa cap; Minggu/libur; seluruh tangga bulanan kedua tim; syarat 70% tepat/bawah; AA manual; kalender triwulan/year transition; sembilan kombinasi payout triwulan dan batas tanpa ROUND; future exclusion; akses read-only; kecocokan Skor/edit transaksi; loading/error/stale responses/escaping.
+**258 tes Node lulus**, termasuk 20 tes baru Insentif: semua batas harian; penggabungan faktur/mixed invoice; 26 HK tanpa cap; Minggu/libur; seluruh tangga bulanan kedua tim; syarat 70% tepat/bawah; AA manual; kalender triwulan/year transition; sembilan kombinasi payout triwulan dan batas tanpa ROUND; future exclusion; akses read-only; kecocokan Skor/edit transaksi; loading/error/stale responses/escaping.
 
 Chromium memakai produksi HTML/JS/engine dengan layanan Google tiruan: payout harian/bulanan/triwulan, pemisahan total, pilihan sales/bulan, tahun baru, mapping invalid, tanpa mutasi bisnis, reset sesi, dan viewport2560/1920/1440/1024/768/390/320. Lebar efektif2560 mewakili ruang layout layar1920 pada zoom75%, bukan kendali menu zoom native Chrome. Browser login Tamu tanpa Gmail, all-team Skor/Insentif, hak baca dan perpindahan Admin/Tamu juga lulus.
 
 Belum dipasang atau diperiksa pada spreadsheet/deployment Google nyata oleh agen. Setelah memasang, cocokkan satu hari Rp1.500.000 vs Rp1.500.001, satu parameter bulanan, input AA, kalender HOLIDAYS dan tiga bulan dalam triwulan dengan transaksi asli.
+
+## Paket revisi faktor 50% bulanan
+
+Jika menu Insentif sudah terpasang, cukup ganti seluruh isi **incentives.gs, incentive-client.html, dan index.html**. Simpan/refresh dev atau update versi exec sama. Tidak perlu auth/js baru, repair, pembaruan sheet, atau input ulang. Aturan sebelumnya TV<70% membayar nol telah digantikan aturan50% ini.
