@@ -11,10 +11,12 @@ var KCH_SCORE_PRODUCT_RULES_ = {
   LKXNA: ['Komix Herbal Sachet Jeruk Nipis', 'FOCUS_B'],
   LKXOB: ['Komix Herbal Tube Original', 'FOCUS_B'],
   LKXLA: ['Komix Herbal Tube Lemon', 'FOCUS_B'],
-  LPRGQ: ['Promag Herbal', 'FOCUS_B'],
+  LPRGR: ['Promag Herbal', 'FOCUS_B'],
   LPRGN: ['Promag Tablet', 'EXCLUDE']
 };
 
+// Canonical correction confirmed by the user; legacy invoice codes remain readable.
+function scoreCanonicalProductId_(id) { var key = normalizeKey_(id); return key === 'LPRGQ' ? 'LPRGR' : key; }
 function scoreToday_() { return Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd'); }
 function scoreDate_(value) {
   var date = normalizeDateString_(value);
@@ -59,7 +61,7 @@ function scoreSales_(data, salesId) {
 function scoreCatalog_(data) {
   var seen = Object.create(null);
   return data.products.map(function(p) {
-    var id = normalizeKey_(p.product_id), name = String(p.product_name || '').trim();
+    var id = scoreCanonicalProductId_(p.product_id), name = String(p.product_name || '').trim();
     if (!id || !name || seen[id]) throw new Error('Master PRODUCTS memiliki kode/nama kosong atau kode ganda. Periksa master dahulu.');
     seen[id] = true;
     return { productId: id, productName: name };
@@ -202,7 +204,7 @@ function scoreBuildReport_(data, month, salesId, prepared) {
       if (normalizeKey_(row.sales_id) !== normalizeKey_(salesId)) return;
       var date = scoreDate_(row.transaction_date);
       if (date.slice(0, 7) !== month || date > today) return;
-      var p = products[normalizeKey_(row.product_id)];
+      var p = products[scoreCanonicalProductId_(row.product_id)];
       if (!p) throw new Error('Kode produk transaksi ' + row.product_id + ' tidak ada di master PRODUCTS; periksa master sebelum menilai.');
       var qty = txNumber_(row.quantity, 'Jumlah transaksi');
       if (!Number.isSafeInteger(qty) || qty <= 0) throw new Error('Jumlah transaksi tidak valid; periksa faktur ' + (row.transaction_id || '') + '.');
@@ -230,9 +232,9 @@ function scoreBuildReport_(data, month, salesId, prepared) {
 
 // Recap reads one shared spreadsheet snapshot, never one network request per sales.
 function scorePriceQuote_(data, prices, productId, teamName, remainingCents) {
-  var product = txUnique_(data.products, function(p) { return normalizeKey_(p.product_id) === productId; }, 'Produk ' + productId);
+  var product = txUnique_(data.products, function(p) { return scoreCanonicalProductId_(p.product_id) === productId; }, 'Produk ' + productId);
   if (!txActive_(product)) throw new Error(product.product_name + ': produk tidak aktif.');
-  var rows = prices.filter(function(p) { return normalizeKey_(p.product_id) === productId && txTeamKey_(p.team_name) === txTeamKey_(teamName) && txActive_(p); });
+  var rows = prices.filter(function(p) { return scoreCanonicalProductId_(p.product_id) === productId && txTeamKey_(p.team_name) === txTeamKey_(teamName) && txActive_(p); });
   if (rows.length !== 1) throw new Error(product.product_name + ': harga aktif untuk tim ' + teamName + (rows.length ? ' terdaftar ganda.' : ' belum tersedia.'));
   var price = txMoney_(rows[0].selling_price, 'Harga ' + product.product_name);
   if (!price) throw new Error(product.product_name + ': harga jual harus lebih dari nol.');
@@ -267,7 +269,7 @@ function scoreGuidance_(data, prices, report, priceError) {
         if (quotes.some(function(q) { return q.unitPrice !== reference.unitPrice || q.unit !== reference.unit; })) reference.displayName += ' (' + reference.productName + ')';
         note.alternatives.push(reference);
       });
-      var promag = quote('LPRGQ'); if (promag) note.alternatives.push(promag);
+      var promag = quote('LPRGR'); if (promag) note.alternatives.push(promag);
     }
     return note;
   });

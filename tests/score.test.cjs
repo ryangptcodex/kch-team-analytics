@@ -24,7 +24,7 @@ function fixture() {
 test('exact confirmed product codes: six Family variants plus Promag count; Kids is ordinary turnover; mixed invoice excludes only tablet line',()=>{
   const e=fixture();
   e.tx('LBMAV',5000000);
-  for(const id of ['LKXOD','LKXJA','LKXPA','LKXNA','LKXOB','LKXLA','LPRGQ'])e.tx(id,625000);
+  for(const id of ['LKXOD','LKXJA','LKXPA','LKXNA','LKXOB','LKXLA','LPRGR'])e.tx(id,625000);
   e.rows('PRODUCTS').push(['LKXKA','Komix Herbal Kids','ACTIVE']);e.tx('LKXKA',625000);
   e.tx('LPRGN',90000000);e.tx('P1',17000000);
   const r=e.report(); assert.equal(r.mappingReady,true); assert.deepEqual(copy(r.parameters.map(p=>p.actual)),[5000000,4375000,27000000,0]);
@@ -110,7 +110,7 @@ test('AA rejects negative, fractional, blank/string/unsafe counts, invalid/futur
   assert.equal(e.exists('SKOR_EVENTS'),false);
 });
 test('mapping uses codes and validates actual master names, ignores historical transaction labels',()=>{
-  const e=fixture();e.tx('LPRGN',999,{product_name:'Promag Herbal'});e.tx('LPRGQ',100,{product_name:'Promag Tablet'});assert.equal(e.report().parameters[2].actual,100);
+  const e=fixture();e.tx('LPRGN',999,{product_name:'Promag Herbal'});e.tx('LPRGR',100,{product_name:'Promag Tablet'});assert.equal(e.report().parameters[2].actual,100);
   e.rows('PRODUCTS').find(p=>p[0]==='LPRGN')[1]='Promag Herbal';const r=e.report();assert.equal(r.mappingReady,false);assert.equal(r.total,null);assert.equal(r.category,null);assert.match(r.message,/LPRGN/);
 });
 test('missing known codes, new focus/Promag codes, duplicate master and unknown transaction products never silently misclassify',()=>{
@@ -120,7 +120,7 @@ test('missing known codes, new focus/Promag codes, duplicate master and unknown 
   const t=fixture();t.tx('MISSING',500);assert.throws(()=>t.report(),/tidak ada di master/);
 });
 test('currency cents are preserved and fallback price times quantity is supported',()=>{
-  const e=fixture();e.tx('P1',0.1);e.tx('P1',0.2);e.tx('LPRGQ',123.45,{quantity:2,subtotal_sales:''});
+  const e=fixture();e.tx('P1',0.1);e.tx('P1',0.2);e.tx('LPRGR',123.45,{quantity:2,subtotal_sales:''});
   const r=e.report();assert.equal(r.parameters[1].actual,246.9);assert.equal(r.parameters[2].actual,247.2);
 });
 test('invalid financial rows and malformed holiday configuration fail visibly; invalid months rejected',()=>{
@@ -221,7 +221,7 @@ function summaryFixture(){
  const e=fixture();e.rows('SALES').push(['S3','Amul Husni','MPR','ACTIVE'],['S4','Canvasser One','Canvasser','ACTIVE'],['S5','Other','Asisten MPR','ACTIVE']);
  const h=e.rows('PRICE_MASTER')[0];h.push('unit');e.rows('PRICE_MASTER').slice(1).forEach(r=>r.push('Box'));
  e.price=(id,team,price,unit='Box',status='ACTIVE')=>e.rows('PRICE_MASTER').push(h.map(k=>({product_id:id,team_name:team,selling_price:price,cost_price:0,shj:0,status,unit})[k]??''));
- for(const team of ['Motoris','MMTW','MPR','Canvasser']){e.price('LBMAV',team,100000);e.price('LKXOD',team,150000);e.price('LPRGQ',team,250000);}
+ for(const team of ['Motoris','MMTW','MPR','Canvasser']){e.price('LBMAV',team,100000);e.price('LKXOD',team,150000);e.price('LPRGR',team,250000);}
  e.summary=(month='2026-10')=>e.api('getScoreTeamSummary',month);
  return e;
 }
@@ -231,9 +231,9 @@ test('all-team recap matches every individual report with team-specific targets,
  assert.equal(r.rows.some(r=>r.sales.salesId==='S5'),false);assert.equal(r.rows.find(r=>r.sales.salesId==='S3').parameters[0].target,6400000);
 });
 test('guidance uses remaining revenue and current team-specific prices, rounded upward; Komix OR Promag each covers the same combined gap',()=>{
- const e=summaryFixture();e.tx('LBMAV',2000000);e.tx('LPRGQ',500000);const row=e.summary().rows.find(r=>r.sales.salesId==='S1');
+ const e=summaryFixture();e.tx('LBMAV',2000000);e.tx('LPRGR',500000);const row=e.summary().rows.find(r=>r.sales.salesId==='S1');
  assert.equal(row.guidance[0].remaining,3000000);assert.equal(row.guidance[0].alternatives[0].quantity,30);assert.equal(row.guidance[0].alternatives[0].unit,'box');
- const b=row.guidance[1];assert.equal(b.remaining,4500000);assert.deepEqual(copy(b.alternatives.map(q=>[q.productId,q.quantity])),[['LKXOD',30],['LPRGQ',18]]);
+ const b=row.guidance[1];assert.equal(b.remaining,4500000);assert.deepEqual(copy(b.alternatives.map(q=>[q.productId,q.quantity])),[['LKXOD',30],['LPRGR',18]]);
  const p=e.rows('PRICE_MASTER').find(r=>r[0]==='LBMAV'&&r[1]==='Motoris');p[3]=130000;
  assert.equal(e.summary().rows.find(r=>r.sales.salesId==='S1').guidance[0].alternatives[0].quantity,24);
 });
@@ -276,10 +276,10 @@ test('summary invalid periods and incomplete product mapping never show made-up 
 });
 test('Family recap separates sachet, tube and Promag alternatives using live team master prices',()=>{
  const e=summaryFixture();
- for(const [id,price] of [['LKXOD',13000],['LPRGQ',16800]])e.rows('PRICE_MASTER').find(r=>r[0]===id&&r[1]==='Motoris')[3]=price;
- e.price('LKXOB','Motoris',10000);e.tx('LPRGQ',65200);
+ for(const [id,price] of [['LKXOD',13000],['LPRGR',16800]])e.rows('PRICE_MASTER').find(r=>r[0]===id&&r[1]==='Motoris')[3]=price;
+ e.price('LKXOB','Motoris',10000);e.tx('LPRGR',65200);
  let b=e.summary().rows.find(r=>r.sales.salesId==='S1').guidance[1];
- assert.equal(b.remaining,4934800);assert.deepEqual(copy(b.alternatives.map(q=>[q.productId,q.quantity])),[['LKXOD',380],['LKXOB',494],['LPRGQ',294]]);
+ assert.equal(b.remaining,4934800);assert.deepEqual(copy(b.alternatives.map(q=>[q.productId,q.quantity])),[['LKXOD',380],['LKXOB',494],['LPRGR',294]]);
  assert.deepEqual(copy(b.alternatives.map(q=>q.displayName||q.productName)),['Komix Herbal Sachet','Komix Tube','Promag Herbal']);
  e.price('LKXJA','Motoris',14000);b=e.summary().rows.find(r=>r.sales.salesId==='S1').guidance[1];assert.match(b.alternatives[0].displayName,/Komix Herbal Sachet Original/);
  e.rows('PRICE_MASTER').find(r=>r[0]==='LKXOB'&&r[1]==='Motoris')[3]=20000;

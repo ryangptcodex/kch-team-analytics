@@ -42,7 +42,7 @@ Kode dan nama berikut dikonfirmasi pengguna dari sheet `PRODUCTS`. Klasifikasi m
 | LKXOB | Komix Herbal Tube Original | Fokus B |
 | LKXLA | Komix Herbal Tube Lemon | Fokus B |
 | LKXKA | Komix Herbal Kids | Total Value saja, bukan Fokus B (revisi 28 Oktober 2026) |
-| LPRGQ | Promag Herbal | Fokus B |
+| LPRGR | Promag Herbal | Fokus B |
 | LPRGN | Promag Tablet | Dikecualikan dari omzet KPI |
 
 Fokus A dan Fokus B **tetap masuk omzet KPI keseluruhan**. Produk lain masuk omzet saja, termasuk varian Promag lain yang tidak ada dalam daftar fokus/pengecualian di atas. Pada faktur campuran, hanya subtotal baris `LPRGN` yang dibuang; nilai baris produk lain tetap dihitung.

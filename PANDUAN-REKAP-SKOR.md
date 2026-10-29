@@ -18,7 +18,7 @@ Estimasi = **sisa rupiah target ÷ harga jual aktif PRICE_MASTER sesuai tim**, d
 
 Untuk Fokus B, catatan menampilkan **Komix Herbal Sachet, Komix Tube, atau Promag Herbal**, pada baris terpisah. Masing-masing alternatif menutup satu sisa target gabungan; penjualan boleh dikombinasikan. Harga tetap dari PRICE_MASTER aktif sesuai tim, bukan angka contoh tetap.
 
-Komix Herbal Family mencakup Sachet Original (LKXOD), Jahe (LKXJA), Jeruk Nipis (LKXNA), Peppermint (LKXPA), Tube Original (LKXOB), dan Tube Lemon (LKXLA), ditambah Promag Herbal (LPRGQ) untuk Fokus B. **Komix Herbal Kids (LKXKA) bukan Fokus B dan tetap masuk Total Value.**
+Komix Herbal Family mencakup Sachet Original (LKXOD), Jahe (LKXJA), Jeruk Nipis (LKXNA), Peppermint (LKXPA), Tube Original (LKXOB), dan Tube Lemon (LKXLA), ditambah Promag Herbal (LPRGR) untuk Fokus B. **Komix Herbal Kids (LKXKA) bukan Fokus B dan tetap masuk Total Value.**
 
 Acuan sachet/tube memprioritaskan Original lalu varian valid dalam jenis yang sama. Jika harga/satuan varian valid berbeda, nama varian acuan dicantumkan agar tidak mengesankan semua varian berharga sama.
 

@@ -1,7 +1,7 @@
 // Real native-guest UI/RPC/session engine, mocked Google services. No live sheet writes.
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),crypto=require('node:crypto'),assert=require('node:assert/strict'),http=require('node:http');
 const {chromium}=require('playwright'),{system}=require('../tests/helpers/transaction-system.cjs'),root=path.resolve(__dirname,'..');
-const e=system(),c=e.context;for(const name of ['auth.gs','score.gs','incentives.gs'])vm.runInContext(fs.readFileSync(path.join(root,name),'utf8'),c);
+const e=system(),c=e.context;for(const name of ['auth.gs','score.gs','canvasser-incentives.gs','incentives.gs'])vm.runInContext(fs.readFileSync(path.join(root,name),'utf8'),c);
 for(const [id,[name]]of Object.entries(c.KCH_SCORE_PRODUCT_RULES_))e.rows('PRODUCTS').push([id,name,'ACTIVE']);
 c.KCH_GUEST_PASSWORD_ITERATIONS_=1000;
 const salt='a'.repeat(64),hash=crypto.pbkdf2Sync('private-test-password',Buffer.from(salt,'hex'),1000,32,'sha256').toString('hex');

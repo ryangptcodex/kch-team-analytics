@@ -44,7 +44,7 @@ function installKchSheetUpdates_() {
 // Register every feature that owns a Sheet schema and/or a refresh calculation here.
 // A missing installed module fails explicitly, rather than claiming a full update.
 function kchSheetUpdateModules_() {
-  if (typeof KCH_INCENTIVE_SHEET_SCHEMAS_ === 'undefined' || typeof kchIncentiveSyncPlan_ !== 'function' || typeof incentiveBuildReport_ !== 'function') throw new Error('Pasang Script incentive-sheets.gs dan incentives.gs terbaru sebelum Perbarui.');
+  if (typeof KCH_INCENTIVE_SHEET_SCHEMAS_ === 'undefined' || typeof kchIncentiveSyncPlan_ !== 'function' || typeof incentiveBuildReport_ !== 'function' || typeof incentiveJunior_ !== 'function') throw new Error('Pasang Script incentive-sheets.gs, incentives.gs dan canvasser-incentives.gs terbaru sebelum Perbarui.');
   return [{name:'INSENTIF',schemas:KCH_INCENTIVE_SHEET_SCHEMAS_,buildPlan:kchIncentiveSyncPlan_}];
 }
 
@@ -94,6 +94,7 @@ function kchSheetUpdatePlan_(ss, meta, schemas) {
         if (current[index] === h) return;
         requests.push({ insertDimension: { range: { sheetId: properties.sheetId, dimension: 'COLUMNS', startIndex: index, endIndex: index + 1 }, inheritFromBefore: index > 0 } });
         requests.push(txUpdate_(properties.sheetId, 0, index, [[h]]));
+        if (properties.gridProperties) properties.gridProperties.columnCount++;
         current.splice(index, 0, h); changes.push(name + ': tambah ' + h);
       });
     }

@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const {system}=require('./helpers/transaction-system.cjs');
 function fixture(){
  const e=system(),c=e.context;
- for(const file of ['score.gs','incentives.gs','incentive-sheets.gs','sheet-updates.gs'])vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'..',file),'utf8'),c);
+ for(const file of ['score.gs','canvasser-incentives.gs','incentives.gs','incentive-sheets.gs','sheet-updates.gs'])vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'..',file),'utf8'),c);
  const meta=c.txMetadata_({id:'test-book',token:'TEST_ONLY_OAUTH'}),status={},events=[];
  const control={getName:()=>c.KCH_UPDATE_SHEET_,getRange:(a)=>({getValue:()=>a==='A1'?'PUSAT PEMBARUAN SHEET':status[a],setValue(v){status[a]=v;return this;}})};
  const ss={getId:()=>c.KCH_TEST_SPREADSHEET_ID_,getName:()=> 'UJI COBA',getSheetByName(name){

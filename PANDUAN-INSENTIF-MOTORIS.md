@@ -24,7 +24,7 @@ Pasang bersama lalu **Simpan**. Tetap pertahankan semua file Skor/login/transaks
 
 ## Aturan yang disepakati
 
-Total Value berasal dari transaksi, menggabungkan seluruh faktur/baris produk per sales per tanggal. Produk fokus tetap masuk Total Value; **hanya baris LPRGN Promag Tablet yang dikecualikan**, termasuk pada faktur campuran. Fokus A/B memakai pemetaan Skor terbaru: LBMAV Bejo; enam varian Komix Herbal Family + LPRGQ Promag Herbal. Kids tetap Total Value biasa, bukan Fokus B.
+Total Value berasal dari transaksi, menggabungkan seluruh faktur/baris produk per sales per tanggal. Produk fokus tetap masuk Total Value; **hanya baris LPRGN Promag Tablet yang dikecualikan**, termasuk pada faktur campuran. Fokus A/B memakai pemetaan Skor terbaru: LBMAV Bejo; enam varian Komix Herbal Family + LPRGR Promag Herbal. Kids tetap Total Value biasa, bukan Fokus B.
 
 ### Harian
 

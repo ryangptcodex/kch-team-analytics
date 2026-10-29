@@ -2,7 +2,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const {system}=require('./helpers/transaction-system.cjs');
 const copy=x=>JSON.parse(JSON.stringify(x));
 function fixture(team='Motoris'){
- const e=system(),c=e.context;for(const file of ['score.gs','incentives.gs'])vm.runInContext(fs.readFileSync(path.join(__dirname,'..',file),'utf8'),c);
+ const e=system(),c=e.context;for(const file of ['score.gs','canvasser-incentives.gs','incentives.gs'])vm.runInContext(fs.readFileSync(path.join(__dirname,'..',file),'utf8'),c);
  e.actor({role:'ADMIN'});c.scoreToday_=()=> '2027-01-05';e.rows('SALES')[1][2]=team;e.rows('SALES')[2][2]='MMTW';
  for(const [id,[name]]of Object.entries(c.KCH_SCORE_PRODUCT_RULES_))e.rows('PRODUCTS').push([id,name,'ACTIVE']);e.rows('PRODUCTS').push(['LKXKA','Komix Herbal Kids','ACTIVE']);
  e.add=(name,rows)=>{const ctx={id:'test-book',token:'TEST_ONLY_OAUTH'},meta=c.txMetadata_(ctx),req=[],sheet=c.txAddSheet_(meta,req,name,rows[0],false);if(rows.length>1)req.push(c.txAppend_(sheet.sheetId,rows.slice(1)));c.txBatch_(ctx,req);};
@@ -15,7 +15,7 @@ test('daily tariffs at every exact boundary take one tier, including 1,500,001 =
  const c=fixture().context;for(const [value,expected]of [[0,0],[799999.99,0],[800000,10000],[999999.99,10000],[1000000,20000],[1199999.99,20000],[1200000,30000],[1500000,30000],[1500000.01,50000],[1500001,50000],[3000000,50000]])assert.equal(c.incentiveDailyRate_(Math.round(value*100)),expected,String(value));
 });
 test('daily aggregates all invoices per sales/date, excludes only tablet lines and includes focus/Kids/ordinary products',()=>{
- const e=fixture();e.tx('LBMAV',400000);e.tx('LKXOD',400000);e.tx('LPRGQ',400000);e.tx('LPRGN',9000000);e.tx('LKXKA',200000);e.tx('P1',100001);e.tx('P1',3000000,'2026-10-02','S2');
+ const e=fixture();e.tx('LBMAV',400000);e.tx('LKXOD',400000);e.tx('LPRGR',400000);e.tx('LPRGN',9000000);e.tx('LKXKA',200000);e.tx('P1',100001);e.tx('P1',3000000,'2026-10-02','S2');
  const r=e.report(),d=r.daily.find(d=>d.date==='2026-10-02');assert.equal(d.value,1500001);assert.equal(d.scheduled,50000);assert.equal(d.amount,25000);assert.equal(r.paidDays,1);assert.equal(r.monthly.parameters[1].actual,800000);assert.equal(r.monthly.actualValue,1500001);
 });
 test('26 eligible workdays receive all 26 daily incentives with no 25-day or 1.25m cap',()=>{
@@ -27,11 +27,11 @@ test('Sundays and holidays pay no daily incentive, but transactions remain in mo
 });
 test('each monthly parameter uses 90/100/110 steps independently, with no interpolation and no uncapped payout',()=>{
  for(const team of ['Motoris','MMTW'])for(const [factor,level,amount]of [[.899,0,0],[.9,90,500000],[.999,90,500000],[1,100,1000000],[1.099,100,1000000],[1.1,110,1250000],[2,110,1250000]]){
- const e=fixture(team);e.tx('LBMAV',5000000*factor);e.tx('LPRGQ',5000000*factor);e.tx('P1',17000000*factor);e.aa(Math.floor(400*factor));const r=e.report();assert.equal(r.monthly.total,amount,team+' '+factor);assert.equal(r.monthly.parameters[0].tier,level);assert.equal(r.monthly.parameters[0].target,5000000);
+ const e=fixture(team);e.tx('LBMAV',5000000*factor);e.tx('LPRGR',5000000*factor);e.tx('P1',17000000*factor);e.aa(Math.floor(400*factor));const r=e.report();assert.equal(r.monthly.total,amount,team+' '+factor);assert.equal(r.monthly.parameters[0].tier,level);assert.equal(r.monthly.parameters[0].target,5000000);
  }
 });
 test('below 70% monthly Total Value halves all four monthly parameters, with full payout at exactly 70%',()=>{
- const e=fixture();e.tx('LBMAV',5500000);e.tx('LPRGQ',5500000);e.tx('P1',7899999.99);e.aa(440);let r=e.report();assert.equal(r.monthly.eligible,false);assert.equal(r.monthly.total,468750);assert.equal(r.monthly.payoutFactor,.5);assert.equal(r.monthly.parameters[0].amount,250000);assert.equal(r.monthly.parameters[3].amount,62500);assert.equal(r.monthly.parameters[0].scheduled,500000);assert.equal(r.dailyTotal,25000);
+ const e=fixture();e.tx('LBMAV',5500000);e.tx('LPRGR',5500000);e.tx('P1',7899999.99);e.aa(440);let r=e.report();assert.equal(r.monthly.eligible,false);assert.equal(r.monthly.total,468750);assert.equal(r.monthly.payoutFactor,.5);assert.equal(r.monthly.parameters[0].amount,250000);assert.equal(r.monthly.parameters[3].amount,62500);assert.equal(r.monthly.parameters[0].scheduled,500000);assert.equal(r.dailyTotal,25000);
  e.tx('P1',.01);r=e.report();assert.equal(r.monthly.eligible,true);assert.equal(r.monthly.payoutFactor,1);assert.equal(r.dailyTotal,50000);assert.equal(r.monthly.minimumValue,18900000);assert.equal(r.monthly.total,937500);assert.equal(r.monthly.parameters[2].amount,0);
 });
 test('monthly AA comes only from manual ledger counts, never invoice count or attendance',()=>{
@@ -59,19 +59,19 @@ test('guest may read all eligible sales while no sheet or account data is mutate
  const e=fixture();e.actor({role:'GUEST',email:'',salesId:''});const before=JSON.stringify(['SALES','PRODUCTS','SALES_TRANSACTIONS','INVENTORY','ACTIVITY_LOGS'].map(n=>e.rows(n))),calls=e.calls.length;
  const r=e.report('2026-10','S2');assert.equal(r.sales.team,'MMTW');assert.equal(e.calls.length-calls,2);assert.equal(e.context.kchApi('MOCK','getIncentiveSetup',[]).sales.length,2);assert.equal(JSON.stringify(['SALES','PRODUCTS','SALES_TRANSACTIONS','INVENTORY','ACTIVITY_LOGS'].map(n=>e.rows(n))),before);assert.equal(e.exists('SKOR_EVENTS'),false);
 });
-test('MPR/Canvasser and legacy Sales logins cannot use the Motoris/MMTW incentive engine',()=>{
- const e=fixture('MPR');assert.equal(e.context.kchApi('MOCK','getIncentiveSetup',[]).sales.length,1);assert.throws(()=>e.report(),/hanya untuk Motoris/);e.actor({role:'SALES',salesId:'S1'});assert.throws(()=>e.report(),/ACCESS_DENIED/);
+test('unsupported teams and legacy Sales logins cannot use the incentive engine',()=>{
+ const e=fixture('SPG Kelontong');assert.equal(e.context.kchApi('MOCK','getIncentiveSetup',[]).sales.length,1);assert.throws(()=>e.report(),/Juklak insentif/);e.actor({role:'SALES',salesId:'S1'});assert.throws(()=>e.report(),/ACCESS_DENIED/);
 });
 test('missing holidays disable daily estimates instead of assuming no holidays; invalid dates/data fail visibly',()=>{
  const e=fixture();e.tx('P1',2000000);e.remove('HOLIDAYS');let r=e.report();assert.equal(r.dailyTotal,null);assert.equal(r.monthTotal,null);assert.match(r.warnings[0],/HOLIDAYS/);
  assert.throws(()=>e.report('bad'),/bulan/);e.rows('PRODUCTS').find(r=>r[0]==='LBMAV')[1]='Wrong product';assert.throws(()=>e.report(),/master produk/);
 });
 test('incentive monthly actuals match Skor and reflect edited transaction rows on reload',()=>{
- const e=fixture();e.tx('LBMAV',4500000);e.tx('LPRGQ',5000000);e.tx('P1',17500000);e.aa(400);let r=e.report(),s=e.context.kchApi('MOCK','getScoreReport',['2026-10','S1']);assert.deepEqual(copy(r.monthly.parameters.map(p=>p.actual)),copy(s.parameters.map(p=>p.actual)));
+ const e=fixture();e.tx('LBMAV',4500000);e.tx('LPRGR',5000000);e.tx('P1',17500000);e.aa(400);let r=e.report(),s=e.context.kchApi('MOCK','getScoreReport',['2026-10','S1']);assert.deepEqual(copy(r.monthly.parameters.map(p=>p.actual)),copy(s.parameters.map(p=>p.actual)));
  const h=e.rows('SALES_TRANSACTIONS')[0],row=e.rows('SALES_TRANSACTIONS')[1];row[h.indexOf('subtotal_sales')]=5500000;r=e.report();assert.equal(r.monthly.parameters[0].amount,500000);
 });
 test('monthly 50% adjustment preserves scheduled tiers and halves daily payouts once and leaves quarterly payout intact',()=>{
- const e=fixture();e.tx('LBMAV',5000000);e.tx('LPRGQ',4500000);e.aa(400);e.tx('P1',40000000,'2026-11-02');e.tx('P1',40000000,'2026-12-02');
+ const e=fixture();e.tx('LBMAV',5000000);e.tx('LPRGR',4500000);e.aa(400);e.tx('P1',40000000,'2026-11-02');e.tx('P1',40000000,'2026-12-02');
  const r=e.report();assert.equal(r.monthly.total,(400000+125000+100000)/2);assert.equal(r.monthTotal,25000+r.monthly.total);assert.equal(r.dailyTotal,25000);assert.equal(r.quarter.amount,1050000);
  assert.deepEqual(copy(r.monthly.parameters.map(p=>p.amount)),copy(r.monthly.parameters.map(p=>p.scheduled*.5)));
 });
@@ -81,6 +81,6 @@ test('same 70% monthly threshold halves mixed daily tariffs once; reload is not 
  e.tx('P1',14399999);r=e.report();assert.equal(r.monthly.actualValue,18900000);assert.equal(r.monthly.payoutFactor,1);assert.equal(r.dailyScheduledTotal,140000);assert.equal(r.dailyTotal,140000);
 });
 test('payout percentage is applied to combined gross daily plus monthly total with net detail reconciliation',()=>{
- const e=fixture();e.tx('LBMAV',5000000);e.tx('LPRGQ',4500000);e.aa(400);let r=e.report();assert.equal(r.dailyScheduledTotal,50000);assert.equal(r.monthly.scheduledTotal,625000);assert.equal(r.monthSubtotal,675000);assert.equal(r.payoutFactor,.5);assert.equal(r.monthTotal,337500);assert.equal(r.dailyTotal,25000);assert.equal(r.monthly.total,312500);assert.equal(r.monthTotal,r.dailyTotal+r.monthly.total);
+ const e=fixture();e.tx('LBMAV',5000000);e.tx('LPRGR',4500000);e.aa(400);let r=e.report();assert.equal(r.dailyScheduledTotal,50000);assert.equal(r.monthly.scheduledTotal,625000);assert.equal(r.monthSubtotal,675000);assert.equal(r.payoutFactor,.5);assert.equal(r.monthTotal,337500);assert.equal(r.dailyTotal,25000);assert.equal(r.monthly.total,312500);assert.equal(r.monthTotal,r.dailyTotal+r.monthly.total);
  e.tx('P1',9400000);r=e.report();assert.equal(r.monthly.actualValue,18900000);assert.equal(r.payoutFactor,1);assert.equal(r.monthTotal,r.monthSubtotal);
 });

@@ -8,7 +8,7 @@ e.actor({role:'ADMIN'});
 e.rows('SALES')[2][2]='MPR';
 const priceHeaders=e.rows('PRICE_MASTER')[0];priceHeaders.push('unit');
 for(const row of e.rows('PRICE_MASTER').slice(1))row.push('Box');
-for(const team of ['Motoris','MPR'])for(const [id,price]of [['LBMAV',100000],['LKXOD',150000],['LPRGQ',250000]])e.rows('PRICE_MASTER').push(priceHeaders.map(h=>({product_id:id,team_name:team,cost_price:0,selling_price:price,shj:0,status:'ACTIVE',unit:'Box'})[h]??''));
+for(const team of ['Motoris','MPR'])for(const [id,price]of [['LBMAV',100000],['LKXOD',150000],['LPRGR',250000]])e.rows('PRICE_MASTER').push(priceHeaders.map(h=>({product_id:id,team_name:team,cost_price:0,selling_price:price,shj:0,status:'ACTIVE',unit:'Box'})[h]??''));
 function api(method,args){
  const result=e.context.kchApi('MOCK',method,args);
  // Exercise explicit null and omitted empty fields across the browser response boundary.
@@ -16,7 +16,7 @@ function api(method,args){
  return result;
 }
 function tx(product,amount){const row={transaction_id:'INV-1',transaction_date:'2026-10-01',sales_id:'S1',product_id:product,quantity:1,selling_price:amount,subtotal_sales:amount};e.rows('SALES_TRANSACTIONS').push([...e.context.TABLE_SCHEMAS.SALES_TRANSACTIONS].map(h=>row[h]??''));}
-tx('LBMAV',3000000);tx('LKXOD',2000000);tx('LPRGQ',500000);tx('LPRGN',10000000);tx('P1',6000000);
+tx('LBMAV',3000000);tx('LKXOD',2000000);tx('LPRGR',500000);tx('LPRGN',10000000);tx('P1',6000000);
 let html=fs.readFileSync(root+'/index.html','utf8').replace(/<\?!= include_\('([^']+)'\); \?>/g,(_,name)=>fs.readFileSync(root+'/'+name+'.html','utf8'));
 html=html.replace(/<script\b[^>]*\bsrc=[^>]*>[\s\S]*?<\/script>/g,'').replace(/<link\b[^>]*>/g,'').replace(/<\?[\s\S]*?\?>/g,'null');
 html=html.replace(/<\/body>\s*<\/html>\s*$/,`<script>
