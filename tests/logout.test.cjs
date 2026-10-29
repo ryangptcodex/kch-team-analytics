@@ -95,7 +95,7 @@ test('same-page admin logout then guest login rebuilds UI without admin actions'
   const e = browser(); const c = e.context; let authListener;
   const auth = { setPersistence: () => Promise.resolve(), onAuthStateChanged: fn => { authListener = fn; },
     signOut: async () => { authListener(null); } };
-  const authFactory = () => auth; authFactory.Auth = { Persistence: { NONE: 'NONE' } };
+  const authFactory = () => auth; authFactory.Auth = { Persistence: { LOCAL: 'LOCAL' } };
   const firebase = { initializeApp() {}, auth: authFactory };
   c.firebase = firebase; c.window.firebase = firebase; c.window.KCH_FIREBASE_CONFIG = {};
   c.initApp = () => { e.get('dashboardData').textContent = c.appState.user.email; };
@@ -106,9 +106,9 @@ test('same-page admin logout then guest login rebuilds UI without admin actions'
   profile = { role: 'ADMIN', email: 'admin@gmail.com' }; authListener({ uid: 'A' });
   assert.ok(e.get('userDropdownMenu').children.some(n => n.textContent === 'Kelola akun'));
   await c.signOutKch();
-  profile = { role: 'GUEST', email: 'juniortlkchlse@gmail.com' }; authListener({ uid: 'S' });
+  profile = { role: 'GUEST', email: '' }; c.enterKchSession({user:profile});
   assert.equal(e.document.body.classList.contains('kch-locked'), false); assert.equal(e.get('kchAuthScreen').hidden, true);
-  assert.equal(e.get('dashboardData').textContent, 'juniortlkchlse@gmail.com');
+  assert.equal(e.get('dashboardData').textContent, '');
   assert.equal(e.get('userDropdownMenu').children.some(n => n.textContent === 'Kelola akun'), false);
   assert.equal(e.get('userDropdownMenu').children.filter(n => n.id === 'kchLogoutAction').length, 1);
   assert.equal(e.document.querySelector('.user-role-header').textContent, 'Tamu');
@@ -162,11 +162,11 @@ for (const emitStateEvent of [false, true]) {
       return { user: { uid: 'same-user' } };
     } };
     c.kchRun = () => { const r = { withSuccessHandler(fn) { r.success = fn; return r; }, withFailureHandler() { return r; },
-      getAuthProfile() { requests++; r.success({ user: { role: 'SALES', email: 'sales@gmail.com' } }); } }; return r; };
+      getAuthProfile() { requests++; r.success({ user: { role: 'ADMIN', email: 'admin@gmail.com' } }); } }; return r; };
     c.initApp = () => {};
     await c.signInKchGoogle();
     assert.equal(requests, 1); assert.equal(e.get('kchAuthScreen').hidden, true);
-    assert.equal(c.appState.user.role, 'SALES'); assert.equal(e.get('kchGoogleLogin').disabled, false);
+    assert.equal(c.appState.user.role, 'ADMIN'); assert.equal(e.get('kchGoogleLogin').disabled, false);
   });
 }
 
@@ -185,4 +185,25 @@ test('native login suppresses duplicate clicks, ignores Firebase null events and
  const runner={withSuccessHandler(fn){success=fn;return runner;},withFailureHandler(){return runner;},kchGuestLogin(){requests++;},kchGuestLogout(token){revoked=token;}};c.google={script:{run:runner}};
  c.signInKchGuest({preventDefault(){}});c.signInKchGuest({preventDefault(){}});assert.equal(requests,1);assert.equal(e.get('kchGuestPassword').value,'');const generation=c.kchAuthGeneration;c.handleKchAuthState(null);assert.equal(c.kchAuthGeneration,generation);
  c.signOutKch();success({success:true,token:'late-token',user:{role:'GUEST'}});assert.equal(c.kchGuestToken,'');assert.equal(revoked,'late-token');assert.equal(c.appState.user,null);
+});
+
+function persistedAdminBrowser(store,options={}) {
+ const e=browser(),c=e.context;let listener;
+ const auth={currentUser:store.user,setPersistence(mode){store.mode=mode;return Promise.resolve();},onAuthStateChanged(fn){listener=fn;fn(auth.currentUser);},signOut(){store.signouts=(store.signouts||0)+1;store.user=null;auth.currentUser=null;listener(null);return Promise.resolve();}};
+ const factory=()=>auth;factory.Auth={Persistence:{LOCAL:'LOCAL'}};const firebase={initializeApp(){},auth:factory};c.firebase=firebase;c.window.firebase=firebase;c.window.KCH_FIREBASE_CONFIG={};
+ c.kchRun=()=>{const r={withSuccessHandler(fn){r.success=fn;return r;},withFailureHandler(fn){r.failure=fn;return r;},getAuthProfile(){store.checks=(store.checks||0)+1;if(options.failure)r.failure({message:options.failure});else r.success({user:{role:'ADMIN',email:'admin@gmail.com'}});}};return r;};c.initApp=()=>{};return e;
+}
+test('Firebase LOCAL restores admin on refresh with a new server access check, until explicit logout',async()=>{
+ const store={user:{uid:'admin'}};const first=persistedAdminBrowser(store);first.context.initKchAuthentication();await new Promise(r=>setImmediate(r));assert.equal(store.mode,'LOCAL');assert.equal(first.context.appState.user.role,'ADMIN');
+ const refreshed=persistedAdminBrowser(store);refreshed.context.initKchAuthentication();await new Promise(r=>setImmediate(r));assert.equal(refreshed.context.appState.user.role,'ADMIN');assert.equal(store.checks,2);assert.equal(store.signouts,undefined);
+ await refreshed.context.signOutKch();const after=persistedAdminBrowser(store);after.context.initKchAuthentication();await new Promise(r=>setImmediate(r));assert.equal(after.context.appState.user,null);assert.equal(after.get('kchAuthScreen').hidden,false);
+});
+test('restored Google access denial clears persistence, but a transient network failure does not log admin out',async()=>{
+ for(const [failure,count]of [['ACCESS_DENIED: Akun ditolak',1],['AUTH_UNAVAILABLE: offline',0]]){const store={user:{uid:'admin'}};const e=persistedAdminBrowser(store,{failure});e.context.initKchAuthentication();await new Promise(r=>setImmediate(r));assert.equal(store.signouts||0,count);assert.equal(e.get('kchAuthScreen').hidden,false);}
+});
+test('successful native Guest login clears a restored Google identity before entering its memory-only session',async()=>{
+ const e=browser(),c=e.context;c.captureKchInitialUi();c.initApp=()=>{};let cleared=0,ok;
+ c.kchFirebaseAuth={currentUser:{uid:'admin'},signOut(){cleared++;c.kchFirebaseAuth.currentUser=null;c.handleKchAuthState(null);return Promise.resolve();}};
+ const runner={withSuccessHandler(fn){ok=fn;return runner;},withFailureHandler(){return runner;},kchGuestLogin(){}};c.google={script:{run:runner}};
+ e.get('kchGuestUsername').value='tamu';e.get('kchGuestPassword').value='private-test-password';c.signInKchGuest({preventDefault(){}});ok({success:true,token:'memory-only-token',user:{role:'GUEST',email:''}});await new Promise(r=>setImmediate(r));assert.equal(cleared,1);assert.equal(c.kchGuestToken,'memory-only-token');assert.equal(c.appState.user.role,'GUEST');assert.equal(c.kchFirebaseAuth.currentUser,null);
 });

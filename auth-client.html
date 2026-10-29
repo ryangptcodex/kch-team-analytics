@@ -87,8 +87,9 @@
     firebase.initializeApp(window.KCH_FIREBASE_CONFIG);
     kchFirebaseAuth = firebase.auth();
     kchFirebaseAuth.languageCode = 'id';
-    // No Firebase refresh token is persisted to browser storage by this app.
-    kchFirebaseAuth.setPersistence(firebase.auth.Auth.Persistence.NONE).then(function() {
+    // Google is admin-only; restore its session after refresh using Firebase storage.
+    // Native Guest tokens remain in memory only and are never persisted.
+    kchFirebaseAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(function() {
       document.getElementById('kchGoogleLogin').disabled = false;
       kchFirebaseAuth.onAuthStateChanged(handleKchAuthState);
     }).catch(function(err) { showKchAuthError('Login Google belum siap. Tamu dapat menggunakan username dan password. ' + err.message); });
@@ -101,8 +102,23 @@
     if (!user) { showKchAuthError('Silakan masuk sebagai Tamu atau gunakan Google khusus Admin.'); return; }
     showKchAuthError('Memeriksa akses akun…');
     kchRun().withSuccessHandler(function(result) {
+      if (!result || !result.user || result.user.role !== 'ADMIN') { kchGoogleAccessFailure(new Error('ACCESS_DENIED: Login Google khusus Admin.')); return; }
       enterKchSession(result);
-    }).withFailureHandler(function(err) { showKchAuthError(err.message); }).getAuthProfile();
+    }).withFailureHandler(kchGoogleAccessFailure).getAuthProfile();
+  }
+
+  function kchGoogleAccessFailure(err) {
+    var message = err.message || 'Gagal memeriksa akun Google.';
+    showKchAuthError(message);
+    if (!/AUTH_REQUIRED:|ACCESS_DENIED:/.test(message) || !kchFirebaseAuth) return;
+    var generation = kchAuthGeneration;
+    // Never retain a rejected Google identity. Network errors do not log admin out.
+    Promise.resolve().then(function() {
+      if (generation !== kchAuthGeneration || kchGuestToken || kchGuestLoginPending) return;
+      return kchFirebaseAuth.signOut();
+    }).then(function() {
+      if (!kchGuestToken && !kchGuestLoginPending && kchAuthGeneration <= generation + 1) showKchAuthError(message);
+    }).catch(function() {});
   }
 
   function enterKchSession(result) {
@@ -135,10 +151,23 @@
         if (result && result.token) google.script.run.withFailureHandler(function() {}).kchGuestLogout(result.token);
         return;
       }
-      kchGuestLoginPending = false; button.disabled = false;
-      if (!result || !result.success || !result.token || !result.user || result.user.role !== 'GUEST') { showKchAuthError('Login Tamu gagal. Silakan coba lagi.'); return; }
-      resetKchSessionUi(); kchGuestToken = result.token;
-      enterKchSession(result);
+      if (!result || !result.success || !result.token || !result.user || result.user.role !== 'GUEST') { kchGuestLoginPending = false; button.disabled = false; showKchAuthError('Login Tamu gagal. Silakan coba lagi.'); return; }
+      function enterGuest() {
+        if (generation !== kchAuthGeneration) { google.script.run.withFailureHandler(function() {}).kchGuestLogout(result.token); return; }
+        kchGuestLoginPending = false; button.disabled = false;
+        resetKchSessionUi(); kchGuestToken = result.token;
+        enterKchSession(result);
+      }
+      // A Guest refresh must never restore an admin identity left by a pending
+      // Firebase restoration in this tab. Wait for its local signout first.
+      if (kchFirebaseAuth && kchFirebaseAuth.currentUser) {
+        Promise.resolve().then(function() { if (generation !== kchAuthGeneration) return; return kchFirebaseAuth.signOut(); }).then(enterGuest).catch(function() {
+          google.script.run.withFailureHandler(function() {}).kchGuestLogout(result.token);
+          if (generation !== kchAuthGeneration) return;
+          kchGuestLoginPending = false; button.disabled = false;
+          showKchAuthError('Sesi Google belum berhasil dibersihkan. Coba masuk Tamu lagi.');
+        });
+      } else enterGuest();
     }).withFailureHandler(function(err) {
       if (generation !== kchAuthGeneration) return;
       kchGuestLoginPending = false; button.disabled = false;
