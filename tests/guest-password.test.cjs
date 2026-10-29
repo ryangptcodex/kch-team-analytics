@@ -62,3 +62,14 @@ test('readable password mirrors saves, preserves blank edits, stays out of RPC r
  const password='=SUM(100,200)-secret';e.call('saveGuestCredentials',[{username:'tamu',password,status:'ACTIVE'}]);assert.equal(rows[2][col],password);assert.equal(e.context.kchGuestLogin('tamu',password).success,true);
  assert.doesNotMatch(JSON.stringify(e.call('listAccessUsers')),/SUM\(100/);assert.equal('password' in e.context.guestCredential_(),false);
 });
+test('legacy hash with empty visible password cannot silently report a successful blank save',()=>{
+ const e=configured(),rows=e.sheets.get('ACCESS_USERS').rows,col=rows[0].indexOf('password');rows[2][col]='';
+ assert.equal(e.call('listAccessUsers').users[1].passwordRecorded,false);
+ assert.throws(()=>e.call('saveGuestCredentials',[{username:'tamu',password:'',status:'ACTIVE'}]),/Isi kembali password/);
+ e.call('saveGuestCredentials',[{username:'tamu',password:'private-test-password',status:'ACTIVE'}]);assert.equal(rows[2][col],'private-test-password');assert.equal(e.call('listAccessUsers').users[1].passwordRecorded,true);
+});
+test('a missing password write fails readback verification rather than reporting success',()=>{
+ const e=configured(),sheet=e.sheets.get('ACCESS_USERS'),original=sheet.getRange;
+ sheet.getRange=(...args)=>{const r=original(...args);r.setRichTextValue=()=>r;return r;};
+ assert.throws(()=>e.call('saveGuestCredentials',[{username:'tamu',password:'different-password',status:'ACTIVE'}]),/belum terkonfirmasi/);assert.equal(sheet.rows[2][4],'INACTIVE');
+});

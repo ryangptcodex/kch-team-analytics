@@ -289,7 +289,7 @@
       document.getElementById('kchAccessStatus').value = guest.status;
       document.getElementById('kchAccessUsername').value = guest.username || 'tamu';
       document.getElementById('kchAccessPassword').value = '';
-      document.getElementById('kchAccessPassword').required = !guest.configured;
+      document.getElementById('kchAccessPassword').required = !guest.configured || !guest.passwordRecorded;
       var body = document.getElementById('kchAccessRows');
       result.users.forEach(function(user) {
         var row = document.createElement('tr');
@@ -299,6 +299,7 @@
         body.appendChild(row);
       });
       save.disabled = false;
+      if (!guest.passwordRecorded) { message.textContent = 'Password belum tersimpan sebagai teks di ACCESS_USERS. Isi kembali password Tamu di kolom Password baru lalu Simpan akses.'; return; }
       message.textContent = 'Google hanya untuk Admin. Atur username/password Tamu di sini. Kosongkan password untuk mempertahankannya; minimal 12 karakter jika diganti.';
     }).withFailureHandler(function(err) {
       if (version !== kchAccessLoadVersion) return;

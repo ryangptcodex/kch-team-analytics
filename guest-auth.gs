@@ -24,7 +24,7 @@ function guestCredential_() {
   if (matches.length > 1) throw new Error('ACCESS_DENIED: Konfigurasi akun Tamu ganda. Hubungi admin.');
   if (!matches.length) return null;
   var cols = guestAccessColumns_(sheet, false), values = sheet.getRange(matches[0].number, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
-  var item = { updatedAt: matches[0].row[6] || '', status: normalizeKey_(matches[0].row[4]), role: normalizeKey_(matches[0].row[3]) };
+  var item = { passwordRecorded: !!(cols.password && values[cols.password - 1] !== ''), updatedAt: matches[0].row[6] || '', status: normalizeKey_(matches[0].row[4]), role: normalizeKey_(matches[0].row[3]) };
   Object.keys(cols).filter(function(h) { return h !== 'password'; }).forEach(function(h) { item[h] = cols[h] ? values[cols[h] - 1] : ''; });
   return item;
 }
@@ -119,6 +119,7 @@ function saveGuestCredentials_(payload) {
   if (['ACTIVE', 'INACTIVE'].indexOf(status) < 0) throw new Error('Status tidak valid.');
   var previous = guestCredential_();
   if (!password.length && (!previous || !previous.password_hash || !previous.password_salt)) throw new Error('Isi password untuk pemasangan akun Tamu pertama.');
+  if (!password.length && !previous.passwordRecorded) throw new Error('Kolom password di ACCESS_USERS masih kosong. Isi kembali password Tamu lalu Simpan akses agar tersimpan di sheet.');
   var revision = previous ? guestRevision_(previous) : '';
   var salt = password.length ? Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '') : previous.password_salt;
   var hash = password.length ? guestPasswordHash_(password, salt, KCH_GUEST_PASSWORD_ITERATIONS_) : previous.password_hash;
@@ -137,6 +138,8 @@ function saveGuestCredentials_(payload) {
     Object.keys(data).forEach(function(h) { sheet.getRange(rowNumber, columns[h]).setNumberFormat('@').setValue(data[h]); });
     // Requested readable copy, stored as literal text, never evaluated as a formula.
     if (password.length) sheet.getRange(rowNumber, columns.password).setNumberFormat('@').setRichTextValue(SpreadsheetApp.newRichTextValue().setText(password).build());
+    SpreadsheetApp.flush();
+    if (password.length && sheet.getRange(rowNumber, columns.password).getDisplayValues()[0][0] !== password) throw new Error('Password belum terkonfirmasi tersimpan di ACCESS_USERS. Simpan ulang; akun sementara nonaktif.');
     sheet.getRange(rowNumber, 3, 1, 3).setValues([['', 'GUEST', status]]);
     sheet.getRange(rowNumber, 7).setValue(now); SpreadsheetApp.flush();
     return { success: true, message: 'Akun Tamu berhasil disimpan.' };

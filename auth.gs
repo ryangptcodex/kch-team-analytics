@@ -228,7 +228,7 @@ function listAccessUsers_() {
   var credential = guestCredential_();
   return { success: true, users: [
     { email: KCH_BOOTSTRAP_ADMIN_EMAIL_, salesId: '', role: 'ADMIN', status: 'ACTIVE' },
-    { email: KCH_GUEST_EMAIL_, username: credential ? credential.username : '', configured: !!(credential && credential.password_hash), salesId: '', role: 'GUEST', status: guests.length ? normalizeKey_(guests[0][4]) : 'INACTIVE' }
+    { email: KCH_GUEST_EMAIL_, username: credential ? credential.username : '', configured: !!(credential && credential.password_hash), passwordRecorded: !!(credential && credential.passwordRecorded), salesId: '', role: 'GUEST', status: guests.length ? normalizeKey_(guests[0][4]) : 'INACTIVE' }
   ] };
 }
 

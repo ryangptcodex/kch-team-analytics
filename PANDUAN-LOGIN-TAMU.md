@@ -71,3 +71,9 @@ Belum dipasang atau diuji langsung pada Google/deployment pengguna oleh agen. Se
 Cukup ganti **guest-auth.gs** terbaru. Registry pada sheet-updates.gs otomatis membaca kolom tambahan dari deklarasi tersebut; tidak perlu mengganti file aplikasi lain. Simpan, refresh dev atau update versi exec yang sama. Klik Perbarui jika ingin membuat kolom password terlebih dahulu (berada setelah session_version), tetapi updater tidak bisa memulihkan password dari hash.
 
 Login Admin → Kelola akun → **isi kembali password yang diinginkan** → Simpan akses. Kolom password terisi otomatis dan terbaca; jika password dikosongkan saat simpan, nilai sebelumnya dipertahankan. Untuk akun lama yang kolomnya baru ditambahkan, nilai tetap kosong sampai password diisi dan disimpan ulang. Ubah password melalui Kelola akun agar hash dan salinannya sinkron; mengedit kolom password saja tidak mengganti password login karena autentikasi tetap memakai hash. Password yang diawali tanda sama dengan disimpan sebagai teks literal, bukan formula. **232 tes lulus**.
+
+### Kolom password masih kosong setelah pembaruan
+
+Paket perbaikan ini mengganti **guest-auth.gs, auth.gs, auth-client.html** bersama. Simpan dan refresh `/dev`; untuk `/exec`, terapkan Versi baru pada deployment yang sama lalu refresh. Buka Kelola akun: jika password di sheet kosong, form secara eksplisit mewajibkan pengisian kembali password dan menjelaskan sebabnya. Isi password yang ingin dipakai (boleh sama dengan sebelumnya), lalu Simpan akses. Server membaca kembali kolom password sebelum memberi status berhasil. Jika hasil tulis tidak cocok, penyimpanan gagal dengan pesan dan akun sementara nonaktif, bukan sukses palsu. Password lama yang hanya berupa hash tetap tidak bisa dipulihkan otomatis. Tidak perlu klik Perbarui lagi bila kolomnya sudah ada.
+
+Validasi terbaru: **234 tes Node lulus**, termasuk hash lama tanpa mirror wajib diisi ulang dan kegagalan penulisan mirror tidak menghasilkan sukses.
