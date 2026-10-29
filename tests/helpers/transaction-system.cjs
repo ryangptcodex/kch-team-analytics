@@ -13,11 +13,12 @@ function system(options = {}) {
   function add(name, rows) { store[name] = { sheetId: nextId++, title: name, hidden: false, rows: copy(rows), gridProperties: { rowCount: 1000, columnCount: 30 } }; }
   function native(name) {
     const sheet = store[name]; if (!sheet) return null;
-    return { getLastRow: () => sheet.rows.length, getLastColumn: () => Math.max(0, ...sheet.rows.map(r => r.length)),
-      getRange(r, c, h, w) { const values = () => Array.from({length:h},(_,y)=>Array.from({length:w},(_,x)=>sheet.rows[r-1+y]?.[c-1+x]??''));
-        return { getValues: values, getDisplayValues: () => values().map(row => row.map(String)) }; } };
+    return { getSheetId:()=>sheet.sheetId, appendRow(row){sheet.rows.push([...row]);}, setFrozenRows(){}, getLastRow: () => sheet.rows.length, getLastColumn: () => Math.max(0, ...sheet.rows.map(r => r.length)),
+      getRange(r, c, h=1, w=1) { const values = () => Array.from({length:h},(_,y)=>Array.from({length:w},(_,x)=>sheet.rows[r-1+y]?.[c-1+x]??''));
+        const range={ getValues: values, getDisplayValues: () => values().map(row => row.map(String)),getValue:()=>values()[0][0],setValue(v){return range.setValues([[v]]);},setValues(v){v.forEach((row,y)=>row.forEach((cell,x)=>{if(!sheet.rows[r-1+y])sheet.rows[r-1+y]=[];sheet.rows[r-1+y][c-1+x]=cell;}));return range;},setNumberFormat(){return range;}};return range; } };
   }
-  const context = { console, ScriptApp: { getOAuthToken: () => 'TEST_ONLY_OAUTH' },
+  const properties={};
+  const context = { console, PropertiesService:{getScriptProperties:()=>({getProperty:k=>properties[k]??null,setProperty(k,v){properties[k]=v;},deleteProperty(k){delete properties[k];},getProperties:()=>({...properties})})}, ScriptApp: { getOAuthToken: () => 'TEST_ONLY_OAUTH' },
     SpreadsheetApp: { flush() {} }, Session: { getActiveUser: () => ({getEmail:()=> 'mhmdryyan7@gmail.com'}) },
     LockService: { getScriptLock: () => ({ waitLock() { if(options.busy) throw Error('busy'); }, releaseLock() {} }) },
     Utilities: { DigestAlgorithm: { SHA_256: 'sha256' }, Charset: { UTF_8: 'utf8' },
@@ -82,7 +83,7 @@ function system(options = {}) {
     return response(200,{spreadsheetId:'test-book',sheets:Object.values(store).map(s=>({properties:{sheetId:s.sheetId,title:s.title,gridProperties:s.gridProperties}}))});
   }};
   vm.createContext(context);
-  for(const f of ['firebase-config.gs','code.gs','setup.gs','transactions.gs','transaction-edits.gs','auth.gs']) vm.runInContext(fs.readFileSync(path.join(root,f),'utf8'),context,{filename:f});
+  for(const f of ['firebase-config.gs','code.gs','setup.gs','transactions.gs','transaction-edits.gs','guest-crypto.gs','guest-auth.gs','auth.gs']) vm.runInContext(fs.readFileSync(path.join(root,f),'utf8'),context,{filename:f});
   add('SALES',[['sales_id','full_name','team_name','status'],['S1','Sales One','Motoris','ACTIVE'],['S2','Sales Two','Motoris','ACTIVE']]);
   add('PRODUCTS',[['product_id','product_name','status'],['P1','Product One','ACTIVE'],['P2','Product Two','ACTIVE']]);
   add('PRICE_MASTER',[['product_id','team_name','cost_price','selling_price','shj','status'],['P1','Motoris',60,100,10,'ACTIVE'],['P2','Motoris',20,40,20,'ACTIVE']]);

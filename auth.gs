@@ -159,8 +159,7 @@ function resolveAccessUser_(identity) {
   try {
     var email = String(identity.email || '').trim().toLowerCase();
     var isBootstrap = email === KCH_BOOTSTRAP_ADMIN_EMAIL_;
-    var isGuest = email === KCH_GUEST_EMAIL_;
-    if (!isBootstrap && !isGuest) throw new Error('ACCESS_DENIED: Webapp hanya tersedia untuk akun Admin dan Tamu yang ditentukan.');
+    if (!isBootstrap) throw new Error('ACCESS_DENIED: Login Google hanya tersedia untuk akun Admin yang ditentukan.');
     identity.email = email;
     var sheet = getAccessSheet_(isBootstrap);
     var rows = accessRows_(sheet);
@@ -175,15 +174,6 @@ function resolveAccessUser_(identity) {
       var row = [identity.email, identity.uid, '', 'ADMIN', 'ACTIVE', now, now];
       sheet.appendRow(row);
       matches.push({ row: row, number: sheet.getLastRow() });
-    }
-    if (isGuest) {
-      // Config grants this exact Google identity read access, never a role from a sheet.
-      // Guest authentication does not create/bind/update rows or any business data.
-      if (matches.length) {
-        if (normalizeKey_(matches[0].row[4]) !== 'ACTIVE') throw new Error('ACCESS_DENIED: Akses akun tidak aktif. Hubungi admin.');
-        if (matches[0].row[1] && matches[0].row[1] !== identity.uid) throw new Error('ACCESS_DENIED: Identitas akun berubah. Hubungi admin.');
-      }
-      return { email: email, username: email, uid: identity.uid, role: 'GUEST', salesId: '', teamName: '', fullName: 'Tamu', shortName: 'Tamu' };
     }
     if (!matches.length) throw new Error('ACCESS_DENIED: Akun belum terdaftar. Hubungi admin.');
     var entry = matches[0];
@@ -235,9 +225,10 @@ function listAccessUsers_() {
   var rows = accessRows_(getAccessSheet_(false));
   var guests = rows.filter(function(r) { return String(r[0]).trim().toLowerCase() === KCH_GUEST_EMAIL_; });
   if (guests.length > 1) throw new Error('Email terdaftar ganda. Periksa ACCESS_USERS.');
+  var credential = guestCredential_();
   return { success: true, users: [
     { email: KCH_BOOTSTRAP_ADMIN_EMAIL_, salesId: '', role: 'ADMIN', status: 'ACTIVE' },
-    { email: KCH_GUEST_EMAIL_, salesId: '', role: 'GUEST', status: guests.length ? normalizeKey_(guests[0][4]) : 'ACTIVE' }
+    { email: KCH_GUEST_EMAIL_, username: credential ? credential.username : '', configured: !!(credential && credential.password_hash), salesId: '', role: 'GUEST', status: guests.length ? normalizeKey_(guests[0][4]) : 'INACTIVE' }
   ] };
 }
 
@@ -256,6 +247,8 @@ function saveAccessUser_(payload) {
     var index = matches.length ? matches[0] : -1, now = new Date();
     var row = [KCH_GUEST_EMAIL_, index < 0 ? '' : rows[index][1], '', 'GUEST', status, index < 0 ? now : sheet.getRange(index + 2, 6).getValue(), now];
     if (index < 0) sheet.appendRow(row); else sheet.getRange(index + 2, 1, 1, row.length).setValues([row]);
+    var guestColumns = guestAccessColumns_(sheet, false);
+    if (guestColumns.session_version) sheet.getRange(index < 0 ? sheet.getLastRow() : index + 2, guestColumns.session_version).setValue(Utilities.getUuid().replace(/-/g, ''));
     SpreadsheetApp.flush();
     logActivity_(user.email, 'UPDATE_GUEST_ACCESS', KCH_GUEST_EMAIL_, JSON.stringify({ status: status }));
     return { success: true, message: 'Status akun Tamu berhasil disimpan.' };
@@ -272,6 +265,7 @@ function kchApi(token, method, args) {
     getAuthProfile: function() { return { success: true, user: getCurrentUserInfo_() }; },
     saveMyProfile: saveMyProfile_,
     listAccessUsers: listAccessUsers_, saveAccessUser: saveAccessUser_,
+    saveGuestCredentials: saveGuestCredentials_,
     getInitialAppMetadata: getInitialAppMetadata_, getDashboardMetrics: getDashboardMetrics_,
     getAttendanceByDate: getAttendanceByDate_, getVisitPhotosByDate: getVisitPhotosByDate_,
     getTodayPlans: getTodayPlans_, saveTodayPlan: saveTodayPlan_, archiveTodayPlan: archiveTodayPlan_,
@@ -288,14 +282,14 @@ function kchApi(token, method, args) {
     throw new Error('ACCESS_DENIED: Operasi tidak tersedia.');
   }
   try {
-    KCH_REQUEST_USER_ = resolveAccessUser_(verifyFirebaseIdentity_(token));
+    KCH_REQUEST_USER_ = typeof token === 'string' && token.indexOf('KCHG_') === 0 ? resolveGuestSession_(token) : resolveAccessUser_(verifyFirebaseIdentity_(token));
     var user = getCurrentUserInfo_();
     var guestReads = ['getAuthProfile', 'getInitialAppMetadata', 'getDashboardMetrics',
       'getAttendanceByDate', 'getVisitPhotosByDate', 'getTodayPlans', 'getWeeklyMeetings', 'getKchNews',
       'getTransactionsPaginated', 'getTransactionDetail', 'getAllTransactionsForExport', 'getMonthlyTeamReport',
       'getScoreSetup', 'getScoreReport', 'getScoreTeamSummary'];
     if (user.role === 'GUEST' && guestReads.indexOf(method) < 0) throw new Error('ACCESS_DENIED: Akun Tamu hanya boleh melihat data.');
-    var adminOnly = ['saveScoreBranding', 'saveMyProfile', 'saveScoreAA', 'listAccessUsers', 'saveAccessUser', 'saveTodayPlan', 'archiveTodayPlan',
+    var adminOnly = ['saveScoreBranding', 'saveMyProfile', 'saveScoreAA', 'listAccessUsers', 'saveAccessUser', 'saveGuestCredentials', 'saveTodayPlan', 'archiveTodayPlan',
       'saveWeeklyMeeting', 'archiveWeeklyMeeting', 'saveKchNewsArticle', 'archiveKchNewsArticle'];
     if (adminOnly.indexOf(method) >= 0 && user.role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin yang boleh melakukan operasi ini.');
     if (['saveSalesTransaction', 'saveSalesPhotoUpload'].indexOf(method) >= 0) {

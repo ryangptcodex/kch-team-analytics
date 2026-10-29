@@ -66,10 +66,18 @@
       <h1 id="kchLoginTitle">Selamat datang<br>kembali.</h1>
       <p class="kch-login-description">Pantau penjualan dan aktivitas tim dalam satu tempat.</p>
       <div class="kch-login-divider" aria-hidden="true"></div>
-      <p class="kch-login-account-hint">Masuk menggunakan akun Admin atau Tamu yang sudah ditentukan.</p>
+      <p class="kch-login-account-hint">Tamu menggunakan username dan password. Login Google khusus Admin.</p>
+      <button type="button" id="kchGuestLoginToggle" class="btn btn-primary" style="width:100%;min-height:48px;margin-bottom:12px" onclick="toggleKchGuestLogin()" aria-expanded="false" aria-controls="kchGuestLoginForm">Masuk sebagai Tamu</button>
+      <form id="kchGuestLoginForm" hidden onsubmit="signInKchGuest(event)" style="margin-bottom:16px">
+        <label for="kchGuestUsername">Username Tamu</label>
+        <input id="kchGuestUsername" name="username" autocomplete="username" required maxlength="40" style="width:100%;margin:6px 0 12px;padding:12px;border:1px solid #cbd5e1;border-radius:8px">
+        <label for="kchGuestPassword">Password</label>
+        <input id="kchGuestPassword" name="password" type="password" autocomplete="current-password" required minlength="12" maxlength="128" style="width:100%;margin:6px 0 12px;padding:12px;border:1px solid #cbd5e1;border-radius:8px">
+        <button type="submit" id="kchGuestLoginSubmit" class="btn btn-primary" style="width:100%;min-height:44px">Masuk</button>
+      </form>
       <button type="button" id="kchGoogleLogin" onclick="signInKchGoogle()" disabled>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.73-.06-1.42-.19-2.1H12v3.98h5.92a5.07 5.07 0 0 1-2.2 3.32v2.76h3.57c2.08-1.92 3.27-4.75 3.27-7.96Z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.79l-3.57-2.76c-.99.66-2.25 1.06-3.71 1.06-2.87 0-5.31-1.94-6.18-4.55H2.14v2.85A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M5.82 13.96A6.6 6.6 0 0 1 5.47 12c0-.68.12-1.34.35-1.96V7.19H2.14A11 11 0 0 0 1 12c0 1.78.42 3.45 1.14 4.81l3.68-2.85Z"/><path fill="#EA4335" d="M12 5.49c1.62 0 3.06.56 4.21 1.64l3.16-3.16A10.56 10.56 0 0 0 12 1a11 11 0 0 0-9.86 6.19l3.68 2.85C6.69 7.43 9.13 5.49 12 5.49Z"/></svg>
-        <span>Masuk dengan Google</span>
+        <span>Masuk dengan Google (Admin)</span>
       </button>
       <p id="kchAuthMessage" role="status" aria-live="polite">Menyiapkan login…</p>
       <p class="kch-login-footnote"><svg viewBox="0 0 20 20" fill="none" width="13" height="13" aria-hidden="true"><path d="m10 2 6 2.5V10c0 3-2.7 5.5-6 7-3.3-1.5-6-4-6-7V4.5L10 2Z" stroke="currentColor" stroke-width="1.3"/><path d="m7 9.5 2 2 4-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>Akses sesuai peran akun Anda.</p>
@@ -169,10 +177,12 @@
   <h2 id="kchAccessTitle">Kelola akun</h2>
   <p>Webapp hanya memiliki akun Admin dan akun Tamu. Profil sales dan histori tetap dipertahankan.</p>
   <form onsubmit="saveKchAccess(event)">
-    <input id="kchAccessEmail" type="email" aria-label="Gmail Tamu" readonly required>
+    <input id="kchAccessEmail" type="hidden">
+    <label>Username Tamu <input id="kchAccessUsername" type="text" autocomplete="off" minlength="3" maxlength="40" required></label>
+    <label>Password baru <input id="kchAccessPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" placeholder="Kosongkan jika tidak diganti"></label>
     <select id="kchAccessStatus" aria-label="Status akses"><option value="ACTIVE">Aktif</option><option value="INACTIVE">Nonaktif</option></select>
     <button type="submit" class="btn btn-primary" id="kchSaveAccess" disabled>Simpan akses</button>
   </form>
   <p id="kchAccessMessage" role="status"></p>
-  <div style="overflow-x:auto"><table><thead><tr><th>Gmail</th><th>Peran</th><th>Status</th></tr></thead><tbody id="kchAccessRows"></tbody></table></div>
+  <div style="overflow-x:auto"><table><thead><tr><th>Akun</th><th>Peran</th><th>Status</th></tr></thead><tbody id="kchAccessRows"></tbody></table></div>
 </section>

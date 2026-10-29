@@ -16,7 +16,7 @@ function panel() {
   }
   const nodes = {};
   for (const [id, tag] of Object.entries({ kchAccessPanel: 'section', kchAccessSales: 'select', kchSaveAccess: 'button',
-    kchAccessMessage: 'p', kchAccessRows: 'tbody', kchAccessEmail: 'input', kchAccessStatus: 'select' })) nodes[id] = new Element(tag);
+    kchAccessUsername: 'input', kchAccessPassword: 'input', kchAccessMessage: 'p', kchAccessRows: 'tbody', kchAccessEmail: 'input', kchAccessStatus: 'select' })) nodes[id] = new Element(tag);
   for (const value of ['ACTIVE', 'INACTIVE']) { const option = new Element('option'); option.value = value; nodes.kchAccessStatus.appendChild(option); }
   const requests = [];
   const context = { document: { getElementById: id => nodes[id], createElement: tag => new Element(tag) },
@@ -28,7 +28,7 @@ function panel() {
     const request = {};
     const runner = { withSuccessHandler(fn) { request.success = fn; return runner; }, withFailureHandler(fn) { request.failure = fn; return runner; },
       listAccessUsers() { request.method = 'listAccessUsers'; requests.push(request); },
-      saveAccessUser(payload) { request.method = 'saveAccessUser'; request.payload = payload; requests.push(request); } };
+      saveGuestCredentials(payload) { request.method = 'saveGuestCredentials'; request.payload = payload; requests.push(request); } };
     return runner;
   };
   return { context, nodes, requests };
@@ -38,7 +38,7 @@ test('account panel loads fixed admin/guest list without sales metadata',()=>{
  const e=panel();e.context.openKchAccessPanel();assert.equal(e.nodes.kchSaveAccess.disabled,true);e.requests[0].success(response());assert.equal(e.nodes.kchSaveAccess.disabled,false);assert.equal(e.nodes.kchAccessEmail.value,'guest@gmail.com');assert.equal(e.nodes.kchAccessRows.children.length,2);
 });
 test('guest status is preselected and saving sends no sales mapping',()=>{
- const e=panel();e.context.openKchAccessPanel();const r=response();r.users[1].status='INACTIVE';e.requests[0].success(r);assert.equal(e.nodes.kchAccessStatus.value,'INACTIVE');e.nodes.kchAccessStatus.value='ACTIVE';e.context.saveKchAccess({preventDefault(){}});assert.equal(e.requests[1].payload.email,'guest@gmail.com');assert.equal(e.requests[1].payload.status,'ACTIVE');assert.equal('salesId' in e.requests[1].payload,false);assert.equal(e.nodes.kchSaveAccess.disabled,true);
+ const e=panel();e.context.openKchAccessPanel();const r=response();r.users[1].status='INACTIVE';e.requests[0].success(r);assert.equal(e.nodes.kchAccessStatus.value,'INACTIVE');e.nodes.kchAccessStatus.value='ACTIVE';e.context.saveKchAccess({preventDefault(){}});assert.equal(e.requests[1].payload.username,'tamu');assert.equal(e.requests[1].payload.password,'');assert.equal(e.requests[1].payload.status,'ACTIVE');assert.equal('salesId' in e.requests[1].payload,false);assert.equal(e.nodes.kchSaveAccess.disabled,true);
 });
 test('loading or failed account panel cannot save stale email',()=>{
  const e=panel();e.context.openKchAccessPanel();e.context.saveKchAccess({preventDefault(){}});assert.equal(e.requests.length,1);e.requests[0].failure({message:'offline'});assert.equal(e.nodes.kchSaveAccess.disabled,true);assert.match(e.nodes.kchAccessMessage.textContent,/offline/);

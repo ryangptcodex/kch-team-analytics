@@ -29,7 +29,7 @@ function browser() {
   const body = new Element('body');
   const add = (parent, tag, id = '', className = '') => parent.appendChild(new Element(tag, id, className));
   const screen = add(body, 'section', 'kchAuthScreen'); screen.hidden = true;
-  add(screen, 'button', 'kchGoogleLogin'); add(screen, 'p', 'kchAuthMessage');
+  add(screen, 'input', 'kchGuestUsername'); add(screen, 'input', 'kchGuestPassword'); add(screen, 'button', 'kchGuestLoginSubmit'); add(screen, 'button', 'kchGoogleLogin'); add(screen, 'p', 'kchAuthMessage');
   const access = add(body, 'section', 'kchAccessPanel'); access.hidden = true;
   add(access, 'input', 'kchAccessEmail'); add(access, 'tbody', 'kchAccessRows');
   const layout = add(body, 'div', '', 'app-layout');
@@ -169,3 +169,20 @@ for (const emitStateEvent of [false, true]) {
     assert.equal(c.appState.user.role, 'SALES'); assert.equal(e.get('kchGoogleLogin').disabled, false);
   });
 }
+
+test('native guest RPC uses its session without Firebase, and expiry clears account data', async()=>{
+ const e=browser(),c=e.context;c.captureKchInitialUi();c.kchGuestToken='KCHG_'+'a'.repeat(64);c.appState.user={role:'GUEST'};let sent,fail;
+ const runner={withSuccessHandler(){return runner;},withFailureHandler(fn){fail=fn;return runner;},kchApi(...args){sent=args;}};c.google={script:{run:runner}};
+ c.kchRun().getAuthProfile();await new Promise(r=>setImmediate(r));assert.equal(sent[0],'KCHG_'+'a'.repeat(64));fail({message:'AUTH_REQUIRED: Sesi berakhir'});assert.equal(c.kchGuestToken,'');assert.equal(c.appState.user,null);assert.equal(e.get('kchAuthScreen').hidden,false);
+});
+test('guest logout clears UI and invalidates server session even when Firebase is unavailable',async()=>{
+ const e=browser(),c=e.context;c.captureKchInitialUi();c.kchGuestToken='KCHG_'+'a'.repeat(64);let received,done;
+ const runner={withSuccessHandler(fn){done=fn;return runner;},withFailureHandler(){return runner;},kchGuestLogout(token){received=token;done({success:true});}};c.google={script:{run:runner}};
+ await c.signOutKch();assert.equal(received,'KCHG_'+'a'.repeat(64));assert.equal(c.kchGuestToken,'');assert.equal(c.kchSigningOut,false);assert.equal(c.appState.user,null);assert.match(e.get('kchAuthMessage').textContent,/Sudah keluar/);
+});
+test('native login suppresses duplicate clicks, ignores Firebase null events and revokes late success after logout',()=>{
+ const e=browser(),c=e.context;c.captureKchInitialUi();e.get('kchGuestUsername').value='tamu';e.get('kchGuestPassword').value='private-test-password';let success,requests=0,revoked;
+ const runner={withSuccessHandler(fn){success=fn;return runner;},withFailureHandler(){return runner;},kchGuestLogin(){requests++;},kchGuestLogout(token){revoked=token;}};c.google={script:{run:runner}};
+ c.signInKchGuest({preventDefault(){}});c.signInKchGuest({preventDefault(){}});assert.equal(requests,1);assert.equal(e.get('kchGuestPassword').value,'');const generation=c.kchAuthGeneration;c.handleKchAuthState(null);assert.equal(c.kchAuthGeneration,generation);
+ c.signOutKch();success({success:true,token:'late-token',user:{role:'GUEST'}});assert.equal(c.kchGuestToken,'');assert.equal(revoked,'late-token');assert.equal(c.appState.user,null);
+});

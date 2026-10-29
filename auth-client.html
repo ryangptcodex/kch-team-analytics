@@ -2,6 +2,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script>
   var kchFirebaseAuth = null;
+  var kchGuestToken = '';
+  var kchGuestLoginPending = false;
   var kchAuthGeneration = 0;
   var kchAccessLoadVersion = 0;
   var kchSigningOut = false;
@@ -57,11 +59,15 @@
         function fail(err) {
           if (generation !== kchAuthGeneration) return;
           var message = err && err.message ? err.message : 'Permintaan gagal.';
-          if (/AUTH_REQUIRED:|ACCESS_DENIED:/.test(message)) showKchAuthError(message);
+          if (/AUTH_REQUIRED:|ACCESS_DENIED:/.test(message)) {
+            if (kchGuestToken && /AUTH_REQUIRED:/.test(message)) { kchGuestToken = ''; kchAuthGeneration++; resetKchSessionUi(); showKchAuthError(message); return; }
+            showKchAuthError(message);
+          }
           failure(err || new Error(message));
         }
-        if (!current) { fail(new Error('AUTH_REQUIRED: Silakan masuk dengan Google.')); return; }
-        current.getIdToken().then(function(token) {
+        if (!current && !kchGuestToken) { fail(new Error('AUTH_REQUIRED: Silakan masuk kembali.')); return; }
+        var authToken = kchGuestToken ? Promise.resolve(kchGuestToken) : current.getIdToken();
+        authToken.then(function(token) {
           if (generation !== kchAuthGeneration) return;
           google.script.run.withSuccessHandler(function(result) {
             if (generation === kchAuthGeneration) success(result);
@@ -75,7 +81,7 @@
   function initKchAuthentication() {
     captureKchInitialUi();
     if (!window.firebase || !window.KCH_FIREBASE_CONFIG) {
-      showKchAuthError('Komponen login gagal dimuat. Periksa koneksi lalu muat ulang halaman.');
+      showKchAuthError('Login Google belum dapat dimuat. Tamu dapat menggunakan username dan password.');
       return;
     }
     firebase.initializeApp(window.KCH_FIREBASE_CONFIG);
@@ -85,26 +91,63 @@
     kchFirebaseAuth.setPersistence(firebase.auth.Auth.Persistence.NONE).then(function() {
       document.getElementById('kchGoogleLogin').disabled = false;
       kchFirebaseAuth.onAuthStateChanged(handleKchAuthState);
-    }).catch(function(err) { showKchAuthError('Login belum dapat disiapkan: ' + err.message); });
+    }).catch(function(err) { showKchAuthError('Login Google belum siap. Tamu dapat menggunakan username dan password. ' + err.message); });
   }
 
   function handleKchAuthState(user) {
-    if (kchSigningOut) return;
+    if (kchSigningOut || kchGuestToken || kchGuestLoginPending) return;
     kchAuthGeneration++;
     resetKchSessionUi();
-    if (!user) { showKchAuthError('Silakan masuk dengan Google.'); return; }
+    if (!user) { showKchAuthError('Silakan masuk sebagai Tamu atau gunakan Google khusus Admin.'); return; }
     showKchAuthError('Memeriksa akses akun…');
     kchRun().withSuccessHandler(function(result) {
-      appState.user = result.user;
-      document.body.classList.remove('kch-locked');
-      document.getElementById('kchAuthScreen').hidden = true;
-      installKchAccountActions(result.user);
-      initApp();
+      enterKchSession(result);
     }).withFailureHandler(function(err) { showKchAuthError(err.message); }).getAuthProfile();
   }
 
+  function enterKchSession(result) {
+    appState.user = result.user;
+    document.body.classList.remove('kch-locked');
+    document.getElementById('kchAuthScreen').hidden = true;
+    installKchAccountActions(result.user);
+    initApp();
+  }
+
+  function toggleKchGuestLogin() {
+    var form = document.getElementById('kchGuestLoginForm');
+    form.hidden = !form.hidden;
+    document.getElementById('kchGuestLoginToggle').setAttribute('aria-expanded', String(!form.hidden));
+    if (!form.hidden) document.getElementById('kchGuestUsername').focus();
+  }
+
+  function signInKchGuest(event) {
+    event.preventDefault();
+    if (kchGuestLoginPending || kchSigningOut) return;
+    var username = document.getElementById('kchGuestUsername').value.trim();
+    var password = document.getElementById('kchGuestPassword').value;
+    var button = document.getElementById('kchGuestLoginSubmit');
+    var generation = ++kchAuthGeneration;
+    kchGuestLoginPending = true; button.disabled = true;
+    document.getElementById('kchGuestPassword').value = '';
+    showKchAuthError('Memeriksa akun Tamu…');
+    google.script.run.withSuccessHandler(function(result) {
+      if (generation !== kchAuthGeneration) {
+        if (result && result.token) google.script.run.withFailureHandler(function() {}).kchGuestLogout(result.token);
+        return;
+      }
+      kchGuestLoginPending = false; button.disabled = false;
+      if (!result || !result.success || !result.token || !result.user || result.user.role !== 'GUEST') { showKchAuthError('Login Tamu gagal. Silakan coba lagi.'); return; }
+      resetKchSessionUi(); kchGuestToken = result.token;
+      enterKchSession(result);
+    }).withFailureHandler(function(err) {
+      if (generation !== kchAuthGeneration) return;
+      kchGuestLoginPending = false; button.disabled = false;
+      showKchAuthError(err.message || 'Login Tamu gagal. Silakan coba lagi.');
+    }).kchGuestLogin(username, password);
+  }
+
   function signInKchGoogle() {
-    if (!kchFirebaseAuth || kchSigningOut) return;
+    if (!kchFirebaseAuth || kchSigningOut || kchGuestLoginPending) return;
     var provider = new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
     document.getElementById('kchGoogleLogin').disabled = true;
@@ -128,10 +171,21 @@
   function signOutKch() {
     if (kchSigningOut) return;
     kchSigningOut = true;
+    var guestToken = kchGuestToken; kchGuestToken = '';
+    kchGuestLoginPending = false;
+    document.getElementById('kchGuestPassword').value = '';
+    document.getElementById('kchGuestUsername').value = '';
+    document.getElementById('kchGuestLoginSubmit').disabled = false;
     kchAuthGeneration++;
     resetKchSessionUi();
     showKchAuthError('Keluar dari akun…');
     document.getElementById('kchGoogleLogin').disabled = true;
+    if (guestToken) {
+      return new Promise(function(resolve) {
+        function done() { kchSigningOut = false; showKchAuthError('Sudah keluar. Silakan masuk kembali.'); document.getElementById('kchGoogleLogin').disabled = !kchFirebaseAuth; resolve(); }
+        google.script.run.withSuccessHandler(done).withFailureHandler(done).kchGuestLogout(guestToken);
+      });
+    }
     if (!kchFirebaseAuth) {
       kchSigningOut = false;
       showKchAuthError('Komponen login belum siap. Muat ulang halaman aplikasi dari tab browser.');
@@ -233,16 +287,19 @@
       var guest = result.users.filter(function(u) { return u.role === 'GUEST'; })[0];
       document.getElementById('kchAccessEmail').value = guest.email;
       document.getElementById('kchAccessStatus').value = guest.status;
+      document.getElementById('kchAccessUsername').value = guest.username || 'tamu';
+      document.getElementById('kchAccessPassword').value = '';
+      document.getElementById('kchAccessPassword').required = !guest.configured;
       var body = document.getElementById('kchAccessRows');
       result.users.forEach(function(user) {
         var row = document.createElement('tr');
-        [user.email, user.role === 'GUEST' ? 'Tamu · hanya lihat' : 'Admin · akses penuh', user.status].forEach(function(value) {
+        [user.role === 'GUEST' ? (user.username || 'Belum diatur') : user.email, user.role === 'GUEST' ? 'Tamu · hanya lihat' : 'Admin · akses penuh', user.status].forEach(function(value) {
           var cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
         });
         body.appendChild(row);
       });
       save.disabled = false;
-      message.textContent = 'Hanya status akun Tamu yang dapat diubah. Akun sales lama tidak memiliki akses webapp.';
+      message.textContent = 'Google hanya untuk Admin. Atur username/password Tamu di sini. Kosongkan password untuk mempertahankannya; minimal 12 karakter jika diganti.';
     }).withFailureHandler(function(err) {
       if (version !== kchAccessLoadVersion) return;
       message.textContent = 'Gagal memuat akun: ' + err.message;
@@ -256,10 +313,10 @@
     save.disabled = true;
     kchRun().withSuccessHandler(function(result) {
       if (!result || !result.success) { save.disabled = false; document.getElementById('kchAccessMessage').textContent = result && result.message || 'Status gagal disimpan.'; return; }
-      showToast('Status akun Tamu disimpan.', 'success'); loadKchAccessUsers();
+      document.getElementById('kchAccessPassword').value = ''; showToast('Akun Tamu disimpan.', 'success'); loadKchAccessUsers();
     }).withFailureHandler(function(err) {
       save.disabled = false;
       document.getElementById('kchAccessMessage').textContent = err.message;
-    }).saveAccessUser({ email: document.getElementById('kchAccessEmail').value, status: document.getElementById('kchAccessStatus').value });
+    }).saveGuestCredentials({ username: document.getElementById('kchAccessUsername').value, password: document.getElementById('kchAccessPassword').value, status: document.getElementById('kchAccessStatus').value });
   }
 </script>
