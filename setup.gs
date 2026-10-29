@@ -37,10 +37,6 @@ var STANDARD_TEAMS = [
 ];
 
 var TABLE_SCHEMAS = {
-  USERS: [
-    'username', 'password_hash', 'full_name', 
-    'role', 'team_name', 'status', 'created_at'
-  ],
   DISTRIBUTORS: [
     'distributor_id', 'distributor_name', 'distributor_type', 'status'
   ],

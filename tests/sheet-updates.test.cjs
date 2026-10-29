@@ -11,7 +11,7 @@ function fixture(){
  const ss={getId:()=>c.KCH_TEST_SPREADSHEET_ID_,getName:()=> 'UJI COBA',getSheetByName(name){
   if(name===c.KCH_UPDATE_SHEET_)return control;
   if(!e.exists(name))return null;
-  const rows=e.rows(name);return {getSheetId:()=>meta[name].sheetId,getLastColumn:()=>Math.max(0,...rows.map(r=>r.length)),getLastRow:()=>rows.length,getRange:()=>({getDisplayValues:()=>[rows[0].map(String)]})};
+  const rows=e.rows(name);return {getSheetId:()=>meta[name].sheetId,getLastColumn:()=>Math.max(0,...rows.map(r=>r.length)),getLastRow:()=>rows.length,getRange:(r=1,c=1,h=1,w=rows[0].length)=>({getDisplayValues:()=>Array.from({length:h},(_,y)=>Array.from({length:w},(_,x)=>String(rows[r-1+y]?.[c-1+x]??'')))})};
  },copy(){events.push('backup');return {getId:()=> 'backup',getUrl:()=> 'https://docs.google.com/spreadsheets/d/backup'};},toast(){}};
  c.txMetadata_=()=>meta;c.assertNoPendingTransactions_=()=>events.push('pending-check');
  c.txBatch_=(ctx,requests)=>events.push('batch');
@@ -63,4 +63,16 @@ test('installing twice creates one action tab and one matching trigger without e
  e.c.ScriptApp.getProjectTriggers=()=>triggers;
  e.c.ScriptApp.newTrigger=handler=>({forSpreadsheet:()=>({onEdit:()=>({create(){triggers.push({getHandlerFunction:()=>handler,getTriggerSourceId:()=>ss.getId()});}})})});
  e.c.setupKchSheetUpdates();cells.B8='Berhasil';e.c.installKchSheetUpdates_();assert.equal(triggers.length,1);assert.equal(calls.filter(c=>c==='insert').length,1);assert.equal(cells.B8,'Berhasil');assert.equal(calls.at(-1),25);
+});
+test('obsolete access accounts are removed bottom-up while admin/guest and full credential rows are preserved',()=>{
+ const e=fixture(),c=e.c;
+ const meta=e.meta;meta.ACCESS_USERS={sheetId:999};const rows=[['email','role','password'],[c.KCH_BOOTSTRAP_ADMIN_EMAIL_,'ADMIN',''],['old-sales@example.com','SALES','old'],[c.KCH_GUEST_EMAIL_,'GUEST','keep'],['third@example.com','ADMIN','old']];
+ const original=e.ss.getSheetByName;e.ss.getSheetByName=n=>n==='ACCESS_USERS'?{getLastRow:()=>rows.length,getLastColumn:()=>3,getRange:()=>({getDisplayValues:()=>rows})}:original(n);
+ const plan=c.kchLegacyLoginCleanupPlan_(e.ss,meta);assert.deepEqual(Array.from(plan.requests,r=>r.deleteDimension.range.startIndex),[4,2]);
+ for(const r of plan.requests)rows.splice(r.deleteDimension.range.startIndex,1);
+ assert.equal(rows.length,3);assert.equal(rows[2][2],'keep');assert.equal(c.kchLegacyLoginCleanupPlan_(e.ss,meta).requests.length,0);assert.equal(c.TABLE_SCHEMAS.USERS,undefined);assert.equal(c.kchSheetSchemas_().USERS,undefined);
+});
+test('legacy USERS sales/coordinator accounts are removed without touching legacy admins or business sales master',()=>{
+ const e=fixture(),before=JSON.stringify(e.rows('SALES')),rows=[['username','role'],['admin','ADMIN'],['sales','SALES'],['coordinator','SALES_COORDINATOR']];e.meta.USERS={sheetId:888};const original=e.ss.getSheetByName;e.ss.getSheetByName=n=>n==='USERS'?{getLastRow:()=>rows.length,getLastColumn:()=>2,getRange:()=>({getDisplayValues:()=>rows})}:original(n);
+ const plan=e.c.kchLegacyLoginCleanupPlan_(e.ss,e.meta);assert.equal(plan.requests.length,2);assert.equal(JSON.stringify(e.rows('SALES')),before);assert.ok(plan.requests.every(r=>r.deleteDimension.range.sheetId===888));
 });

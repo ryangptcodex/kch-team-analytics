@@ -102,6 +102,31 @@ function kchSheetUpdateClick_(e) {
   return kchRunSheetUpdates_(e.source);
 }
 
+// Remove obsolete login rows only, never the SALES business master or its history.
+function kchLegacyLoginCleanupPlan_(ss, meta) {
+  var requests = [], changes = [];
+  ['ACCESS_USERS', 'USERS'].forEach(function(name) {
+    var sheet = ss.getSheetByName(name);
+    if (!sheet || sheet.getLastRow() < 2) return;
+    var width = sheet.getLastColumn(), values = sheet.getRange(1, 1, sheet.getLastRow(), width).getDisplayValues();
+    var headers = values[0], roleColumn = headers.indexOf('role'), emailColumn = headers.indexOf('email');
+    if (roleColumn < 0 || (name === 'ACCESS_USERS' && emailColumn < 0)) throw new Error(name + ': header akun lama tidak dikenali; pembersihan dibatalkan.');
+    var remove = [];
+    values.slice(1).forEach(function(row, index) {
+      if (row.every(function(v) { return v === ''; })) return;
+      var keep = name === 'ACCESS_USERS'
+        ? [KCH_BOOTSTRAP_ADMIN_EMAIL_, KCH_GUEST_EMAIL_].indexOf(String(row[emailColumn]).trim().toLowerCase()) >= 0
+        : ['ADMIN', 'GUEST'].indexOf(String(row[roleColumn]).trim().toUpperCase()) >= 0;
+      if (!keep) remove.push(index + 1);
+    });
+    remove.reverse().forEach(function(index) {
+      requests.push({ deleteDimension: { range: { sheetId: meta[name].sheetId, dimension: 'ROWS', startIndex: index, endIndex: index + 1 } } });
+    });
+    if (remove.length) changes.push(name + ': hapus ' + remove.length + ' akun login lama; profil/transaksi sales tetap.');
+  });
+  return { requests: requests, changes: changes };
+}
+
 function kchRunSheetUpdates_(ss) {
   kchSheetUpdateAdmin_(ss, Session.getActiveUser().getEmail());
   var lock = LockService.getScriptLock(); lock.waitLock(30000);
@@ -112,7 +137,11 @@ function kchRunSheetUpdates_(ss) {
     if (typeof assertNoPendingTransactions_ === 'function') assertNoPendingTransactions_();
     SpreadsheetApp.flush();
     var ctx = { id: ss.getId(), token: ScriptApp.getOAuthToken() };
-    var plan = kchSheetUpdatePlan_(ss, txMetadata_(ctx), kchSheetSchemas_());
+    var meta = txMetadata_(ctx);
+    var cleanup = kchLegacyLoginCleanupPlan_(ss, meta);
+    var plan = kchSheetUpdatePlan_(ss, meta, kchSheetSchemas_());
+    plan.requests = plan.requests.concat(cleanup.requests);
+    plan.changes = plan.changes.concat(cleanup.changes);
     var stamp = Utilities.formatDate(new Date(), KCH_CONFIG.TIMEZONE, 'yyyy-MM-dd HH.mm.ss');
     var backup = ss.copy(ss.getName() + ' - BACKUP PEMBARUAN ' + stamp);
     if (!backup || backup.getId() === ss.getId()) throw new Error('Cadangan gagal dibuat; pembaruan dibatalkan.');
