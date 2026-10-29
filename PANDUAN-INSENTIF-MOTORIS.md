@@ -1,3 +1,5 @@
+> **Pembaruan terbaru:** tombol Perbarui kini juga membuat dan mengisi tiga sheet hasil Insentif. Pasang paket pada [PANDUAN-SINKRON-INSENTIF.md](PANDUAN-SINKRON-INSENTIF.md); penjelasan lama bahwa Insentif hanya membaca/tidak mempunyai sheet digantikan untuk fungsi pembaruan spreadsheet. Halaman webapp tetap hanya membaca.
+
 # Insentif Motoris/MMTW
 
 Menu sidebar **Insentif**, tepat setelah Skor, menampilkan insentif harian, parameter bulanan, dan bonus triwulan per sales. Motoris dan MMTW memakai aturan sama. MPR/Canvasser dan tim lain belum dimasukkan karena juklaknya belum diberikan. Admin dan Tamu dapat melihat seluruh sales yang memenuhi kelompok tim; halaman ini tidak memiliki operasi input/pencairan/penulisan data.

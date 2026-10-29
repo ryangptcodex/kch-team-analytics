@@ -44,13 +44,16 @@ function incentiveQuarter_(month) {
 }
 function getIncentiveReport_(month, salesId) {
   incentiveAccess_(); assertOwnSales_(salesId); scoreMonth_(month);
-  var data = scoreContext_(true), sales = scoreSales_(data, salesId);
+  return incentiveBuildReport_(scoreContext_(true), month, salesId);
+}
+function incentiveBuildReport_(data, month, salesId, shared) {
+  var sales = scoreSales_(data, salesId);
   if (!incentiveEligible_(sales)) throw new Error('Insentif ini hanya untuk Motoris dan MMTW. Juklak tim lain belum ditetapkan.');
-  var mapping = scoreMapping_(data);
+  var mapping = shared ? shared.mapping : scoreMapping_(data);
   if (!mapping.ready) throw new Error('Periksa master produk: ' + mapping.issues.join('; '));
   if (!data.meta.SALES_TRANSACTIONS) throw new Error('Sheet SALES_TRANSACTIONS tidak tersedia.');
-  var rows = txTable_('SALES_TRANSACTIONS', data.raw.SALES_TRANSACTIONS, ['sales_id', 'transaction_date', 'product_id', 'quantity', 'selling_price'], false).rows.filter(function(r) { return normalizeKey_(r.sales_id) === normalizeKey_(salesId); });
-  var prepared = { ledger: scoreLedger_(data.events), mapping: mapping, transactionsBySales: Object.create(null) };
+  var rows = shared ? (shared.transactionsBySales[normalizeKey_(salesId)] || []) : txTable_('SALES_TRANSACTIONS', data.raw.SALES_TRANSACTIONS, ['sales_id', 'transaction_date', 'product_id', 'quantity', 'selling_price'], false).rows.filter(function(r) { return normalizeKey_(r.sales_id) === normalizeKey_(salesId); });
+  var prepared = shared || { ledger: scoreLedger_(data.events), mapping: mapping, transactionsBySales: Object.create(null) };
   prepared.transactionsBySales[normalizeKey_(salesId)] = rows;
   var quarter = incentiveQuarter_(month), reports = quarter.months.map(function(m) { return scoreBuildReport_(data, m, salesId, prepared); });
   var report = reports[quarter.months.indexOf(month)], today = scoreToday_(), values = Object.create(null), products = Object.create(null);

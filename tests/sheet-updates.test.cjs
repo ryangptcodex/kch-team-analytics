@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const {system}=require('./helpers/transaction-system.cjs');
 function fixture(){
  const e=system(),c=e.context;
- for(const file of ['score.gs','sheet-updates.gs'])vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'..',file),'utf8'),c);
+ for(const file of ['score.gs','incentives.gs','incentive-sheets.gs','sheet-updates.gs'])vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'..',file),'utf8'),c);
  const meta=c.txMetadata_({id:'test-book',token:'TEST_ONLY_OAUTH'}),status={},events=[];
  const control={getName:()=>c.KCH_UPDATE_SHEET_,getRange:(a)=>({getValue:()=>a==='A1'?'PUSAT PEMBARUAN SHEET':status[a],setValue(v){status[a]=v;return this;}})};
  const ss={getId:()=>c.KCH_TEST_SPREADSHEET_ID_,getName:()=> 'UJI COBA',getSheetByName(name){
@@ -13,6 +13,7 @@ function fixture(){
   if(!e.exists(name))return null;
   const rows=e.rows(name);return {getSheetId:()=>meta[name].sheetId,getLastColumn:()=>Math.max(0,...rows.map(r=>r.length)),getLastRow:()=>rows.length,getRange:(r=1,c=1,h=1,w=rows[0].length)=>({getDisplayValues:()=>Array.from({length:h},(_,y)=>Array.from({length:w},(_,x)=>String(rows[r-1+y]?.[c-1+x]??'')))})};
  },copy(){events.push('backup');return {getId:()=> 'backup',getUrl:()=> 'https://docs.google.com/spreadsheets/d/backup'};},toast(){}};
+ c.kchIncentiveSyncPlan_=()=>({requests:[],changes:[]});
  c.txMetadata_=()=>meta;c.assertNoPendingTransactions_=()=>events.push('pending-check');
  c.txBatch_=(ctx,requests)=>events.push('batch');
  return {...e,c,ss,meta,status,events,control};
@@ -75,4 +76,12 @@ test('obsolete access accounts are removed bottom-up while admin/guest and full 
 test('legacy USERS sales/coordinator accounts are removed without touching legacy admins or business sales master',()=>{
  const e=fixture(),before=JSON.stringify(e.rows('SALES')),rows=[['username','role'],['admin','ADMIN'],['sales','SALES'],['coordinator','SALES_COORDINATOR']];e.meta.USERS={sheetId:888};const original=e.ss.getSheetByName;e.ss.getSheetByName=n=>n==='USERS'?{getLastRow:()=>rows.length,getLastColumn:()=>2,getRange:()=>({getDisplayValues:()=>rows})}:original(n);
  const plan=e.c.kchLegacyLoginCleanupPlan_(e.ss,e.meta);assert.equal(plan.requests.length,2);assert.equal(JSON.stringify(e.rows('SALES')),before);assert.ok(plan.requests.every(r=>r.deleteDimension.range.sheetId===888));
+});
+test('registered report modules run before backup and commit together; module failure prevents all sheet mutations',()=>{
+ const e=fixture();e.c.kchIncentiveSyncPlan_=()=>{e.events.push('calculate-reports');return {requests:[{reportTestMarker:true}],changes:['Insentif diisi']};};let committed;
+ e.c.txBatch_=(ctx,requests)=>{e.events.push('batch');committed=requests;};const r=e.c.kchRunSheetUpdates_(e.ss);assert.deepEqual(e.events,['pending-check','calculate-reports','backup','batch']);assert.ok(committed.some(v=>v.reportTestMarker));assert.ok(r.changes.includes('Insentif diisi'));
+ const bad=fixture();bad.c.kchIncentiveSyncPlan_=()=>{throw Error('Invalid source');};assert.throws(()=>bad.c.kchRunSheetUpdates_(bad.ss),/Invalid source/);assert.deepEqual(bad.events,['pending-check']);assert.equal(bad.status.A3,false);
+});
+test('missing required report module cannot silently claim an entire-sheet update succeeded',()=>{
+ const e=fixture();e.c.KCH_INCENTIVE_SHEET_SCHEMAS_=undefined;assert.throws(()=>e.c.kchRunSheetUpdates_(e.ss),/Pasang Script incentive-sheets/);assert.ok(!e.events.includes('batch'));assert.ok(!e.events.includes('backup'));
 });

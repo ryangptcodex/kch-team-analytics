@@ -32,12 +32,20 @@ function installKchSheetUpdates_() {
       sheet.getRange('B9:D9').merge(); sheet.getRange('B10:D10').merge(); sheet.getRange('B11:D11').merge().setWrap(true);
       sheet.setColumnWidth(1, 155); sheet.setColumnWidths(2, 3, 210); sheet.setRowHeight(3, 42); sheet.setRowHeight(11, 90); sheet.setFrozenRows(1);
     }
+    sheet.getRange('A6').setValue('Data sumber dipertahankan; hasil laporan dihitung ulang. Pasang kode terbaru dahulu.');
     var triggers = ScriptApp.getProjectTriggers().filter(function(t) { return t.getHandlerFunction() === KCH_UPDATE_HANDLER_ && t.getTriggerSourceId() === ss.getId(); });
     if (!triggers.length) ScriptApp.newTrigger(KCH_UPDATE_HANDLER_).forSpreadsheet(ss).onEdit().create();
     triggers.slice(1).forEach(function(t) { ScriptApp.deleteTrigger(t); });
     ss.setActiveSheet(sheet); ss.moveActiveSheet(ss.getNumSheets());
     ss.toast('Tab pembaruan siap. Klik checkbox A3 untuk memperbarui struktur.', 'KCH UJI COBA', 8);
   } finally { lock.releaseLock(); }
+}
+
+// Register every feature that owns a Sheet schema and/or a refresh calculation here.
+// A missing installed module fails explicitly, rather than claiming a full update.
+function kchSheetUpdateModules_() {
+  if (typeof KCH_INCENTIVE_SHEET_SCHEMAS_ === 'undefined' || typeof kchIncentiveSyncPlan_ !== 'function' || typeof incentiveBuildReport_ !== 'function') throw new Error('Pasang Script incentive-sheets.gs dan incentives.gs terbaru sebelum Perbarui.');
+  return [{name:'INSENTIF',schemas:KCH_INCENTIVE_SHEET_SCHEMAS_,buildPlan:kchIncentiveSyncPlan_}];
 }
 
 function kchSheetSchemas_() {
@@ -50,6 +58,7 @@ function kchSheetSchemas_() {
   schemas[KCH_SCORE_EVENTS_] = KCH_SCORE_HEADERS_.slice();
   schemas[KCH_TX_REQUEST_SHEET_] = KCH_TX_REQUEST_HEADERS_.slice();
   schemas[KCH_TX_EDIT_SHEET_] = KCH_TX_EDIT_HEADERS_.slice();
+  kchSheetUpdateModules_().forEach(function(module) { Object.keys(module.schemas).forEach(function(name) { schemas[name] = module.schemas[name].slice(); }); });
   return schemas;
 }
 
@@ -142,17 +151,23 @@ function kchRunSheetUpdates_(ss) {
     var plan = kchSheetUpdatePlan_(ss, meta, kchSheetSchemas_());
     plan.requests = plan.requests.concat(cleanup.requests);
     plan.changes = plan.changes.concat(cleanup.changes);
+    kchSheetUpdateModules_().forEach(function(module) {
+      var generated = module.buildPlan(ss, meta, ctx);
+      plan.requests = plan.requests.concat(generated.requests);
+      plan.changes = plan.changes.concat(generated.changes);
+    });
+    if (meta[KCH_UPDATE_SHEET_]) plan.requests.push({updateSheetProperties:{properties:{sheetId:meta[KCH_UPDATE_SHEET_].sheetId,index:Object.keys(meta).length-1},fields:'index'}});
     var stamp = Utilities.formatDate(new Date(), KCH_CONFIG.TIMEZONE, 'yyyy-MM-dd HH.mm.ss');
     var backup = ss.copy(ss.getName() + ' - BACKUP PEMBARUAN ' + stamp);
     if (!backup || backup.getId() === ss.getId()) throw new Error('Cadangan gagal dibuat; pembaruan dibatalkan.');
     backupUrl = backup.getUrl();
     control.getRange('B10').setValue(backupUrl); SpreadsheetApp.flush();
-    // All structural changes are one atomic Sheets API batch.
+    // Schema, legacy-account cleanup and generated reports commit atomically together.
     txBatch_(ctx, plan.requests);
     control.getRange('B8').setValue('Berhasil');
     control.getRange('B9').setValue(stamp);
     control.getRange('B11').setValue(plan.changes.join('\n') || 'Struktur sudah sesuai kode terbaru. Tidak ada sheet/kolom ganda.');
-    ss.toast('Seluruh struktur sheet sudah mengikuti kode terbaru.', 'Pembaruan selesai', 8);
+    ss.toast('Struktur dan laporan sheet sudah mengikuti kode terbaru.', 'Pembaruan selesai', 8);
     return { success: true, changes: plan.changes, backupUrl: backupUrl };
   } catch (err) {
     if (!control || control.getRange('A1').getValue() !== 'PUSAT PEMBARUAN SHEET') throw err;

@@ -1,3 +1,5 @@
+> **Pembaruan terbaru:** tombol Perbarui kini juga membuat dan mengisi tiga sheet hasil Insentif. Pasang paket pada [PANDUAN-SINKRON-INSENTIF.md](PANDUAN-SINKRON-INSENTIF.md); penjelasan lama bahwa Insentif hanya membaca/tidak mempunyai sheet digantikan untuk fungsi pembaruan spreadsheet. Halaman webapp tetap hanya membaca.
+
 # Tab Pembaruan Sheet — UJI COBA
 
 Tab **PEMBARUAN_SHEET** dibuat di posisi paling kanan (setelah ACTIVITY_LOGS bila ACTIVITY_LOGS sebelumnya tab terakhir). Satu kontrol **checkbox A3 berlabel PERBARUI SELURUH SHEET** menjalankan pembaruan, kemudian kembali tidak dicentang. Ini checkbox yang dibuat otomatis, bukan Drawing yang harus diberi skrip secara manual.

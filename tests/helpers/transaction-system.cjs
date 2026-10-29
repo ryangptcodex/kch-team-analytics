@@ -33,6 +33,17 @@ function system(options = {}) {
         const p = request.addSheet.properties;
         if (draft[p.title] || byId(draft,p.sheetId)) throw Error('sheet collision');
         draft[p.title] = { ...copy(p), rows: [] };
+      } else if(request.updateSheetProperties) {
+        const p=request.updateSheetProperties.properties, sheet=byId(draft,p.sheetId);if(!sheet)throw Error('missing sheet');sheet.gridProperties={...sheet.gridProperties,...p.gridProperties};
+      } else if(request.repeatCell) {
+        if(!byId(draft,request.repeatCell.range.sheetId))throw Error('missing sheet');
+      } else if(request.insertDimension || request.deleteDimension) {
+        const r=(request.insertDimension||request.deleteDimension).range,sheet=byId(draft,r.sheetId);if(!sheet)throw Error('missing sheet');const count=r.endIndex-r.startIndex;
+        if(r.dimension==='ROWS'){if(request.deleteDimension)sheet.rows.splice(r.startIndex,count);else sheet.rows.splice(r.startIndex,0,...Array.from({length:count},()=>[]));}
+        else for(const row of sheet.rows){if(request.deleteDimension)row.splice(r.startIndex,count);else {while(row.length<r.startIndex)row.push('');row.splice(r.startIndex,0,...Array(count).fill(''));}}
+      } else if(request.updateCells?.range) {
+        const r=request.updateCells.range,sheet=byId(draft,r.sheetId);if(!sheet)throw Error('missing sheet');if(options.rejectTarget===sheet.title)throw Error('injected request validation failure');
+        for(let y=r.startRowIndex;y<Math.min(r.endRowIndex,sheet.rows.length);y++)for(let x=r.startColumnIndex;x<r.endColumnIndex;x++)sheet.rows[y][x]='';
       } else {
         const edit = request.updateCells || request.appendCells;
         const sheet = byId(draft, edit.sheetId ?? edit.start.sheetId);
@@ -59,7 +70,7 @@ function system(options = {}) {
     if(options.apiDisabled) return response(403,{error:{status:'PERMISSION_DENIED'}});
     if(parsed.pathname.endsWith(':batchUpdate')) {
       const requests = JSON.parse(request.payload).requests;
-      const isFinancial = requests.some(r => { const edit=r.appendCells||r.updateCells; if(!edit || (r.updateCells && r.updateCells.start.rowIndex===0))return false; const id=edit.sheetId??edit.start.sheetId; return (byId(store,id)?.title || requests.find(a=>a.addSheet?.properties.sheetId===id)?.addSheet.properties.title)==='SALES_TRANSACTIONS'; });
+      const isFinancial = requests.some(r => { const edit=r.appendCells||r.updateCells; if(!edit || (r.updateCells && r.updateCells.start?.rowIndex===0))return false; const id=edit.sheetId??edit.start?.sheetId??edit.range?.sheetId; return (byId(store,id)?.title || requests.find(a=>a.addSheet?.properties.sheetId===id)?.addSheet.properties.title)==='SALES_TRANSACTIONS'; });
       if(isFinancial) {
         financialAttempts++;
         if(options.financialFault==='reject400') return response(400,{error:{status:'INVALID_ARGUMENT'}});
