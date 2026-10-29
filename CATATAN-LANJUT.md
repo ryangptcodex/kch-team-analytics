@@ -391,3 +391,9 @@ Pengguna berhenti sementara untuk tidur dan ingin melanjutkan nanti.
 - Pengguna mengoreksi syarat70%: bila TVkurang70%, menerima **50% insentifbulanan A–D** darihasil tarif sesuai pencapaian, bukan0. Pertanyaan scope dijawabeksplisit hanya BULANAN, harian/triwulan tetap. Menggantikan gate0 pada implementasiawal diatas. Tepat70% full100%.
 - incentives.gs amount=scheduled*(eligible?1:0.5), payoutFactorbaru, totalmonthlydanmonthTotalmenyesuaikan. incentive-client.html danindexcopyjelas50%vs100%, tarifbefore/aftertetapditampilkan. Thresholdparameter90/100/110, target, cutoffTV18.9jt, daily/quarter tidakdiubah.
 - 258tesNode lulus (+2tes serta1tesgate diperbarui), mencakupbatas18.899.999,99 vs18.900.000, preservasischeduled, semua amountsetengah, daily50ktetapdanquarter1.05m tidakdipotong, UIcopy50/100. Paket3file **incentives.gs,incentive-client.html,index.html**, Simpan/refreshdevatauupdateexecsame; norepair/sheetbaru. BelumditerapkanGoogle nyata.
+
+### Koreksi cakupan potongan70%: harian DAN bulanan — 29 Oktober 2026
+
+- Pengguna mengoreksi lagi: TVbulanan<70% membayar50% untuk **HARIAN dan BULANAN**, bukanquarter. Ini menggantikan pernyataan sebelumnya monthlyonly. Tepat>=70%full.
+- incentives.gs mempertahankantarifdailyscheduleddan dailyScheduledTotal, mengalikan daily.amount/dailyTotaldengan monthly.payoutFactorsekalisaja setelahhitung monthly; monthTotalmenjumlah hasilsesudahfaktor. Quartertidakdiubah. UIgatecopyharian+bulanan, indexdailytablekolomTarifharian vs Insentifdibayar.
+- Paket3filetetap incentives.gs,incentive-client.html,index.html. 259tesNodelulus (mixedtiers55kvs110k, tepat70%kembalifull, reloadtidakdoublepotong, quarterutuh), belumGooglelive.

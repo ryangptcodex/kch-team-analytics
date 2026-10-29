@@ -60,7 +60,7 @@
     incentiveText('incentiveMonthTotal', res.monthTotal == null ? 'Belum dapat dihitung' : formatRupiah(res.monthTotal));
     incentiveText('incentiveQuarterTotal', formatRupiah(q.amount));
     incentiveText('incentivePeriod', res.month + ' · ' + (res.monthlyClosed ? 'Periode bulanan selesai' : 'Estimasi bulan berjalan/belum selesai') + ' · ' + res.paidDays + ' hari mendapat insentif dari ' + res.workDays + ' HK · Data sampai ' + res.today);
-    incentiveText('incentiveGate', (m.eligible ? 'Memenuhi' : 'Belum memenuhi') + ' syarat klaim bulanan: Total Value ' + formatRupiah(m.actualValue) + ' / minimal ' + formatRupiah(m.minimumValue) + ' (70%). ' + (m.eligible ? 'Insentif bulanan A–D dibayar 100% dari tarif sesuai pencapaian. ' : 'Insentif bulanan A–D dibayar 50% dari tarif sesuai pencapaian. Harian dan triwulan tidak dipotong. ') + 'AA: ' + m.aaTotal.toLocaleString('id-ID') + ' outlet · ' + m.aaEnteredDays + ' hari sudah diinput.');
+    incentiveText('incentiveGate', (m.eligible ? 'Memenuhi' : 'Belum memenuhi') + ' syarat klaim bulanan: Total Value ' + formatRupiah(m.actualValue) + ' / minimal ' + formatRupiah(m.minimumValue) + ' (70%). ' + (m.eligible ? 'Insentif harian dan bulanan A–D dibayar 100% dari tarif sesuai pencapaian. ' : 'Insentif harian dan bulanan A–D dibayar 50% dari tarif sesuai pencapaian. Bonus triwulan tidak dipotong. ') + 'AA: ' + m.aaTotal.toLocaleString('id-ID') + ' outlet · ' + m.aaEnteredDays + ' hari sudah diinput.');
     incentiveText('incentiveQuarterStatus', 'TW' + q.number + ' ' + q.year + ' · ' + (q.closed ? 'Periode triwulan selesai' : 'Estimasi triwulan belum selesai') + ' · ' + q.reachedMonths + ' dari 3 bulan mencapai target ≥100% · Akumulasi ' + formatRupiah(q.actual) + ' / ' + formatRupiah(q.target) + ' (' + incentivePercent(q.achievement) + ') · Tingkat ' + (q.tier ? q.tier + '%' : 'belum mencapai 100%'));
     incentiveText('incentiveWarnings', (res.warnings || []).join(' '));
     setHtml('incentiveMonthlyRows', m.parameters.map(function(p, index) {
@@ -72,7 +72,7 @@
       return '<tr><td>' + escapeHtml(row.month) + '</td><td>' + formatRupiah(row.actual) + '</td><td>' + formatRupiah(row.target) + '</td><td>' + incentivePercent(row.achievement) + '</td><td>' + (row.reached ? 'Target tercapai ≥100%' : 'Belum mencapai 100%') + '</td></tr>';
     }).join(''));
     setHtml('incentiveDailyRows', res.daily.map(function(row) {
-      return '<tr><td>' + escapeHtml(row.date) + '</td><td>' + escapeHtml(row.status) + '</td><td>' + formatRupiah(row.value) + '</td><td>' + (row.amount == null || res.dailyTotal == null ? '—' : formatRupiah(row.amount)) + '</td></tr>';
+      return '<tr><td>' + escapeHtml(row.date) + '</td><td>' + escapeHtml(row.status) + '</td><td>' + formatRupiah(row.value) + '</td><td>' + (row.scheduled == null || res.dailyTotal == null ? '—' : formatRupiah(row.scheduled)) + '</td><td>' + (row.amount == null || res.dailyTotal == null ? '—' : formatRupiah(row.amount)) + '</td></tr>';
     }).join(''));
   }
 </script>

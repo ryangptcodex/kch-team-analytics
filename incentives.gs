@@ -80,9 +80,12 @@ function getIncentiveReport_(month, salesId) {
   var payouts = { 3: [2000000, 2100000, 2200000], 2: [1000000, 1050000, 1100000], 1: [500000, 525000, 550000] };
   var quarterAmount = tier && reached ? payouts[reached][[100, 110, 120].indexOf(tier)] : 0;
   var monthly = incentiveMonthly_(report), monthEnd = report.dailyAA[report.dailyAA.length - 1].date;
+  var dailyScheduledTotal = dailyTotal;
+  daily.forEach(function(d) { d.scheduled = d.amount; if (d.amount !== null) d.amount *= monthly.payoutFactor; });
+  if (dailyTotal !== null) dailyTotal *= monthly.payoutFactor;
   return { success: true, month: month, today: today, sales: report.sales, monthlyClosed: today > monthEnd,
     workDays: report.workDays, holidaySource: report.holidaySource,
-    daily: daily, dailyTotal: dailyTotal, paidDays: daily.filter(function(d) { return d.amount > 0; }).length,
+    daily: daily, dailyScheduledTotal: dailyScheduledTotal, dailyTotal: dailyTotal, paidDays: daily.filter(function(d) { return d.amount > 0; }).length,
     monthly: monthly, monthTotal: dailyTotal === null ? null : dailyTotal + monthly.total,
     quarter: { number: quarter.number, year: quarter.year, months: quarterMonths, end: quarter.end, closed: today > quarter.end,
       actual: quarterActual / 100, target: quarterTarget / 100, achievement: quarterActual / quarterTarget, reachedMonths: reached, tier: tier, amount: quarterAmount },

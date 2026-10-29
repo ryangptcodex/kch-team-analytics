@@ -16,7 +16,7 @@ test('daily tariffs at every exact boundary take one tier, including 1,500,001 =
 });
 test('daily aggregates all invoices per sales/date, excludes only tablet lines and includes focus/Kids/ordinary products',()=>{
  const e=fixture();e.tx('LBMAV',400000);e.tx('LKXOD',400000);e.tx('LPRGQ',400000);e.tx('LPRGN',9000000);e.tx('LKXKA',200000);e.tx('P1',100001);e.tx('P1',3000000,'2026-10-02','S2');
- const r=e.report(),d=r.daily.find(d=>d.date==='2026-10-02');assert.equal(d.value,1500001);assert.equal(d.amount,50000);assert.equal(r.paidDays,1);assert.equal(r.monthly.parameters[1].actual,800000);assert.equal(r.monthly.actualValue,1500001);
+ const r=e.report(),d=r.daily.find(d=>d.date==='2026-10-02');assert.equal(d.value,1500001);assert.equal(d.scheduled,50000);assert.equal(d.amount,25000);assert.equal(r.paidDays,1);assert.equal(r.monthly.parameters[1].actual,800000);assert.equal(r.monthly.actualValue,1500001);
 });
 test('26 eligible workdays receive all 26 daily incentives with no 25-day or 1.25m cap',()=>{
  const e=fixture();e.rows('HOLIDAYS').push(['2026-10-01','Test holiday']);const days=e.context.getWorkDateRangeInfo_('2026-10-01','2026-10-31',{'2026-10-01':true}).dates.filter(d=>d.isWorkDay);assert.equal(days.length,26);
@@ -31,8 +31,8 @@ test('each monthly parameter uses 90/100/110 steps independently, with no interp
  }
 });
 test('below 70% monthly Total Value halves all four monthly parameters, with full payout at exactly 70%',()=>{
- const e=fixture();e.tx('LBMAV',5500000);e.tx('LPRGQ',5500000);e.tx('P1',7899999.99);e.aa(440);let r=e.report();assert.equal(r.monthly.eligible,false);assert.equal(r.monthly.total,468750);assert.equal(r.monthly.payoutFactor,.5);assert.equal(r.monthly.parameters[0].amount,250000);assert.equal(r.monthly.parameters[3].amount,62500);assert.equal(r.monthly.parameters[0].scheduled,500000);assert.equal(r.dailyTotal,50000);
- e.tx('P1',.01);r=e.report();assert.equal(r.monthly.eligible,true);assert.equal(r.monthly.payoutFactor,1);assert.equal(r.monthly.minimumValue,18900000);assert.equal(r.monthly.total,937500);assert.equal(r.monthly.parameters[2].amount,0);
+ const e=fixture();e.tx('LBMAV',5500000);e.tx('LPRGQ',5500000);e.tx('P1',7899999.99);e.aa(440);let r=e.report();assert.equal(r.monthly.eligible,false);assert.equal(r.monthly.total,468750);assert.equal(r.monthly.payoutFactor,.5);assert.equal(r.monthly.parameters[0].amount,250000);assert.equal(r.monthly.parameters[3].amount,62500);assert.equal(r.monthly.parameters[0].scheduled,500000);assert.equal(r.dailyTotal,25000);
+ e.tx('P1',.01);r=e.report();assert.equal(r.monthly.eligible,true);assert.equal(r.monthly.payoutFactor,1);assert.equal(r.dailyTotal,50000);assert.equal(r.monthly.minimumValue,18900000);assert.equal(r.monthly.total,937500);assert.equal(r.monthly.parameters[2].amount,0);
 });
 test('monthly AA comes only from manual ledger counts, never invoice count or attendance',()=>{
  const e=fixture();for(let n=0;n<10;n++)e.tx('P1',2700000);let r=e.report();assert.equal(r.monthly.parameters[3].actual,0);assert.equal(r.monthly.parameters[3].amount,0);e.aa(360);r=e.report();assert.equal(r.monthly.parameters[3].tier,90);assert.equal(r.monthly.parameters[3].amount,50000);
@@ -53,7 +53,7 @@ test('quarter thresholds use raw actual values, do not round up, and cap at 120%
  }
 });
 test('open periods show estimates, ignore future transactions and future daily incentives',()=>{
- const e=fixture();e.context.scoreToday_=()=> '2026-10-02';e.tx('P1',1500001);e.tx('P1',27000000,'2026-10-03');e.tx('P1',54000000,'2026-11-02');const r=e.report();assert.equal(r.monthlyClosed,false);assert.equal(r.quarter.closed,false);assert.equal(r.dailyTotal,50000);assert.equal(r.daily.find(d=>d.date==='2026-10-03').amount,null);assert.equal(r.monthly.actualValue,1500001);assert.equal(r.quarter.actual,1500001);
+ const e=fixture();e.context.scoreToday_=()=> '2026-10-02';e.tx('P1',1500001);e.tx('P1',27000000,'2026-10-03');e.tx('P1',54000000,'2026-11-02');const r=e.report();assert.equal(r.monthlyClosed,false);assert.equal(r.quarter.closed,false);assert.equal(r.dailyTotal,25000);assert.equal(r.daily.find(d=>d.date==='2026-10-03').amount,null);assert.equal(r.monthly.actualValue,1500001);assert.equal(r.quarter.actual,1500001);
 });
 test('guest may read all eligible sales while no sheet or account data is mutated, using one batch snapshot',()=>{
  const e=fixture();e.actor({role:'GUEST',email:'',salesId:''});const before=JSON.stringify(['SALES','PRODUCTS','SALES_TRANSACTIONS','INVENTORY','ACTIVITY_LOGS'].map(n=>e.rows(n))),calls=e.calls.length;
@@ -70,8 +70,13 @@ test('incentive monthly actuals match Skor and reflect edited transaction rows o
  const e=fixture();e.tx('LBMAV',4500000);e.tx('LPRGQ',5000000);e.tx('P1',17500000);e.aa(400);let r=e.report(),s=e.context.kchApi('MOCK','getScoreReport',['2026-10','S1']);assert.deepEqual(copy(r.monthly.parameters.map(p=>p.actual)),copy(s.parameters.map(p=>p.actual)));
  const h=e.rows('SALES_TRANSACTIONS')[0],row=e.rows('SALES_TRANSACTIONS')[1];row[h.indexOf('subtotal_sales')]=5500000;r=e.report();assert.equal(r.monthly.parameters[0].amount,500000);
 });
-test('monthly 50% adjustment preserves scheduled tiers and leaves daily/quarter payouts intact',()=>{
+test('monthly 50% adjustment preserves scheduled tiers and halves daily payouts once and leaves quarterly payout intact',()=>{
  const e=fixture();e.tx('LBMAV',5000000);e.tx('LPRGQ',4500000);e.aa(400);e.tx('P1',40000000,'2026-11-02');e.tx('P1',40000000,'2026-12-02');
- const r=e.report();assert.equal(r.monthly.total,(400000+125000+100000)/2);assert.equal(r.monthTotal,50000+r.monthly.total);assert.equal(r.dailyTotal,50000);assert.equal(r.quarter.amount,1050000);
+ const r=e.report();assert.equal(r.monthly.total,(400000+125000+100000)/2);assert.equal(r.monthTotal,25000+r.monthly.total);assert.equal(r.dailyTotal,25000);assert.equal(r.quarter.amount,1050000);
  assert.deepEqual(copy(r.monthly.parameters.map(p=>p.amount)),copy(r.monthly.parameters.map(p=>p.scheduled*.5)));
+});
+test('same 70% monthly threshold halves mixed daily tariffs once; reload is not another deduction',()=>{
+ const e=fixture();for(const [value,date]of [[800000,'2026-10-01'],[1000000,'2026-10-02'],[1200000,'2026-10-03'],[1500001,'2026-10-05']])e.tx('P1',value,date);
+ let r=e.report();assert.equal(r.dailyScheduledTotal,110000);assert.equal(r.dailyTotal,55000);assert.equal(e.report().dailyTotal,55000);assert.equal(r.monthTotal,r.monthly.total+55000);
+ e.tx('P1',14399999);r=e.report();assert.equal(r.monthly.actualValue,18900000);assert.equal(r.monthly.payoutFactor,1);assert.equal(r.dailyScheduledTotal,140000);assert.equal(r.dailyTotal,140000);
 });
