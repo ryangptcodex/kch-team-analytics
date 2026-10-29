@@ -1,0 +1,78 @@
+<script>
+  function incentiveState() {
+    if (!appState.incentive) appState.incentive = { setupSeq: 0, seq: 0, setup: null, report: null };
+    return appState.incentive;
+  }
+  function incentiveText(id, text) {
+    var el = document.getElementById(id); if (!el) return;
+    el.textContent = text; el.setAttribute('data-loading', text === 'Sedang memuat data' ? 'true' : 'false');
+  }
+  function incentiveStatus(message, loading) {
+    ['incentiveDailyRows', 'incentiveMonthlyRows', 'incentiveQuarterRows'].forEach(function(id) {
+      setHtml(id, '<tr><td colspan="7" class="text-muted">' + (loading ? '<span class="widget-loading">' : '<span>') + escapeHtml(message) + '</span></td></tr>');
+    });
+    ['incentiveDailyTotal', 'incentiveMonthlyTotal', 'incentiveMonthTotal', 'incentiveQuarterTotal'].forEach(function(id) { incentiveText(id, loading ? 'Sedang memuat data' : '—'); });
+    ['incentiveGate', 'incentivePeriod', 'incentiveQuarterStatus', 'incentiveWarnings'].forEach(function(id) { incentiveText(id, ''); });
+  }
+  function openIncentives() {
+    var state = incentiveState(), seq = ++state.setupSeq;
+    ++state.seq; state.report = null; state.setup = null;
+    incentiveStatus('Sedang memuat data', true);
+    document.getElementById('incentiveSales').disabled = true;
+    kchRun().withSuccessHandler(function(res) {
+      if (seq !== incentiveState().setupSeq) return;
+      if (!res || !res.success || !Array.isArray(res.sales) || typeof res.today !== 'string' || !/^20\d{2}-(0[1-9]|1[0-2])-\d{2}$/.test(res.today)) { incentiveStatus('Daftar sales belum dapat dimuat. Tekan Muat ulang.'); return; }
+      state.setup = res;
+      var select = document.getElementById('incentiveSales'), previous = select.value;
+      select.innerHTML = res.sales.map(function(s) { return '<option value="' + escapeHtml(s.salesId) + '">' + escapeHtml(s.name + ' · ' + s.team + (s.active ? '' : ' (nonaktif)')) + '</option>'; }).join('');
+      select.disabled = !res.sales.length;
+      if (res.sales.some(function(s) { return s.salesId === previous; })) select.value = previous;
+      var month = document.getElementById('incentiveMonth'); if (!month.value) month.value = res.today.slice(0, 7);
+      if (!res.sales.length) { incentiveStatus('Belum ada profil Motoris/MMTW yang dapat ditampilkan.'); return; }
+      loadIncentiveReport();
+    }).withFailureHandler(function(err) {
+      if (seq !== incentiveState().setupSeq) return;
+      incentiveStatus(err.message || 'Gagal memuat daftar sales. Tekan Muat ulang.');
+    }).getIncentiveSetup();
+  }
+  function loadIncentiveReport() {
+    var state = incentiveState(), seq = ++state.seq;
+    var month = document.getElementById('incentiveMonth').value, sales = document.getElementById('incentiveSales').value;
+    state.report = null; incentiveStatus('Sedang memuat data', true);
+    if (!state.setup) { incentiveStatus('Daftar sales belum siap. Tekan Muat ulang.'); return; }
+    if (!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month || '') || !sales) { incentiveStatus('Pilih sales dan bulan yang valid.'); return; }
+    kchRun().withSuccessHandler(function(res) {
+      if (seq !== incentiveState().seq) return;
+      try {
+        if (!res || !res.success || !res.monthly || !res.quarter || !Array.isArray(res.daily) || !Array.isArray(res.monthly.parameters) || !Array.isArray(res.quarter.months)) throw new Error('Respons Insentif tidak lengkap. Tekan Muat ulang.');
+        renderIncentiveReport(res); state.report = res;
+      } catch (err) { incentiveStatus(err.message || 'Gagal menampilkan Insentif.'); }
+    }).withFailureHandler(function(err) {
+      if (seq !== incentiveState().seq) return;
+      incentiveStatus(err.message || 'Gagal memuat Insentif. Tekan Muat ulang.');
+    }).getIncentiveReport(month, sales);
+  }
+  function incentivePercent(value) { return (value * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '%'; }
+  function renderIncentiveReport(res) {
+    var q = res.quarter, m = res.monthly;
+    incentiveText('incentiveDailyTotal', res.dailyTotal == null ? 'Belum dapat dihitung' : formatRupiah(res.dailyTotal));
+    incentiveText('incentiveMonthlyTotal', formatRupiah(m.total));
+    incentiveText('incentiveMonthTotal', res.monthTotal == null ? 'Belum dapat dihitung' : formatRupiah(res.monthTotal));
+    incentiveText('incentiveQuarterTotal', formatRupiah(q.amount));
+    incentiveText('incentivePeriod', res.month + ' · ' + (res.monthlyClosed ? 'Periode bulanan selesai' : 'Estimasi bulan berjalan/belum selesai') + ' · ' + res.paidDays + ' hari mendapat insentif dari ' + res.workDays + ' HK · Data sampai ' + res.today);
+    incentiveText('incentiveGate', (m.eligible ? 'Memenuhi' : 'Belum memenuhi') + ' syarat klaim bulanan: Total Value ' + formatRupiah(m.actualValue) + ' / minimal ' + formatRupiah(m.minimumValue) + ' (70%). ' + (m.eligible ? '' : 'Insentif parameter A–D tidak dapat diklaim. ') + 'AA: ' + m.aaTotal.toLocaleString('id-ID') + ' outlet · ' + m.aaEnteredDays + ' hari sudah diinput.');
+    incentiveText('incentiveQuarterStatus', 'TW' + q.number + ' ' + q.year + ' · ' + (q.closed ? 'Periode triwulan selesai' : 'Estimasi triwulan belum selesai') + ' · ' + q.reachedMonths + ' dari 3 bulan mencapai target ≥100% · Akumulasi ' + formatRupiah(q.actual) + ' / ' + formatRupiah(q.target) + ' (' + incentivePercent(q.achievement) + ') · Tingkat ' + (q.tier ? q.tier + '%' : 'belum mencapai 100%'));
+    incentiveText('incentiveWarnings', (res.warnings || []).join(' '));
+    setHtml('incentiveMonthlyRows', m.parameters.map(function(p, index) {
+      var actual = index < 3 ? formatRupiah(p.actual) : p.actual.toLocaleString('id-ID') + ' outlet';
+      var target = index < 3 ? formatRupiah(p.target) : p.target.toLocaleString('id-ID') + ' outlet';
+      return '<tr><td>' + escapeHtml(p.name) + '</td><td>' + actual + '</td><td>' + target + '</td><td>' + incentivePercent(p.achievement) + '</td><td>' + (p.tier ? p.tier + '%' : '<90%') + '</td><td>' + formatRupiah(p.scheduled) + '</td><td>' + formatRupiah(p.amount) + '</td></tr>';
+    }).join(''));
+    setHtml('incentiveQuarterRows', q.months.map(function(row) {
+      return '<tr><td>' + escapeHtml(row.month) + '</td><td>' + formatRupiah(row.actual) + '</td><td>' + formatRupiah(row.target) + '</td><td>' + incentivePercent(row.achievement) + '</td><td>' + (row.reached ? 'Target tercapai ≥100%' : 'Belum mencapai 100%') + '</td></tr>';
+    }).join(''));
+    setHtml('incentiveDailyRows', res.daily.map(function(row) {
+      return '<tr><td>' + escapeHtml(row.date) + '</td><td>' + escapeHtml(row.status) + '</td><td>' + formatRupiah(row.value) + '</td><td>' + (row.amount == null || res.dailyTotal == null ? '—' : formatRupiah(row.amount)) + '</td></tr>';
+    }).join(''));
+  }
+</script>

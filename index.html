@@ -59,6 +59,7 @@
         <a href="javascript:void(0)" class="nav-item" id="nav-skor" onclick="switchView('skor')">
           <i class="fa-solid fa-gauge-high"></i><span>Skor</span>
         </a>
+        <a href="javascript:void(0)" class="nav-item" id="nav-insentif" onclick="switchView('insentif')"><i class="fa-solid fa-coins"></i><span>Insentif</span></a>
         <a href="javascript:void(0)" class="nav-item" id="nav-absensi" onclick="switchView('absensi')">
           <i class="fa-solid fa-user-check nav-icon"></i>
           <span>Absensi</span>
@@ -1026,6 +1027,41 @@
           </div>
         </section>
 
+        <section class="content-view" id="view-insentif">
+          <div class="page-title-box"><div><h2 class="page-title">Insentif</h2><div class="page-subtitle">Insentif Motoris/MMTW · Harian, Bulanan, dan Triwulan</div></div></div>
+          <div class="table-card" style="padding:16px;margin-bottom:18px">
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+              <div style="flex:1;min-width:180px"><label class="form-label" for="incentiveSales">Sales</label><select class="form-control" id="incentiveSales" onchange="loadIncentiveReport()"></select></div>
+              <div><label class="form-label" for="incentiveMonth">Bulan insentif</label><input type="month" class="form-control" id="incentiveMonth" onchange="loadIncentiveReport()"></div>
+              <button type="button" class="btn btn-primary" onclick="openIncentives()">Muat ulang</button>
+            </div>
+            <p id="incentivePeriod" class="text-muted" style="margin-top:12px"></p>
+            <p class="page-subtitle">Total Value seluruh produk termasuk fokus, kecuali Promag Tablet. Target penuh: Fokus A Rp5 juta, Fokus B Rp5 juta, Total Value Rp27 juta, AA 400 outlet. Branding tidak berlaku untuk Motoris/MMTW.</p>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:16px;margin-bottom:18px">
+            <div class="table-card" style="padding:18px"><h3>Harian bulan dipilih</h3><div id="incentiveDailyTotal" class="font-semibold" data-loading="true">Sedang memuat data</div></div>
+            <div class="table-card" style="padding:18px"><h3>Parameter bulanan</h3><div id="incentiveMonthlyTotal" class="font-semibold" data-loading="true">Sedang memuat data</div></div>
+            <div class="table-card" style="padding:18px"><h3>Total harian + bulanan</h3><div id="incentiveMonthTotal" class="font-semibold" data-loading="true">Sedang memuat data</div><p class="page-subtitle">Tidak termasuk bonus triwulan</p></div>
+            <div class="table-card" style="padding:18px"><h3>Bonus triwulan</h3><div id="incentiveQuarterTotal" class="font-semibold" data-loading="true">Sedang memuat data</div><p class="page-subtitle">Satu bonus untuk satu triwulan</p></div>
+          </div>
+          <div class="table-card" style="padding:18px;margin-bottom:18px">
+            <h3>Insentif Bulanan</h3><p id="incentiveGate" style="margin:10px 0"></p>
+            <p class="page-subtitle">Tangga per parameter: &lt;90% = Rp0; 90%–&lt;100% = tarif 90%; 100%–&lt;110% = tarif 100%; ≥110% = tarif maksimal 110%. Syarat klaim 70% Total Value berlaku untuk parameter bulanan A–D.</p>
+            <div class="table-responsive" style="margin-top:12px"><table class="app-table"><thead><tr><th>Parameter</th><th>Aktual</th><th>Target bulanan</th><th>Pencapaian</th><th>Tingkat</th><th>Tarif sesuai tangga</th><th>Insentif dapat diklaim</th></tr></thead><tbody id="incentiveMonthlyRows"><tr><td colspan="7"><span class="widget-loading">Sedang memuat data</span></td></tr></tbody></table></div>
+          </div>
+          <div class="table-card" style="padding:18px;margin-bottom:18px">
+            <h3>Insentif Triwulan</h3><p id="incentiveQuarterStatus" style="margin:10px 0"></p>
+            <p class="page-subtitle">Kalender tetap: TW1 Jan–Mar, TW2 Apr–Jun, TW3 Jul–Sep, TW4 Okt–Des. Akumulasi minimal 100%; tarif mengikuti 100%/110%/≥120% serta jumlah bulan yang mencapai target ≥100%.</p>
+            <div class="table-responsive" style="margin-top:12px"><table class="app-table"><thead><tr><th>Bulan</th><th>Total Value</th><th>Target</th><th>Pencapaian</th><th>Status bulanan</th></tr></thead><tbody id="incentiveQuarterRows"><tr><td colspan="5"><span class="widget-loading">Sedang memuat data</span></td></tr></tbody></table></div>
+          </div>
+          <div class="table-card" style="padding:18px;margin-bottom:18px">
+            <h3>Rincian Insentif Harian</h3>
+            <p class="page-subtitle">Satu tarif per HK: &lt;Rp800 ribu = Rp0; Rp800 ribu–&lt;Rp1 juta = Rp10 ribu; Rp1 juta–&lt;Rp1,2 juta = Rp20 ribu; Rp1,2 juta–Rp1,5 juta = Rp30 ribu; &gt;Rp1,5 juta = Rp50 ribu. Dijumlah sesuai HK, tanpa plafon tetap 25 hari. Minggu dan tanggal libur pada HOLIDAYS tidak mendapat insentif harian. Seluruh faktur pada tanggal yang sama digabung.</p>
+            <div class="table-responsive" style="margin-top:12px"><table class="app-table"><thead><tr><th>Tanggal</th><th>Kalender / keterangan</th><th>Total Value</th><th>Insentif</th></tr></thead><tbody id="incentiveDailyRows"><tr><td colspan="4"><span class="widget-loading">Sedang memuat data</span></td></tr></tbody></table></div>
+            <p id="incentiveWarnings" class="text-muted" style="margin-top:12px"></p>
+          </div>
+        </section>
+
         <section class="content-view" id="view-skor">
           <div class="page-title-box"><div><h2 class="page-title">Skor</h2><div class="page-subtitle">Evaluasi bulanan Motoris/MMTW dan MPR/Canvasser</div></div></div>
           <div class="table-card" style="padding:16px;margin-bottom:18px">
@@ -1496,6 +1532,7 @@
   <?!= include_('js'); ?>
   <script>window.KCH_FIREBASE_CONFIG = <?!= JSON.stringify(getFirebaseWebConfig_()); ?>;</script>
   <?!= include_('score-client'); ?>
+  <?!= include_('incentive-client'); ?>
   <?!= include_('auth-client'); ?>
 
 </body>

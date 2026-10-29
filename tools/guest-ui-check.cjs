@@ -1,7 +1,7 @@
 // Real native-guest UI/RPC/session engine, mocked Google services. No live sheet writes.
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),crypto=require('node:crypto'),assert=require('node:assert/strict'),http=require('node:http');
 const {chromium}=require('playwright'),{system}=require('../tests/helpers/transaction-system.cjs'),root=path.resolve(__dirname,'..');
-const e=system(),c=e.context;for(const name of ['auth.gs','score.gs'])vm.runInContext(fs.readFileSync(path.join(root,name),'utf8'),c);
+const e=system(),c=e.context;for(const name of ['auth.gs','score.gs','incentives.gs'])vm.runInContext(fs.readFileSync(path.join(root,name),'utf8'),c);
 for(const [id,[name]]of Object.entries(c.KCH_SCORE_PRODUCT_RULES_))e.rows('PRODUCTS').push([id,name,'ACTIVE']);
 c.KCH_GUEST_PASSWORD_ITERATIONS_=1000;
 const salt='a'.repeat(64),hash=crypto.pbkdf2Sync('private-test-password',Buffer.from(salt,'hex'),1000,32,'sha256').toString('hex');
@@ -27,6 +27,7 @@ await p.locator('#kchGuestLoginToggle').click();await p.locator('#kchGuestUserna
 await p.locator('#kchGuestPassword').fill('private-test-password');await p.locator('#kchGuestLoginSubmit').click();await p.waitForFunction(()=>appState.user?.role==='GUEST'&&!appState.isLoadingMetadata&&!appState.isLoadingDashboard);
 assert.equal(await p.evaluate(()=>kchFirebaseAuth.currentUser),null);assert.equal(await p.locator('.user-role-header').textContent(),'Tamu');assert.equal(await p.locator('#nav-input-tx').isVisible(),false);assert.doesNotMatch(await p.locator('#userDropdownMenu').textContent(),/Edit profil|Kelola akun/);assert.equal(await p.evaluate(()=>appState.sales.length),2);
 await p.evaluate(()=>switchView('skor'));await p.waitForFunction(()=>appState.score?.report?.success);assert.equal(await p.locator('#scoreSales option').count(),2);assert.equal(await p.locator('#scoreAdminAA').isVisible(),false);
+await p.evaluate(()=>switchView('insentif'));await p.waitForFunction(()=>appState.incentive?.report?.success);assert.equal(await p.locator('#incentiveSales option').count(),2);assert.equal(await p.locator('#incentiveMonthlyRows tr').count(),4);
 for(const view of ['absensi','foto-kunjungan','today-plan','weekly-meeting','kch-news','riwayat','laporan-bulanan']){await p.evaluate(v=>switchView(v),view);await p.waitForTimeout(70);assert.equal(await p.locator('[data-kch-write]').evaluateAll(es=>es.filter(e=>e.getClientRects().length&&getComputedStyle(e).display!=='none').length),0,view);}
 assert.equal(JSON.stringify(['SALES','PRODUCTS','SALES_TRANSACTIONS','INVENTORY','ACTIVITY_LOGS'].map(n=>e.rows(n))),before);
 const oldToken=await p.evaluate(()=>kchGuestToken);await p.evaluate(()=>signOutKch());assert.throws(()=>c.resolveGuestSession_(oldToken),/AUTH_REQUIRED/);
