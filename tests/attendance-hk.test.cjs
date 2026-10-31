@@ -18,7 +18,7 @@ function attendance(data = {}, options = {}) {
     } }
   };
   vm.createContext(context);
-  for (const file of ['firebase-config.gs', 'code.gs', 'setup.gs', 'transactions.gs','transaction-edits.gs', 'guest-crypto.gs','guest-auth.gs','auth.gs']) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), context);
+  for (const file of ['firebase-config.gs', 'code.gs', 'setup.gs', 'transactions.gs','stock-pickups.gs','transaction-edits.gs', 'guest-crypto.gs','guest-auth.gs','auth.gs']) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), context);
   context.KCH_REQUEST_USER_ = { role: options.role || 'ADMIN', salesId: 'S1', username: 'owner@example.test', email: 'owner@example.test' };
   context.getKchSpreadsheet_ = () => ({ getSheetByName: () => null });
   context.getSheetData_ = name => ({ headers: [], rows: context.filterAuthorizedRows_(name, data[name] || []) });

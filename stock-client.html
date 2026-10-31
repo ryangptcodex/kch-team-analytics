@@ -1,0 +1,138 @@
+<script>
+  function stockUiState() {
+    if (!appState.stockPickup) appState.stockPickup = {data:null,seq:0,photo:'',photoBusy:false};
+    return appState.stockPickup;
+  }
+  function loadStockPickupData() {
+    var state = stockUiState(), seq = ++state.seq;
+    setText('pickupStatus','Sedang memuat data');
+    ['pickupHistoryRows','salesStockRows'].forEach(function(id) { setHtml(id,'<tr><td colspan="7" class="text-muted">Sedang memuat data</td></tr>'); });
+    kchRun().withSuccessHandler(function(result) {
+      if (seq !== state.seq) return;
+      if (!result || !result.success) { stockPickupLoadError(result && result.message); return; }
+      state.data = result;
+      setText('pickupStatus','Data pengambilan dan pegangan sales terkini');
+      var selected = getValue('pickupSales');
+      setHtml('pickupSales','<option value="">Pilih sales penerima</option>'+result.sales.filter(function(s) { return normalizeKey(s.status || 'ACTIVE') === 'ACTIVE'; }).map(function(s) { return '<option value="'+escapeHtml(s.sales_id)+'">'+escapeHtml(s.full_name)+' · '+escapeHtml(s.team_name || '')+'</option>'; }).join(''));
+      if (selected) setValue('pickupSales',selected);
+      var dist = getValue('pickupDistributor');
+      setHtml('pickupDistributor','<option value="">Pilih distributor</option>'+result.distributors.filter(function(d) { return normalizeKey(d.status || 'ACTIVE') === 'ACTIVE'; }).map(function(d) { return '<option value="'+escapeHtml(d.distributor_id)+'">'+escapeHtml(d.distributor_name)+'</option>'; }).join(''));
+      if (dist) setValue('pickupDistributor',dist);
+      if (!getValue('pickupDate')) setValue('pickupDate',getLocalDateInputValue());
+      var body = document.getElementById('pickupItems');
+      if (body && !body.children.length) addPickupRow();
+      var sales = Object.create(null), products = Object.create(null), distributors = Object.create(null);
+      result.sales.forEach(function(s) { sales[s.sales_id] = s.full_name; }); result.products.forEach(function(p) { products[p.product_id] = p.product_name; }); result.distributors.forEach(function(d) { distributors[d.distributor_id] = d.distributor_name; });
+      setHtml('salesStockRows',result.holdings.map(function(r) { return '<tr><td>'+escapeHtml(sales[r.sales_id] || r.sales_id)+'</td><td>'+escapeHtml(products[r.product_id] || r.product_id)+'</td><td>'+escapeHtml(distributors[r.distributor_id] || r.distributor_id)+'</td><td class="text-right">'+Number(r.quantity).toLocaleString('id-ID')+'</td></tr>'; }).join('') || '<tr><td colspan="4" class="text-muted">Belum ada stok pegangan sales.</td></tr>');
+      setHtml('pickupHistoryRows',result.pickups.map(function(r) { return '<tr><td>'+escapeHtml(r.pickup_id)+'</td><td>'+escapeHtml(formatDateIndo(r.pickup_date))+'</td><td>'+escapeHtml(r.sales_name)+'</td><td>'+escapeHtml(r.distributor_name)+'</td><td>'+escapeHtml(r.product_name)+'</td><td class="text-right">'+Number(r.quantity).toLocaleString('id-ID')+'</td><td>'+(r.photo_file_id ? '<button class="btn btn-outline btn-sm" onclick="openPickupProof(\''+escapeHtml(jsQuote(r.pickup_id))+'\')">Lihat foto</button>' : '—')+'</td></tr>'; }).join('') || '<tr><td colspan="7" class="text-muted">Belum ada pengambilan.</td></tr>');
+      document.querySelectorAll('.stock-source').forEach(function(select) { populateStockSource(select,select.value); });
+      document.querySelectorAll('.item-product-select').forEach(function(select) { handleProductChange(select); });
+      if (appState.pendingTransaction) txClientLock(true);
+    }).withFailureHandler(function(err) { if (seq === state.seq) stockPickupLoadError(err && err.message); }).getStockPickupData();
+  }
+  function stockPickupLoadError(message) {
+    var state = stockUiState(); state.data = null;
+    setText('pickupStatus','Data gagal dimuat. Klik Muat ulang.');
+    ['pickupHistoryRows','salesStockRows'].forEach(function(id) { setHtml(id,'<tr><td colspan="7" class="text-muted">Data belum berhasil dimuat.</td></tr>'); });
+    showToast(message || 'Gagal membaca stok pegangan.','error');
+  }
+  function populateStockSource(select,value) {
+    if (!select) return;
+    var distributors = stockUiState().data && stockUiState().data.distributors;
+    if (!distributors) distributors = (appState.distributors || []).map(function(d) { return {distributor_id:d.id || d.distributor_id || d.name,distributor_name:d.name || d.distributor_name}; });
+    var html = '<option value="">Distributor pilihan faktur</option>';
+    distributors.forEach(function(d) {
+      if (normalizeKey(d.status || 'ACTIVE') !== 'ACTIVE') return;
+      ['DIRECT','SALES'].forEach(function(type) { html += '<option value="'+escapeHtml(type+'|'+d.distributor_id)+'">'+(type === 'SALES' ? 'Pegangan sales — ' : 'Langsung — ')+escapeHtml(d.distributor_name)+'</option>'; });
+    });
+    select.innerHTML = html;
+    if (value && !Array.prototype.some.call(select.options,function(opt) { return opt.value === value; })) select.add(new Option('Sumber tersimpan — '+value,value));
+    select.value = value || '';
+  }
+  function stockApplyEditDistributorDefault() {
+    var data = stockUiState().data;
+    if (!data) return;
+    var chosen = data.distributors.find(function(d) { return d.distributor_name === getValue('editTxDistributor'); });
+    if (!chosen) return;
+    document.querySelectorAll('#editTxItems .stock-source').forEach(function(select) {
+      if (!select.value || select.value.indexOf('DIRECT|') === 0) select.value = 'DIRECT|'+chosen.distributor_id;
+    });
+  }
+  function stockReadLineSource(row,edit) {
+    var select = row.querySelector('.stock-source'), value = select && select.value;
+    if (!value) return {};
+    var split = value.indexOf('|');
+    return {sourceType:value.slice(0,split),distributorId:value.slice(split+1)};
+  }
+  function stockUiDistributorKey(name) {
+    var key=normalizeKey(name).replace(/\s*\([^)]*\)\s*$/,'').replace(/[^A-Z0-9]/g,'');
+    if (['GMP','GLOBALPRIMA','GLOBALPRIMAGMP','PTGLOBALPRIMA','GLOBALMITRAPRIMA','PTGLOBALMITRAPRIMA'].indexOf(key)>=0) return 'GMP';
+    if (['GEUBRINARIZKY','GEUBRINARIZKI','APGEUBRINARIZKI','APGEUBRINARIZKY'].indexOf(key)>=0) return 'GEUBRINA';
+    return key;
+  }
+  function stockSourceAvailability(row,productId) {
+    var source = stockReadLineSource(row), state = stockUiState();
+    if (!state.data) return source.sourceType ? {known:false} : null;
+    if (source.sourceType === 'SALES') {
+      var salesId = getValue('inputTxSales');
+      var record = state.data.holdings.find(function(r) { return normalizeKey(r.sales_id) === normalizeKey(salesId) && normalizeKey(r.product_id) === normalizeKey(productId) && normalizeKey(r.distributor_id) === normalizeKey(source.distributorId); });
+      return {known:true,quantity:record ? Number(record.quantity) : 0};
+    }
+    var selected=source.distributorId || getValue('inputTxDistributor');
+    var distributor=state.data.distributors.find(function(d) { return normalizeKey(d.distributor_id)===normalizeKey(selected) || stockUiDistributorKey(d.distributor_name)===stockUiDistributorKey(selected); });
+    if (!distributor) return {known:false};
+    var inventory=findInventory(productId);
+    if (!inventory) return {known:false};
+    var column=Object.keys(inventory).find(function(h){return stockUiDistributorKey(h)===stockUiDistributorKey(distributor.distributor_name)});
+    return column ? {known:true,quantity:parseCleanNumber(inventory[column])} : {known:false};
+  }
+  function addPickupRow() {
+    if (appState.user && appState.user.role !== 'ADMIN') return;
+    var state = stockUiState(), body = document.getElementById('pickupItems');
+    if (!body || !state.data || appState.pendingTransaction && appState.pendingTransaction.payload) return;
+    if (body.children.length >= 100) { showToast('Maksimal 100 produk.','error'); return; }
+    var row = document.createElement('tr');
+    row.innerHTML = '<td><select class="form-control pickup-product" required><option value="">Pilih produk</option>'+state.data.products.filter(function(p) { return normalizeKey(p.status || 'ACTIVE') === 'ACTIVE'; }).map(function(p) { return '<option value="'+escapeHtml(p.product_id)+'">'+escapeHtml(p.product_name)+'</option>'; }).join('')+'</select></td><td><input class="form-control pickup-qty" style="width:90px" type="number" value="1" min="1" step="1" required oninvalid="updateTransactionQuantityValidity(this)" oninput="updateTransactionQuantityValidity(this)"></td><td><button class="btn btn-danger-soft btn-sm" type="button" onclick="this.closest(\'tr\').remove()">Hapus</button></td>';
+    body.appendChild(row);
+  }
+  function preparePickupPhoto(input) {
+    var state = stockUiState(), file = input.files && input.files[0], version = (state.photoVersion || 0)+1; state.photoVersion=version; state.photo = ''; state.photoBusy=false;
+    if (!file) { setText('pickupPhotoStatus','Foto opsional'); return; }
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 15000000) { input.value=''; showToast('Pilih foto JPEG/PNG/WebP maksimal 15 MB sebelum kompresi.','error'); return; }
+    state.photoBusy = true; setText('pickupPhotoStatus','Menyiapkan foto…');
+    var generation = typeof kchAuthGeneration === 'number' ? kchAuthGeneration : 0;
+    readAndCompressPickupPhoto(file,function(err,data) {
+      if (generation !== (typeof kchAuthGeneration === 'number' ? kchAuthGeneration : 0) || state !== appState.stockPickup || version !== state.photoVersion) return;
+      state.photoBusy = false;
+      if (err) { input.value=''; setText('pickupPhotoStatus','Foto gagal diproses; pilih ulang atau lanjut tanpa foto.'); showToast(err,'error'); return; }
+      state.photo = data; setText('pickupPhotoStatus','Foto siap dilampirkan');
+    });
+  }
+  function readAndCompressPickupPhoto(file,callback) {
+    var reader = new FileReader(); reader.onerror=function(){callback('Foto gagal dibaca.');};
+    reader.onload=function(){var img=new Image();img.onerror=function(){callback('Foto tidak valid.');};img.onload=function(){try{var scale=Math.min(1,1600/Math.max(img.width,img.height));var canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);var data=canvas.toDataURL('image/jpeg',0.8);if(data.length>2800000)throw Error('Foto masih terlalu besar. Pilih foto yang lebih kecil.');callback(null,data);}catch(err){callback(err.message);}};img.src=reader.result;};reader.readAsDataURL(file);
+  }
+  function resetPickupForm() {
+    var state = stockUiState(); state.photoVersion=(state.photoVersion||0)+1; state.photo = ''; state.photoBusy = false;
+    ['pickupSales','pickupDistributor','pickupPhoto'].forEach(function(id) { setValue(id,''); });
+    setValue('pickupDate',getLocalDateInputValue()); setHtml('pickupItems',''); addPickupRow(); setText('pickupPhotoStatus','Foto opsional');
+  }
+  function submitStockPickup(event) {
+    if (event) event.preventDefault();
+    if (!appState.user || appState.user.role !== 'ADMIN') { showToast('Hanya admin yang boleh menginput pengambilan.','error'); return; }
+    var state=stockUiState(), previous=appState.pendingTransaction;
+    if (state.photoBusy || appState.isSubmittingTransaction || previous && previous.payload) { showToast('Tunggu proses atau periksa kiriman sebelumnya.','info'); return; }
+    var items=[],invalid=false;
+    document.querySelectorAll('#pickupItems tr').forEach(function(row) { var product=row.querySelector('.pickup-product').value,qty=Number(row.querySelector('.pickup-qty').value);if(!product||!Number.isSafeInteger(qty)||qty<=0)invalid=true;items.push({productId:product,qty:qty}); });
+    var payload={operation:'PICKUP',salesId:getValue('pickupSales'),distributor:getValue('pickupDistributor'),date:getValue('pickupDate'),items:items,photo:state.photo || ''};
+    if (!state.data || !payload.salesId || !payload.distributor || !payload.date || !items.length || invalid) { showToast('Lengkapi tanggal, distributor, sales, dan jumlah produk minimal 1.','error'); return; }
+    try {payload.requestId=previous?previous.requestId:txClientNewId();appState.pendingTransaction={requestId:payload.requestId,payload:payload};txClientStore(appState.pendingTransaction);}catch(err){appState.pendingTransaction=previous||null;showToast('Pengambilan belum dikirim. Izinkan penyimpanan sesi browser.','error');return;}
+    txClientSend(payload);
+  }
+  function openPickupProof(id) {
+    var state=stockUiState(),version=(state.proofSeq||0)+1;state.proofSeq=version;
+    setStyle('modalPickupProof','display','flex');setText('pickupProofStatus','Sedang memuat foto');
+    var image=document.getElementById('pickupProofImage');image.removeAttribute('src');image.hidden=true;
+    kchRun().withSuccessHandler(function(res){if(state!==appState.stockPickup||version!==state.proofSeq)return;setText('pickupProofStatus','');image.src=res.dataUrl;image.hidden=false;}).withFailureHandler(function(err){if(state===appState.stockPickup)setText('pickupProofStatus',err.message||'Foto gagal dimuat.');}).getStockPickupEvidence(id);
+  }
+</script>

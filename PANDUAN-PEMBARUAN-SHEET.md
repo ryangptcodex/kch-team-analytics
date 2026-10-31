@@ -42,3 +42,7 @@ Jika status gagal, baca Rincian. Bila cadangan sudah tersedia, URL ditampilkan. 
 Pengujian menggunakan layanan Google tiruan. Agen belum memasang tab, membuat cadangan nyata, atau memverifikasi trigger/izin di Google pengguna. Setelah menyalin kode, uji satu klik di UJI COBA, pastikan Status Berhasil dan salinan cadangan tersedia di Drive; klik lagi untuk memastikan tidak ada sheet/kolom ganda.
 
 Jika editor menampilkan **Tidak ada fungsi** pada file lama, ganti isi sheet-updates.gs dengan versi terbaru, Simpan dan reload editor. Fungsi pemasangan publik **setupKchSheetUpdates** tersedia di dropdown Jalankan; fungsi internal berakhiran underscore dipertahankan untuk kompatibilitas.
+
+## Tambahan pengambilan barang
+
+Paket pengambilan menambahkan modul `stock-pickups.gs` dan pembaruan `sheet-updates.gs`. Setelah seluruh paket dipasang, tombol yang sama menambahkan **SALES_STOCK**, **SALES_STOCK_MOVEMENTS**, **STOCK_PICKUPS**, serta kolom **stock_source/stock_distributor_id** pada SALES_TRANSACTIONS. Data lama dipertahankan; sumber kosong pada faktur lama tetap langsung distributor. Saldo pegangan tidak direset dan tidak diisi dari penjualan lama. Lihat [panduan pengambilan](PANDUAN-PENGAMBILAN-BARANG.md) untuk sembilan file dan uji transfer tanpa omzet.

@@ -94,7 +94,9 @@ function txRequestId_(value) {
 function txFingerprint_(payload) {
   var items = Array.isArray(payload.items) ? payload.items.slice(0, 101).map(function(item) {
     item = item || {};
-    return [normalizeKey_(item.productId), String(item.qty === undefined ? '' : item.qty).trim()];
+    var base = [normalizeKey_(item.productId), String(item.qty === undefined ? '' : item.qty).trim()];
+    if (item.sourceType || item.distributorId) base.push(item.sourceType || 'DIRECT', normalizeKey_(item.distributorId));
+    return base;
   }).sort(function(a, b) { return JSON.stringify(a).localeCompare(JSON.stringify(b)); }) : [];
   return txHash_(JSON.stringify([normalizeKey_(payload.salesId), String(payload.date || '').trim(), normalizeKey_(payload.distributor),
     typeof payload.notes === 'string' ? payload.notes.slice(0, 2001).trim() : '', items]));
@@ -119,7 +121,7 @@ function txReceiptResult_(row, replayed) {
   result.replayed = !!replayed;
   result.terminal = true;
   result.state = 'COMMITTED';
-  if (replayed) result.message = 'Kiriman ini sudah tersimpan. Stok tidak dipotong lagi.';
+  if (replayed) result.message = 'Kiriman ini sudah tersimpan. Saldo stok tidak diubah lagi.';
   return result;
 }
 
@@ -188,42 +190,39 @@ function txPlan_(ctx, meta, payload, user, transactionId, requestId, options) {
   if (payload.notes !== undefined && typeof payload.notes !== 'string') throw new Error('Catatan transaksi tidak valid.');
   var notes = String(payload.notes || '').trim();
   if (notes.length > 2000) throw new Error('Catatan maksimal 2.000 karakter.');
-  var grouped = Object.create(null);
-  payload.items.forEach(function(item) {
-    if (!item || typeof item.productId !== 'string' || !item.productId.trim() || item.productId.length > 128) throw new Error('Kode produk tidak valid.');
-    var qty = typeof item.qty === 'number' ? item.qty : typeof item.qty === 'string' && /^\d+$/.test(item.qty.trim()) ? Number(item.qty) : NaN;
-    if (!Number.isSafeInteger(qty) || qty <= 0) throw new Error('Jumlah produk harus bilangan bulat lebih dari nol.');
-    var key = normalizeKey_(item.productId);
-    if (!grouped[key]) grouped[key] = { qty: 0, quotes: [] };
-    grouped[key].qty += qty;
-    if (!Number.isSafeInteger(grouped[key].qty)) throw new Error('Jumlah produk terlalu besar.');
-    grouped[key].quotes.push(item);
-  });
   var names = ['SALES', 'PRODUCTS', 'PRICE_MASTER', 'DISTRIBUTORS', 'INVENTORY'];
   names.forEach(function(name) { if (!meta[name]) throw new Error('Sheet ' + name + ' belum tersedia.'); });
-  var optional = ['SALES_TRANSACTIONS', 'INVENTORY_MOVEMENTS', 'ACTIVITY_LOGS'].filter(function(name) { return !!meta[name]; });
+  var optional = ['SALES_TRANSACTIONS', 'INVENTORY_MOVEMENTS', 'ACTIVITY_LOGS', 'SALES_STOCK', 'SALES_STOCK_MOVEMENTS'].filter(function(name) { return !!meta[name]; });
   var raw = options && options.raw || txRead_(ctx, names.concat(optional));
   var salesTable = txTable_('SALES', raw.SALES, ['sales_id', 'full_name', 'team_name', 'status']);
   var products = txTable_('PRODUCTS', raw.PRODUCTS, ['product_id', 'product_name', 'status']);
   var prices = txTable_('PRICE_MASTER', raw.PRICE_MASTER, ['product_id', 'team_name', 'cost_price', 'selling_price', 'status']);
   var distributors = txTable_('DISTRIBUTORS', raw.DISTRIBUTORS, ['distributor_id', 'distributor_name', 'status']);
   var inventory = txTable_('INVENTORY', raw.INVENTORY, ['product_id']);
-  optional.forEach(function(name) { txTable_(name, raw[name], TABLE_SCHEMAS[name], true); });
+  optional.forEach(function(name) { txTable_(name, raw[name], TABLE_SCHEMAS[name] || KCH_STOCK_SCHEMAS_[name], true); });
   var sales = txUnique_(salesTable.rows, function(row) { return normalizeKey_(row.sales_id) === normalizeKey_(payload.salesId); }, 'Sales');
   if (!txActive_(sales) || isAttendanceOnlyTeam_(sales.team_name)) throw new Error('Sales tidak aktif atau hanya boleh melakukan absensi.');
   if (user.role !== 'ADMIN' && normalizeKey_(sales.sales_id) !== normalizeKey_(user.salesId)) throw new Error('Sales hanya boleh menyimpan transaksi sendiri.');
-  var distributorInput = normalizeKey_(payload.distributor);
-  var distributor = txUnique_(distributors.rows, function(row) { return normalizeKey_(row.distributor_id) === distributorInput || normalizeKey_(row.distributor_name) === distributorInput || txDistributorKey_(row.distributor_name) === distributorInput; }, 'Distributor');
-  if (!txActive_(distributor)) throw new Error('Distributor tidak aktif.');
-  var stockColumns = inventory.headers.filter(function(header) { return distributors.rows.some(function(row) { return txDistributorKey_(row.distributor_name) === txDistributorKey_(header); }); });
-  var selectedColumns = stockColumns.filter(function(header) { return txDistributorKey_(header) === txDistributorKey_(distributor.distributor_name); });
-  if (selectedColumns.length !== 1) throw new Error('Kolom stok distributor tidak ditemukan atau terdaftar ganda.');
-  var stockColumn = selectedColumns[0];
-  var requests = [], txRows = [], movRows = [], stockUpdates = [];
+  var book = options && options.book || stockBook_(meta,raw);
+  var grouped = Object.create(null);
+  payload.items.forEach(function(item) {
+    if (!item || typeof item.productId !== 'string' || !item.productId.trim() || item.productId.length > 128) throw new Error('Kode produk tidak valid.');
+    var qty = typeof item.qty === 'number' ? item.qty : typeof item.qty === 'string' && /^\d+$/.test(item.qty.trim()) ? Number(item.qty) : NaN;
+    if (!Number.isSafeInteger(qty) || qty <= 0) throw new Error('Jumlah produk harus bilangan bulat lebih dari nol.');
+    var source = stockSource_(item,payload.distributor,distributors.rows,true);
+    var key = stockLineKey_(item.productId,source.type,source.dist.distributor_id);
+    if (!grouped[key]) grouped[key] = { qty: 0, quotes: [], productId: normalizeKey_(item.productId), source: source };
+    grouped[key].qty += qty;
+    if (!Number.isSafeInteger(grouped[key].qty)) throw new Error('Jumlah produk terlalu besar.');
+    grouped[key].quotes.push(item);
+  });
+  var requests = [], txRows = [], stockUpdates = [];
+  stockFinancialSchema_(meta,raw,requests);
   var totalSalesCents = 0, totalCostCents = 0;
   var timestamp = Utilities.formatDate(new Date(), TIMEZONE, DATE_FORMAT);
   Object.keys(grouped).sort().forEach(function(key) {
-    var item = grouped[key];
+    var item = grouped[key], source = item.source, distributor = source.dist;
+    key = item.productId;
     var product = txUnique_(products.rows, function(row) { return normalizeKey_(row.product_id) === key; }, 'Produk ' + key);
     var historical = options && options.fixedPrices && options.fixedPrices[key];
     var price = historical ? { cost_price: historical.costPrice, selling_price: historical.sellingPrice, status: 'ACTIVE' } : txUnique_(prices.rows, function(row) { return normalizeKey_(row.product_id) === key && txTeamKey_(row.team_name) === txTeamKey_(sales.team_name); }, 'Harga produk ' + key + ' untuk tim sales');
@@ -235,28 +234,23 @@ function txPlan_(ctx, meta, payload, user, transactionId, requestId, options) {
       if ((quote.costPrice !== undefined && txMoney_(quote.costPrice, 'Modal pada form') !== cost) ||
           (quote.sellingPrice !== undefined && txMoney_(quote.sellingPrice, 'Harga pada form') !== sell)) throw new Error('Harga produk ' + key + ' berbeda dari master. Sinkronkan data lalu periksa kembali totalnya.');
     });
-    var before = 0;
-    stockColumns.forEach(function(column) { var stock = txNumber_(inv[column], 'Stok ' + key); if (!Number.isSafeInteger(stock) || stock < 0) throw new Error('Stok produk harus bilangan bulat nonnegatif.'); before += stock; });
-    var selectedStock = txNumber_(inv[stockColumn], 'Stok distributor ' + key);
-    if (item.qty > selectedStock) throw new Error('Stok distributor tidak mencukupi untuk ' + key + '. Sisa: ' + selectedStock + ', diminta: ' + item.qty + '.');
+    book.adjust(source.type,sales.sales_id,product.product_id,distributor,-item.qty);
     var subSell = sell * item.qty, subCost = cost * item.qty;
     totalSalesCents += subSell; totalCostCents += subCost;
-    if (![subSell, subCost, totalSalesCents, totalCostCents, before].every(Number.isSafeInteger)) throw new Error('Nilai transaksi atau stok terlalu besar.');
-    requests.push(txUpdate_(meta.INVENTORY.sheetId, inv._row, inventory.index[stockColumn], [[selectedStock - item.qty]]));
+    if (![subSell, subCost, totalSalesCents, totalCostCents].every(Number.isSafeInteger)) throw new Error('Nilai transaksi terlalu besar.');
     var teamName = STANDARD_TEAMS.filter(function(team) { return normalizeKey_(team) === txTeamKey_(sales.team_name); })[0] || String(sales.team_name);
-    txRows.push([transactionId, date, String(sales.sales_id), String(sales.full_name), teamName, String(distributor.distributor_name), String(product.product_id), String(product.product_name), item.qty, cost / 100, sell / 100, (sell - cost) / 100, subSell / 100, subCost / 100, (subSell - subCost) / 100, notes, user.email, timestamp]);
-    movRows.push([date, String(product.product_id), 'OUT', item.qty, before, before - item.qty, transactionId, user.email, timestamp]);
-    stockUpdates.push({ productId: String(product.product_id), stockColumn: stockColumn, before: selectedStock, after: selectedStock - item.qty });
+    txRows.push([transactionId, date, String(sales.sales_id), String(sales.full_name), teamName, String(distributor.distributor_name), String(product.product_id), String(product.product_name), item.qty, cost / 100, sell / 100, (sell - cost) / 100, subSell / 100, subCost / 100, (subSell - subCost) / 100, notes, user.email, timestamp, source.type, String(distributor.distributor_id)]);
   });
-  ['SALES_TRANSACTIONS', 'INVENTORY_MOVEMENTS', 'ACTIVITY_LOGS'].forEach(function(name) { if (!meta[name]) txAddSheet_(meta, requests, name, TABLE_SCHEMAS[name], false); });
+  var stockPlan = options && options.skipStockPlan ? {requests:[],changes:[]} : book.plan(meta,date,transactionId,user);
+  requests = requests.concat(stockPlan.requests); stockUpdates = stockPlan.changes;
+  ['SALES_TRANSACTIONS', 'INVENTORY_MOVEMENTS', 'ACTIVITY_LOGS'].forEach(function(name) { if (!meta[name]) txAddSheet_(meta, requests, name, name === 'SALES_TRANSACTIONS' ? stockSchemas_().SALES_TRANSACTIONS : TABLE_SCHEMAS[name], false); });
   requests.push(txAppend_(meta.SALES_TRANSACTIONS.sheetId, txRows));
-  requests.push(txAppend_(meta.INVENTORY_MOVEMENTS.sheetId, movRows));
   requests.push(txAppend_(meta.ACTIVITY_LOGS.sheetId, [['AUD-' + Utilities.getUuid(), timestamp, user.email, 'CREATE_TRANSACTION', transactionId,
-    JSON.stringify({ salesId: String(sales.sales_id), distributor: String(distributor.distributor_name), actorRole: user.role, assisted: user.role === 'ADMIN', totalSales: totalSalesCents / 100 })]]));
+    JSON.stringify({ salesId: String(sales.sales_id), distributor: String(payload.distributor || 'Campuran'), actorRole: user.role, assisted: user.role === 'ADMIN', totalSales: totalSalesCents / 100 })]]));
   var result = { success: true, terminal: true, state: 'COMMITTED', requestId: requestId, transactionId: transactionId,
     totalSales: totalSalesCents / 100, totalCost: totalCostCents / 100, totalShj: (totalSalesCents - totalCostCents) / 100,
     stockUpdates: stockUpdates, replayed: false, message: 'Transaksi tersimpan. Stok, mutasi, dan audit diperbarui bersama.' };
-  var plan = { salesId: String(sales.sales_id), date: date, distributor: String(distributor.distributor_name), stockUpdates: stockUpdates, itemCount: txRows.length };
+  var plan = { salesId: String(sales.sales_id), date: date, distributor: String(payload.distributor || 'Campuran'), stockUpdates: stockUpdates, itemCount: txRows.length };
   if (JSON.stringify(result).length > 45000 || JSON.stringify(plan).length > 45000) throw new Error('Detail transaksi terlalu panjang. Kurangi jumlah produk per kiriman.');
   return { requests: requests, result: result, plan: plan, rows: txRows };
 }
@@ -301,7 +295,8 @@ function txExecuteRequest_(payload, editing) {
   try {
     var ctx = { id: getKchSpreadsheet_().getId(), token: ScriptApp.getOAuthToken() };
     var meta = txMetadata_(ctx), rows = txReceipts_(ctx, meta), key = txHash_(user.uid + ':' + id);
-    var fingerprint = editing ? txHash_(JSON.stringify(['EDIT', payload.transactionId, payload.expectedRevision, payload.reason, txFingerprint_(payload)])) : txFingerprint_(payload);
+    var pickup = editing === 'PICKUP';
+    var fingerprint = pickup ? txHash_(JSON.stringify(['PICKUP', txFingerprint_(payload), payload.photo ? txHash_(typeof payload.photo === 'string' ? payload.photo.slice(0,3000001) : 'INVALID') : ''])) : editing ? txHash_(JSON.stringify(['EDIT', payload.transactionId, payload.expectedRevision, payload.reason, txFingerprint_(payload)])) : txFingerprint_(payload);
     var committed = txCommitted_(rows, key);
     if (committed) {
       if (committed.fingerprint !== fingerprint) return txFailure_('REQUEST_CONFLICT', 'Kode kiriman ini sudah digunakan. Periksa hasil kiriman sebelumnya.', 'CONFLICT');
@@ -313,7 +308,7 @@ function txExecuteRequest_(payload, editing) {
     if (txHasPending_(rows)) return txPendingResult_(id, 'Ada kiriman yang hasilnya belum pasti. Penyimpanan baru ditahan agar stok tetap konsisten. Admin dapat memeriksa kiriman tertunda.');
     var attempt = Utilities.getUuid();
     var stamp = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd HH:mm:ss');
-    var transactionId = editing ? String(payload.transactionId || '') : 'TRX-' + Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMdd') + '-' + attempt.replace(/-/g, '').slice(0, 16);
+    var transactionId = editing && !pickup ? String(payload.transactionId || '') : (pickup ? 'PICK-' : 'TRX-') + Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMdd') + '-' + attempt.replace(/-/g, '').slice(0, 16);
     var receipt = { request_key: key, request_id: id, actor_uid: user.uid, actor_email: user.email, fingerprint: fingerprint,
       attempt_id: attempt, transaction_id: transactionId, state: 'PENDING', result_json: '', plan_json: '', created_at: stamp, updated_at: stamp };
     var reserve = [];
@@ -324,7 +319,7 @@ function txExecuteRequest_(payload, editing) {
     rows = txReceipts_(ctx, meta);
     receipt = txUnique_(rows, function(row) { return row.request_key === key && row.attempt_id === attempt; }, 'Catatan kiriman');
     var plan;
-    try { plan = editing ? txEditPlan_(ctx, meta, payload, user, transactionId, id) : txPlan_(ctx, meta, payload, user, transactionId, id); }
+    try { plan = pickup ? stockPickupPlan_(ctx, meta, payload, user, transactionId, id) : editing ? txEditPlan_(ctx, meta, payload, user, transactionId, id) : txPlan_(ctx, meta, payload, user, transactionId, id); }
     catch (validation) { return txMarkFailed_(ctx, meta, receipt, 'VALIDATION_FAILED', validation.message); }
     receipt.state = 'COMMITTED'; receipt.result_json = JSON.stringify(plan.result); receipt.plan_json = JSON.stringify(plan.plan);
     receipt.updated_at = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd HH:mm:ss');
@@ -338,7 +333,11 @@ function txExecuteRequest_(payload, editing) {
       try {
         var live = txReceipts_(ctx, meta), saved = txCommitted_(live, key);
         if (saved) return txReceiptResult_(saved, true);
-        if ([400, 403, 404].indexOf(writeError.httpStatus) >= 0) return txMarkFailed_(ctx, meta, receipt, 'WRITE_REJECTED', writeError.message);
+        if ([400, 403, 404].indexOf(writeError.httpStatus) >= 0) {
+          var rejectedResult = txMarkFailed_(ctx, meta, receipt, 'WRITE_REJECTED', writeError.message);
+          if (plan.cleanupFileId) { try { DriveApp.getFileById(plan.cleanupFileId).setTrashed(true); } catch (cleanupError) {} }
+          return rejectedResult;
+        }
       } catch (readError) {}
       return txPendingResult_(id);
     }

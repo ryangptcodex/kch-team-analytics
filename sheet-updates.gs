@@ -45,7 +45,8 @@ function installKchSheetUpdates_() {
 // A missing installed module fails explicitly, rather than claiming a full update.
 function kchSheetUpdateModules_() {
   if (typeof KCH_INCENTIVE_SHEET_SCHEMAS_ === 'undefined' || typeof kchIncentiveSyncPlan_ !== 'function' || typeof incentiveBuildReport_ !== 'function' || typeof incentiveJunior_ !== 'function') throw new Error('Pasang Script incentive-sheets.gs, incentives.gs dan canvasser-incentives.gs terbaru sebelum Perbarui.');
-  return [{name:'INSENTIF',schemas:KCH_INCENTIVE_SHEET_SCHEMAS_,buildPlan:kchIncentiveSyncPlan_}];
+  if (typeof stockSchemas_ !== 'function') throw new Error('Pasang stock-pickups.gs terbaru sebelum Perbarui.');
+  return [{name:'PENGAMBILAN',schemas:stockSchemas_(),buildPlan:function(){return {requests:[],changes:[]};}}, {name:'INSENTIF',schemas:KCH_INCENTIVE_SHEET_SCHEMAS_,buildPlan:kchIncentiveSyncPlan_}];
 }
 
 function kchSheetSchemas_() {

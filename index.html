@@ -48,6 +48,7 @@
           <i class="fa-solid fa-file-invoice nav-icon"></i>
           <span>Input Penjualan</span>
         </a>
+        <a href="javascript:void(0)" class="nav-item" id="nav-pengambilan" onclick="switchView('pengambilan')"><i class="fa-solid fa-boxes-packing nav-icon"></i><span>Pengambilan Barang</span></a>
         <a href="javascript:void(0)" class="nav-item" id="nav-riwayat" onclick="switchView('riwayat')">
           <i class="fa-solid fa-receipt nav-icon"></i>
           <span>Riwayat Transaksi</span>
@@ -850,6 +851,21 @@
           </div>
         </section>
 
+        <section class="content-view" id="view-pengambilan">
+          <div class="page-title-box"><div><h2 class="page-title">Pengambilan Barang</h2><div class="page-subtitle">Pindahkan stok distributor ke pegangan sales tanpa menambah penjualan.</div></div><button class="btn btn-outline btn-sm" onclick="loadStockPickupData()">Muat ulang</button></div>
+          <p class="text-muted" id="pickupStatus" role="status">Sedang memuat data</p>
+          <div id="pickupRequestStatus" style="display:none;padding:14px;border:1px solid #fed7aa;background:#fff7ed;border-radius:12px;margin-bottom:16px;"><p id="pickupRequestStatusText" role="status" aria-live="polite"></p><code id="pickupRequestCode" style="display:block;overflow-wrap:anywhere"></code><button class="btn btn-outline btn-sm" id="btnCheckPickupRequest" onclick="checkPendingSalesTransaction()">Periksa hasil</button><button class="btn btn-primary btn-sm" id="btnRetryPickupRequest" style="display:none" onclick="retryPendingSalesTransaction()">Coba simpan lagi</button></div>
+          <div class="form-container-card" data-kch-write style="margin-bottom:20px"><form onsubmit="submitStockPickup(event)"><fieldset id="pickupFormFields" style="border:0;padding:0;margin:0;min-width:0;">
+            <div class="form-grid-3" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:16px"><div class="form-group"><label class="form-label" for="pickupDate">Tanggal</label><input class="form-control" type="date" id="pickupDate" required></div><div class="form-group"><label class="form-label" for="pickupDistributor">Distributor asal</label><select class="form-control" id="pickupDistributor" required></select></div><div class="form-group"><label class="form-label" for="pickupSales">Sales penerima</label><select class="form-control" id="pickupSales" required></select></div></div>
+            <div class="table-responsive" style="margin-top:16px"><table class="app-table"><thead><tr><th>Produk</th><th>Jumlah</th><th>Aksi</th></tr></thead><tbody id="pickupItems"></tbody></table></div>
+            <button type="button" class="btn btn-outline btn-sm" style="margin:12px 0" onclick="addPickupRow()">+ Tambah produk</button>
+            <div class="form-group"><label for="pickupPhoto" class="form-label">Foto bukti (opsional)</label><input class="form-control" type="file" accept="image/jpeg,image/png,image/webp" id="pickupPhoto" onchange="preparePickupPhoto(this)"><small class="text-muted" id="pickupPhotoStatus">Foto opsional</small></div>
+            <div style="display:flex;justify-content:flex-end;margin-top:16px"><button type="submit" class="btn btn-primary" id="btnSubmitPickup">Simpan pengambilan</button></div>
+          </fieldset></form></div>
+          <div class="table-card" style="margin-bottom:20px"><div class="card-header-clean"><div class="card-title">Stok Pegangan Sales</div></div><div class="table-responsive"><table class="app-table"><thead><tr><th>Sales</th><th>Produk</th><th>Distributor asal</th><th class="text-right">Sisa</th></tr></thead><tbody id="salesStockRows"></tbody></table></div></div>
+          <div class="table-card"><div class="card-header-clean"><div class="card-title">Riwayat Pengambilan</div></div><div class="table-responsive"><table class="app-table"><thead><tr><th>ID</th><th>Tanggal</th><th>Sales</th><th>Distributor asal</th><th>Produk</th><th>Jumlah</th><th>Bukti</th></tr></thead><tbody id="pickupHistoryRows"></tbody></table></div></div>
+        </section>
+
         <section class="content-view" data-kch-write id="view-input-tx">
           <div class="page-title-box">
             <div>
@@ -920,6 +936,7 @@
                     <thead>
                       <tr>
                         <th style="width: 32%;">Nama Produk</th>
+                        <th>Sumber stok</th>
                         <th style="width: 12%;">Status Stok</th>
                         <th style="width: 12%; text-align: right;">Harga Modal</th>
                         <th style="width: 12%; text-align: right;">Harga Jual</th>
@@ -1365,6 +1382,7 @@
             <thead>
               <tr>
                 <th>Produk</th>
+                <th>Sumber &amp; distributor asal</th>
                 <th class="text-center">Qty</th>
                 <th class="text-right">Harga</th>
                 <th class="text-right">SHJ</th>
@@ -1407,9 +1425,9 @@
             <p class="text-muted" style="font-size:12px">Pemilik faktur tetap. Harga produk lama mengikuti faktur asli; produk tambahan memakai harga master terbaru. Stok disesuaikan sebesar selisih perubahan.</p>
             <div class="form-grid-2">
               <div class="form-group"><label for="editTxDate" class="form-label required">Tanggal penjualan</label><input class="form-control" type="date" id="editTxDate" required></div>
-              <div class="form-group"><label for="editTxDistributor" class="form-label required">Distributor</label><select class="form-control" id="editTxDistributor" required></select></div>
+              <div class="form-group"><label for="editTxDistributor" class="form-label required">Distributor</label><select class="form-control" id="editTxDistributor" onchange="stockApplyEditDistributorDefault()" required></select></div>
             </div>
-            <div class="table-responsive" style="margin-top:16px"><table class="app-table table-sm"><thead><tr><th>Produk</th><th>Qty</th><th class="text-right">Harga jual</th><th class="text-right">Subtotal</th><th>Aksi</th></tr></thead><tbody id="editTxItems"></tbody></table></div>
+            <div class="table-responsive" style="margin-top:16px"><table class="app-table table-sm"><thead><tr><th>Produk</th><th>Sumber stok</th><th>Qty</th><th class="text-right">Harga jual</th><th class="text-right">Subtotal</th><th>Aksi</th></tr></thead><tbody id="editTxItems"></tbody></table></div>
             <button type="button" class="btn btn-outline btn-sm" style="margin:12px 0" onclick="addEditTransactionRow()">+ Tambah produk</button>
             <div class="form-group"><label for="editTxNotes" class="form-label">Catatan / toko pelanggan</label><textarea class="form-control" id="editTxNotes" rows="2" maxlength="2000"></textarea></div>
             <div class="form-group" style="margin-top:12px"><label for="editTxReason" class="form-label required">Alasan edit</label><textarea class="form-control" id="editTxReason" rows="2" required minlength="3" maxlength="500" placeholder="Contoh: koreksi jumlah barang pada faktur"></textarea></div>
@@ -1527,10 +1545,12 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="modalPickupProof" style="display:none" onclick="this.style.display='none';document.getElementById('pickupProofImage').removeAttribute('src')"><div class="modal-dialog" onclick="event.stopPropagation()"><div class="modal-header"><h3 class="modal-title">Bukti pengambilan</h3><button type="button" class="btn-modal-close" onclick="document.getElementById('modalPickupProof').style.display='none';document.getElementById('pickupProofImage').removeAttribute('src')">&times;</button></div><div class="modal-body"><p id="pickupProofStatus"></p><img id="pickupProofImage" alt="Bukti pengambilan barang" style="max-width:100%" hidden></div></div></div>
   <div class="toast-box" id="toastBox"></div>
 
   <?!= include_('js'); ?>
   <script>window.KCH_FIREBASE_CONFIG = <?!= JSON.stringify(getFirebaseWebConfig_()); ?>;</script>
+  <?!= include_('stock-client'); ?>
   <?!= include_('score-client'); ?>
   <?!= include_('incentive-client'); ?>
   <?!= include_('auth-client'); ?>

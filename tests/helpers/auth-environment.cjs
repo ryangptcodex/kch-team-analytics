@@ -63,7 +63,7 @@ function environment(options = {}) {
     } }
   };
   vm.createContext(context);
-  for (const file of ['firebase-config.gs', 'code.gs', 'setup.gs', 'transactions.gs','transaction-edits.gs', 'guest-crypto.gs','guest-auth.gs','auth.gs']) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
+  for (const file of ['firebase-config.gs', 'code.gs', 'setup.gs', 'transactions.gs','stock-pickups.gs','transaction-edits.gs', 'guest-crypto.gs','guest-auth.gs','auth.gs']) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
   context.KCH_TEST_SPREADSHEET_ID_ = 'test-only';
   if (!options.identity || options.identity.email !== 'mhmdryyan7@gmail.com') context.KCH_BOOTSTRAP_ADMIN_EMAIL_ = 'admin@gmail.com';
   context.KCH_GUEST_EMAIL_ = 'sales@gmail.com';

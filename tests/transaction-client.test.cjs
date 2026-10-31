@@ -4,7 +4,7 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const crypto=require('node:crypto');
 function browser(storage=new Map()) {
- const ids=['txFormFields','txRequestStatus','txRequestStatusText','txRequestCode','btnRetryTxRequest','btnCheckTxRequest','btnSubmitTx','transactionItemsTbody','txEditFormFields','btnSubmitTxEdit','editTxRequestStatus','editTxRequestStatusText','editTxRequestCode','btnRetryTxEditRequest','btnCheckTxEditRequest'];
+ const ids=['txFormFields','txRequestStatus','txRequestStatusText','txRequestCode','btnRetryTxRequest','btnCheckTxRequest','btnSubmitTx','transactionItemsTbody','txEditFormFields','btnSubmitTxEdit','editTxRequestStatus','editTxRequestStatusText','editTxRequestCode','btnRetryTxEditRequest','btnCheckTxEditRequest','pickupFormFields','btnSubmitPickup','pickupRequestStatus','pickupRequestStatusText','pickupRequestCode','btnRetryPickupRequest','btnCheckPickupRequest'];
  const els=Object.fromEntries(ids.map(id=>[id,{style:{},disabled:false,textContent:''}]));
  const values={inputTxTeam:'Motoris',inputTxSales:'S1',inputTxDistributor:'D1',inputTxDate:'2026-10-25',inputTxNotes:'private note'};
  els.transactionItemsTbody.querySelectorAll=()=>[{querySelector:s=>({value:s==='.item-product-select'?'P1':'2'})}];
@@ -14,7 +14,7 @@ function browser(storage=new Map()) {
  vm.createContext(c);vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'../js.html'),'utf8').replace(/^<script>/,'').replace(/<\/script>\s*$/,''),c);
  c.appState.user={uid:'user-1'};c.appState.inventory=[{product_id:'P1',D1:10}];c.getValue=id=>values[id]||'';c.findPriceProduct=()=>({cost_price:60,selling_price:100});
  c.showToast=(...args)=>toasts.push(args);let refreshes=0,resets=0;c.loadMetadata=()=>refreshes++;c.resetSalesTransactionForm=()=>resets++;
- c.kchRun=()=>{let ok,fail;const p={withSuccessHandler:f=>(ok=f,p),withFailureHandler:f=>(fail=f,p),saveSalesTransaction:payload=>calls.push({method:'save',payload,ok,fail}),editSalesTransaction:payload=>calls.push({method:'edit',payload,ok,fail}),getSalesTransactionRequestStatus:id=>calls.push({method:'status',id,ok,fail})};return p};
+ c.kchRun=()=>{let ok,fail;const p={withSuccessHandler:f=>(ok=f,p),withFailureHandler:f=>(fail=f,p),saveStockPickup:payload=>calls.push({method:'pickup',payload,ok,fail}),saveSalesTransaction:payload=>calls.push({method:'save',payload,ok,fail}),editSalesTransaction:payload=>calls.push({method:'edit',payload,ok,fail}),getSalesTransactionRequestStatus:id=>calls.push({method:'status',id,ok,fail})};return p};
  return {c,els,calls,storage,toasts,refreshes:()=>refreshes,resets:()=>resets,values};
 }
 test('double submit is ignored and only opaque ID is retained for recovery',()=>{
@@ -71,4 +71,14 @@ test('committed edit closes its dialog and refreshes without resetting create dr
 test('an unresolved edit cannot be closed or replaced by another edit',()=>{
  const e=browser();e.c.appState.pendingTransaction={requestId:'REQ-EDIT-0000000001',payload:{transactionId:'TRX-1'}};e.c.appState.transactionEdit={header:{id:'TRX-1'}};
  e.c.closeSalesTransactionEdit();assert.ok(e.c.appState.transactionEdit);e.c.openSalesTransactionEdit('TRX-2');assert.equal(e.calls.length,0);assert.equal(e.toasts.length,2);
+});
+
+test('pickup recovery uses one request and freezes all stock forms without persisting its photo',()=>{
+ const e=browser(),payload={operation:'PICKUP',requestId:'PICK-CLIENT-00000001',photo:'private-base64-photo',items:[]};e.c.appState.pendingTransaction={requestId:payload.requestId,payload};e.c.txClientStore(e.c.appState.pendingTransaction);e.c.txClientSend(payload);
+ assert.equal(e.calls[0].method,'pickup');assert.equal(e.els.pickupFormFields.disabled,true);assert.equal(e.els.txFormFields.disabled,true);assert.equal(e.els.txEditFormFields.disabled,true);assert.equal(e.els.pickupRequestStatus.style.display,'none');assert.ok(![...e.storage.values()][0].includes('photo'));
+ e.calls[0].fail(Error('offline'));assert.equal(e.els.btnCheckPickupRequest.disabled,false);e.c.checkPendingSalesTransaction();e.calls[1].ok({state:'NOT_FOUND',blocked:false});e.c.retryPendingSalesTransaction();assert.equal(e.calls[2].method,'pickup');assert.equal(e.calls[2].payload,payload);
+});
+test('committed pickup resets only its own form and refreshes authoritative data',()=>{
+ const e=browser();let cleared=0;e.c.resetPickupForm=()=>cleared++;e.c.appState.pendingTransaction={requestId:'PICK-CLIENT-00000001',payload:{operation:'PICKUP'}};
+ e.c.txClientHandleResult({success:true,state:'COMMITTED',operation:'PICKUP',transactionId:'PICK-1',message:'Dipindahkan'});assert.equal(cleared,1);assert.equal(e.resets(),0);assert.equal(e.refreshes(),1);assert.equal(e.c.appState.pendingTransaction,null);assert.equal(e.els.pickupFormFields.disabled,false);assert.ok(!e.toasts[0][0].includes('Rp'));
 });

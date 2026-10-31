@@ -53,6 +53,7 @@
     isLoadingMetadata: false,
     isSubmittingTransaction: false,
     pendingTransaction: null,
+    stockPickup: null,
     transactionEdit: null,
     editLoadSeq: 0,
     mockPreview: false
@@ -308,6 +309,7 @@
         'weekly-meeting': 'Hasil Meeting Mingguan',
         'kch-news': 'Berita dan Informasi Kalbe',
         stok: 'Monitoring Stok Gudang',
+        pengambilan: 'Pengambilan Barang & Pegangan Sales',
         harga: 'Master Harga Produk',
         tim: 'Direktori Profil Sales',
         dokumen: 'Arsip & Folder Google Drive'
@@ -332,6 +334,7 @@
       populateMonthlyReportSales();
       loadMonthlyTeamReport();
     }
+    if (viewName === 'pengambilan') loadStockPickupData();
     if (viewName === 'stok') renderInventoryTable();
     if (viewName === 'harga') renderPriceMasterTable();
     if (viewName === 'tim') renderSalesProfiles();
@@ -445,6 +448,7 @@
         renderWeeklyMeetings(appState.weeklyMeetings || []);
         loadTodayPlans(getLocalDateInputValue());
         ensureTransactionRows();
+        if (typeof loadStockPickupData === 'function') loadStockPickupData();
         if (appState.pendingTransaction) txClientLock(true);
         if (appState.transactionEdit) updateEditTransactionTotals();
         loadDashboardMetrics();
@@ -2090,6 +2094,7 @@
     if (search) search.value = sales.full_name || sales.sales_id || '';
     setStyle('btnClearSalesSearch', 'display', 'flex');
     closeSalesAutocomplete();
+    document.querySelectorAll('.item-product-select').forEach(function(select) { handleProductChange(select); });
     logClientActivity('SELECT_SALES', sales.sales_id || '', 'Memilih sales ' + (sales.full_name || sales.sales_id || ''));
   }
 
@@ -2152,6 +2157,7 @@
     tr.dataset.rowId = rowId;
     tr.innerHTML =
       '<td><select class="form-control item-product-select" onchange="handleProductChange(this)" data-row-id="' + rowId + '"><option value="">-- Pilih Produk --</option></select></td>' +
+      '<td><select class="form-control stock-source" aria-label="Sumber stok produk" style="min-width:190px" onchange="handleProductChange(this.closest(\'tr\').querySelector(\'.item-product-select\'))"></select></td>' +
       '<td class="text-center"><span class="item-stock-badge badge-stock-empty" data-role="stock">Stok -</span></td>' +
       '<td class="text-right"><span data-role="cost">Rp 0</span></td>' +
       '<td class="text-right"><span data-role="sell">Rp 0</span></td>' +
@@ -2160,6 +2166,7 @@
       '<td class="text-right font-semibold"><span data-role="subtotal">Rp 0</span></td>' +
       '<td class="text-center"><button type="button" class="btn btn-danger-soft btn-sm" onclick="removeItemRow(\'' + rowId + '\')"><i class="fa-solid fa-trash"></i></button></td>';
     tbody.appendChild(tr);
+    if (typeof populateStockSource === 'function') populateStockSource(tr.querySelector('.stock-source'));
     populateProductSelect(tr.querySelector('.item-product-select'), teamName, '');
     recalculateTransactionTotals();
   }
@@ -2221,7 +2228,12 @@
         stockEl.className = 'item-stock-badge badge-stock-empty';
         stockEl.innerHTML = '<span class="badge-dot dot-neutral"></span> Stok -';
       } else {
+        var source = typeof stockReadLineSource === 'function' ? stockReadLineSource(tr) : {};
         var distributor = String(getValue('inputTxDistributor') || '').toLowerCase();
+        if (source.distributorId && appState.stockPickup && appState.stockPickup.data) {
+          var chosen = appState.stockPickup.data.distributors.find(function(d) { return normalizeKey(d.distributor_id) === normalizeKey(source.distributorId); });
+          if (chosen) distributor = String(chosen.distributor_name).toLowerCase();
+        }
         var isGeubrina = distributor.indexOf('ap. geubrina rizki') === 0;
         var selectedStock = isGeubrina
           ? stockInfo['AP. Geubrina Rizki']
@@ -2229,6 +2241,9 @@
         var stock = distributor
           ? parseCleanNumber(selectedStock)
           : parseCleanNumber(stockInfo['PT. Global Mitra Prima']) + parseCleanNumber(stockInfo['AP. Geubrina Rizki']);
+        var held = typeof stockSourceAvailability === 'function' ? stockSourceAvailability(tr,product.product_id || product.productId) : null;
+        if (held && !held.known) { stockEl.className = 'item-stock-badge badge-stock-empty'; stockEl.textContent = 'Stok sumber belum dimuat'; return; }
+        if (held) stock = held.quantity;
         var min = parseCleanNumber(productMaster && (productMaster.min_stock || productMaster.minStock)) || 50;
         if (stock <= 0) {
           stockEl.className = 'item-stock-badge badge-stock-danger';
@@ -2333,11 +2348,14 @@
     if (fields) fields.disabled = !!locked;
     var editFields = document.getElementById('txEditFormFields');
     if (editFields) editFields.disabled = !!locked;
+    var pickupFields = document.getElementById('pickupFormFields');
+    if (pickupFields) pickupFields.disabled = !!locked;
   }
 
   function txClientStatus(message, showRetry) {
     [['txRequestStatus', 'txRequestStatusText', 'txRequestCode', 'btnRetryTxRequest', 'btnCheckTxRequest'],
-      ['editTxRequestStatus', 'editTxRequestStatusText', 'editTxRequestCode', 'btnRetryTxEditRequest', 'btnCheckTxEditRequest']].forEach(function(ids) {
+      ['editTxRequestStatus', 'editTxRequestStatusText', 'editTxRequestCode', 'btnRetryTxEditRequest', 'btnCheckTxEditRequest'],
+      ['pickupRequestStatus', 'pickupRequestStatusText', 'pickupRequestCode', 'btnRetryPickupRequest', 'btnCheckPickupRequest']].forEach(function(ids) {
       var box = document.getElementById(ids[0]), text = document.getElementById(ids[1]), code = document.getElementById(ids[2]);
       var retry = document.getElementById(ids[3]), check = document.getElementById(ids[4]);
       if (box) box.style.display = message ? 'block' : 'none';
@@ -2375,11 +2393,14 @@
     if (btn) { btn.disabled = false; btn.textContent = 'Simpan Transaksi Penjualan'; }
     var editBtn = document.getElementById('btnSubmitTxEdit');
     if (editBtn) { editBtn.disabled = false; editBtn.textContent = 'Simpan perubahan'; }
+    var pickupBtn = document.getElementById('btnSubmitPickup');
+    if (pickupBtn) { pickupBtn.disabled = false; pickupBtn.textContent = 'Simpan pengambilan'; }
     if (result && result.success && result.state === 'COMMITTED') {
       try { txClientClear(); }
       catch (err) { txClientStatus('Transaksi ' + result.transactionId + ' sudah tersimpan, tetapi browser belum dapat membersihkan status kiriman. Periksa hasil lagi sebelum transaksi baru.', false); return; }
-      showToast(result.message + ' ' + result.transactionId + ' — ' + formatRupiah(result.totalSales), 'success');
-      if (result.operation === 'EDIT') closeSalesTransactionEdit();
+      showToast(result.message + ' ' + result.transactionId + (result.operation === 'PICKUP' ? '' : ' — ' + formatRupiah(result.totalSales)), 'success');
+      if (result.operation === 'PICKUP') resetPickupForm();
+      else if (result.operation === 'EDIT') closeSalesTransactionEdit();
       else resetSalesTransactionForm();
       // Read authoritative balances; never subtract again on an idempotent replay.
       loadMetadata();
@@ -2410,7 +2431,10 @@
       txClientLock(true);
       txClientStatus('Belum dapat memastikan hasil kiriman. Klik Periksa hasil. ' + (err && err.message || ''), false);
     });
-    if (payload.transactionId) runner.editSalesTransaction(payload);
+    var pickupBtn = document.getElementById('btnSubmitPickup');
+    if (pickupBtn && payload.operation === 'PICKUP') { pickupBtn.disabled = true; pickupBtn.textContent = 'Menyimpan…'; }
+    if (payload.operation === 'PICKUP') runner.saveStockPickup(payload);
+    else if (payload.transactionId) runner.editSalesTransaction(payload);
     else runner.saveSalesTransaction(payload);
   }
 
@@ -2438,6 +2462,8 @@
           if (btn) btn.disabled = false;
           var editBtn = document.getElementById('btnSubmitTxEdit');
           if (editBtn) editBtn.disabled = false;
+          var pickupBtn = document.getElementById('btnSubmitPickup');
+          if (pickupBtn) pickupBtn.disabled = false;
           txClientStatus('Kiriman belum tercatat. Isi detail transaksi atau buka kembali edit faktur; kode kiriman sebelumnya tetap digunakan.', false);
         }
         return;
@@ -2495,13 +2521,14 @@
         if (!product) return;
         var cost = parseCleanNumber(product.cost_price || product.costPrice);
         var sell = parseCleanNumber(product.selling_price || product.sellingPrice);
-        items.push({
+        var source = typeof stockReadLineSource === 'function' ? stockReadLineSource(tr) : {};
+        items.push(Object.assign({
           productId: productId,
           qty: qty,
           costPrice: cost,
           sellingPrice: sell,
           shj: sell - cost
-        });
+        },source));
       });
     }
 
@@ -2617,6 +2644,7 @@
     var options = '<option value="">Pilih produk</option>' + products.filter(function(product) { var key = normalizeKey(product.id); if (!key || seen[key]) return false; seen[key] = true; return true; }).map(function(product) { return '<option value="' + escapeHtml(product.id) + '">' + escapeHtml(product.name) + '</option>'; }).join('');
     var row = document.createElement('tr');
     row.innerHTML = '<td><select class="form-control edit-product" required onchange="updateEditTransactionTotals()" style="min-width:170px">' + options + '</select><small class="text-muted edit-price-note"></small></td>' +
+      '<td><select class="form-control stock-source" aria-label="Sumber stok produk" style="min-width:190px"></select></td>' +
       '<td><input class="form-control edit-qty" aria-label="Jumlah produk" style="width:85px" type="number" min="1" step="1" value="1" required oninvalid="updateTransactionQuantityValidity(this)" oninput="updateTransactionQuantityValidity(this);updateEditTransactionTotals()"></td>' +
       '<td class="text-right edit-price">—</td><td class="text-right edit-subtotal">—</td>' +
       '<td><button type="button" class="btn btn-danger-soft btn-sm" aria-label="Hapus produk" onclick="this.closest(\'tr\').remove();updateEditTransactionTotals()"><i class="fa-solid fa-trash"></i> Hapus</button></td>';
@@ -2624,6 +2652,7 @@
     var selectedProduct = products.find(function(product) { return normalizeKey(product.id) === normalizeKey(item.productId); });
     row.querySelector('.edit-product').value = selectedProduct ? selectedProduct.id : (item.productId || '');
     row.querySelector('.edit-qty').value = item.qty === undefined ? 1 : item.qty;
+    if (typeof populateStockSource === 'function') populateStockSource(row.querySelector('.stock-source'),item.distributorId ? (item.sourceType || 'DIRECT')+'|'+item.distributorId : '');
     updateEditTransactionTotals();
   }
 
@@ -2656,7 +2685,7 @@
     Array.prototype.forEach.call(body.querySelectorAll('tr'), function(row) {
       var productId = row.querySelector('.edit-product').value, qty = Number(row.querySelector('.edit-qty').value), price = editTransactionPrice(productId);
       if (!productId || !price || !Number.isSafeInteger(qty) || qty <= 0) { invalid = true; return; }
-      items.push({ productId: productId, qty: qty, costPrice: price.cost, sellingPrice: price.sell });
+      items.push(Object.assign({ productId: productId, qty: qty, costPrice: price.cost, sellingPrice: price.sell },typeof stockReadLineSource === 'function' ? stockReadLineSource(row,true) : {}));
     });
     if (invalid || !items.length) { showToast('Pilih minimal satu produk dengan jumlah bulat minimal 1.', 'error'); return; }
     var pending = appState.pendingTransaction;
@@ -2779,12 +2808,13 @@
           tbody.innerHTML = (res.items || []).map(function(item) {
             return '<tr>' +
               '<td><div style="font-weight:600;">' + escapeHtml(item.productName || '-') + '</div><div style="font-size:10px;color:#64748b;">' + escapeHtml(item.productId || '-') + '</div></td>' +
+              '<td>' + escapeHtml((item.sourceType === 'SALES' ? 'Pegangan sales' : 'Langsung distributor') + ' · ' + (item.distributor || h.distributor || '')) + '</td>' +
               '<td class="text-center">' + Number(item.qty || 0) + '</td>' +
               '<td class="text-right">' + formatRupiah(item.sellingPrice) + '</td>' +
               '<td class="text-right text-success">' + formatRupiah(item.shj) + '</td>' +
               '<td class="text-right font-semibold">' + formatRupiah(item.subtotalSales) + '</td>' +
             '</tr>';
-          }).join('') || '<tr><td colspan="5" class="text-center text-muted">Tidak ada item.</td></tr>';
+          }).join('') || '<tr><td colspan="6" class="text-center text-muted">Tidak ada item.</td></tr>';
         }
         setStyle('modalTransactionDetail', 'display', 'flex');
       })

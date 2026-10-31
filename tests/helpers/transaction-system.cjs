@@ -70,7 +70,7 @@ function system(options = {}) {
     if(options.apiDisabled) return response(403,{error:{status:'PERMISSION_DENIED'}});
     if(parsed.pathname.endsWith(':batchUpdate')) {
       const requests = JSON.parse(request.payload).requests;
-      const isFinancial = requests.some(r => { const edit=r.appendCells||r.updateCells; if(!edit || (r.updateCells && r.updateCells.start?.rowIndex===0))return false; const id=edit.sheetId??edit.start?.sheetId??edit.range?.sheetId; return (byId(store,id)?.title || requests.find(a=>a.addSheet?.properties.sheetId===id)?.addSheet.properties.title)==='SALES_TRANSACTIONS'; });
+      const isFinancial = requests.some(r => { const edit=r.appendCells||r.updateCells; if(!edit || (r.updateCells && r.updateCells.start?.rowIndex===0))return false; const id=edit.sheetId??edit.start?.sheetId??edit.range?.sheetId; return ['SALES_TRANSACTIONS','STOCK_PICKUPS'].includes(byId(store,id)?.title || requests.find(a=>a.addSheet?.properties.sheetId===id)?.addSheet.properties.title); });
       if(isFinancial) {
         financialAttempts++;
         if(options.financialFault==='reject400') return response(400,{error:{status:'INVALID_ARGUMENT'}});
@@ -94,7 +94,7 @@ function system(options = {}) {
     return response(200,{spreadsheetId:'test-book',sheets:Object.values(store).map(s=>({properties:{sheetId:s.sheetId,title:s.title,gridProperties:s.gridProperties}}))});
   }};
   vm.createContext(context);
-  for(const f of ['firebase-config.gs','code.gs','setup.gs','transactions.gs','transaction-edits.gs','guest-crypto.gs','guest-auth.gs','auth.gs']) vm.runInContext(fs.readFileSync(path.join(root,f),'utf8'),context,{filename:f});
+  for(const f of ['firebase-config.gs','code.gs','setup.gs','transactions.gs','stock-pickups.gs','transaction-edits.gs','guest-crypto.gs','guest-auth.gs','auth.gs']) vm.runInContext(fs.readFileSync(path.join(root,f),'utf8'),context,{filename:f});
   add('SALES',[['sales_id','full_name','team_name','status'],['S1','Sales One','Motoris','ACTIVE'],['S2','Sales Two','Motoris','ACTIVE']]);
   add('PRODUCTS',[['product_id','product_name','status'],['P1','Product One','ACTIVE'],['P2','Product Two','ACTIVE']]);
   add('PRICE_MASTER',[['product_id','team_name','cost_price','selling_price','shj','status'],['P1','Motoris',60,100,10,'ACTIVE'],['P2','Motoris',20,40,20,'ACTIVE']]);

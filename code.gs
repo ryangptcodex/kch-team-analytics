@@ -1714,9 +1714,6 @@ function getTransactionsPaginated_(page, limit, searchKeyword, teamFilter, distF
         if (legacyMap[filterNorm]) filterNorm = legacyMap[filterNorm];
         if (rowTeamNorm !== filterNorm) continue;
       }
-      if (distFilter !== 'ALL') {
-        if (normalizeKey_(distributor) !== normalizeKey_(distFilter)) continue;
-      }
       if (dateFilter && row.transaction_date !== dateFilter) continue;
 
       if (searchKeyword) {
@@ -1736,6 +1733,7 @@ function getTransactionsPaginated_(page, limit, searchKeyword, teamFilter, distF
           salesName: salesName,
           teamName: teamName,
           distributor: distributor,
+          distributors: [distributor],
           totalSales: subSales,
           totalCost: subCost,
           totalShj: subShj,
@@ -1744,13 +1742,15 @@ function getTransactionsPaginated_(page, limit, searchKeyword, teamFilter, distF
         };
         invoiceOrder.push(txId);
       } else {
+        if (invoiceMap[txId].distributors.indexOf(distributor) < 0) invoiceMap[txId].distributors.push(distributor);
+        if (invoiceMap[txId].distributors.length > 1) invoiceMap[txId].distributor = 'Campuran';
         invoiceMap[txId].totalSales += subSales;
         invoiceMap[txId].totalCost += subCost;
         invoiceMap[txId].totalShj += subShj;
       }
     }
 
-    var filtered = invoiceOrder.map(function(id) { return invoiceMap[id]; });
+    var filtered = invoiceOrder.map(function(id) { return invoiceMap[id]; }).filter(function(invoice) { return distFilter === 'ALL' || invoice.distributors.some(function(d) { return normalizeKey_(d) === normalizeKey_(distFilter); }); });
     var grandTotalSales = filtered.reduce(function(sum, item) { return sum + item.totalSales; }, 0);
     var grandTotalCost = filtered.reduce(function(sum, item) { return sum + item.totalCost; }, 0);
     var grandTotalShj = filtered.reduce(function(sum, item) { return sum + item.totalShj; }, 0);
@@ -1828,6 +1828,9 @@ function getTransactionDetail_(transactionId) {
       totalShj += subShj;
 
       items.push({
+        sourceType: m.stock_source || 'DIRECT',
+        distributorId: m.stock_distributor_id || '',
+        distributor: m.distributor || '',
         productId: m.product_id || '-',
         productName: m.product_name || m.product_id || '-',
         qty: qty,
@@ -1845,7 +1848,7 @@ function getTransactionDetail_(transactionId) {
       date: first.transaction_date,
       salesName: first.sales_name || first.sales_id,
       teamName: first.team_name,
-      distributor: first.distributor || 'PT. Global Mitra Prima (Subdist)',
+      distributor: matchingRows.some(function(row) { return row.distributor !== first.distributor; }) ? 'Campuran — lihat sumber per produk' : (first.distributor || 'PT. Global Mitra Prima (Subdist)'),
       totalSales: totalSales,
       totalCost: totalCost,
       totalShj: totalShj,
