@@ -181,7 +181,7 @@ test('only intended entry points remain public and template includes exist', () 
     for (const match of source.matchAll(/^function (\w+)\(/gm)) names.push(match[1]);
   }
   assert.equal(new Set(names).size, names.length, 'No duplicate server function declarations');
-  assert.deepEqual(names.filter(n => !n.endsWith('_')).sort(), ['checkKchGoogleConnection', 'checkKchTransactionSetup', 'doGet', 'kchApi', 'kchGuestLogin', 'kchGuestLogout', 'onOpen', 'repairAndOptimizeSpreadsheet', 'setupKchSheetUpdates']);
+  assert.deepEqual(names.filter(n => !n.endsWith('_')).sort(), ['checkKchGoogleConnection', 'checkKchTransactionSetup', 'doGet', 'kchApi', 'kchGuestLogin', 'kchGuestLogout', 'onOpen', 'repairAndOptimizeSpreadsheet', 'setupKchSheetUpdates', 'siapkanAwalNovember']);
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   for (const match of html.matchAll(/include_\('([^']+)'\)/g)) assert.ok(fs.existsSync(path.join(root, match[1] + '.html')));
 });

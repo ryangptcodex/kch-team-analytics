@@ -1,6 +1,10 @@
-// Additive spreadsheet migrations. Never call the legacy repair/reset helpers here.
+// Additive migrations by default; launch-test cleanup requires explicit one-time arming.
+// Never call the legacy repair/reset helpers here.
 var KCH_UPDATE_SHEET_ = 'PEMBARUAN_SHEET';
 var KCH_UPDATE_HANDLER_ = 'kchSheetUpdateClick_';
+var KCH_LAUNCH_SHEET_ = '_KCH_LAUNCH_STATE';
+var KCH_LAUNCH_KEY_ = 'LAUNCH_2026_11';
+var KCH_LAUNCH_HEADERS_ = ['launch_key', 'status', 'backup_url', 'completed_at'];
 
 function kchSheetUpdateAdmin_(ss, email) {
   if (String(email || '').trim().toLowerCase() !== KCH_BOOTSTRAP_ADMIN_EMAIL_) throw new Error('ACCESS_DENIED: Hanya Gmail admin yang boleh memperbarui sheet.');
@@ -46,7 +50,9 @@ function installKchSheetUpdates_() {
 function kchSheetUpdateModules_() {
   if (typeof KCH_INCENTIVE_SHEET_SCHEMAS_ === 'undefined' || typeof kchIncentiveSyncPlan_ !== 'function' || typeof incentiveBuildReport_ !== 'function' || typeof incentiveJunior_ !== 'function') throw new Error('Pasang Script incentive-sheets.gs, incentives.gs dan canvasser-incentives.gs terbaru sebelum Perbarui.');
   if (typeof stockSchemas_ !== 'function') throw new Error('Pasang stock-pickups.gs terbaru sebelum Perbarui.');
-  return [{name:'PENGAMBILAN',schemas:stockSchemas_(),buildPlan:function(){return {requests:[],changes:[]};}}, {name:'INSENTIF',schemas:KCH_INCENTIVE_SHEET_SCHEMAS_,buildPlan:kchIncentiveSyncPlan_}];
+  var stockSchemas = stockSchemas_();
+  if (!stockSchemas.SALES_CASH_DEPOSITS || !stockSchemas.SALES_TRANSACTIONS || stockSchemas.SALES_TRANSACTIONS.indexOf('stock_distributor_id') < 0) throw new Error('Pasang stock-pickups.gs terbaru yang mencakup setoran dan asal stok sebelum Perbarui.');
+  return [{name:'PENGAMBILAN',schemas:stockSchemas,buildPlan:function(){return {requests:[],changes:[]};}}, {name:'INSENTIF',schemas:KCH_INCENTIVE_SHEET_SCHEMAS_,buildPlan:kchIncentiveSyncPlan_}];
 }
 
 function kchSheetSchemas_() {
@@ -59,6 +65,7 @@ function kchSheetSchemas_() {
   schemas[KCH_SCORE_EVENTS_] = KCH_SCORE_HEADERS_.slice();
   schemas[KCH_TX_REQUEST_SHEET_] = KCH_TX_REQUEST_HEADERS_.slice();
   schemas[KCH_TX_EDIT_SHEET_] = KCH_TX_EDIT_HEADERS_.slice();
+  schemas[KCH_LAUNCH_SHEET_] = KCH_LAUNCH_HEADERS_.slice();
   kchSheetUpdateModules_().forEach(function(module) { Object.keys(module.schemas).forEach(function(name) { schemas[name] = module.schemas[name].slice(); }); });
   return schemas;
 }
@@ -149,11 +156,20 @@ function kchRunSheetUpdates_(ss) {
     SpreadsheetApp.flush();
     var ctx = { id: ss.getId(), token: ScriptApp.getOAuthToken() };
     var meta = txMetadata_(ctx);
+    var launching = kchLaunchArmed_(control) && !kchLaunchCompleted_(ss);
     var cleanup = kchLegacyLoginCleanupPlan_(ss, meta);
-    var plan = kchSheetUpdatePlan_(ss, meta, kchSheetSchemas_());
+    var schemas = kchSheetSchemas_();
+    // A first-time launch creates the request journal in its reservation batch.
+    // The remaining schema and cleared data commit in the final batch.
+    if (launching && !meta[KCH_TX_REQUEST_SHEET_]) delete schemas[KCH_TX_REQUEST_SHEET_];
+    var plan = kchSheetUpdatePlan_(ss, meta, schemas);
     plan.requests = plan.requests.concat(cleanup.requests);
     plan.changes = plan.changes.concat(cleanup.changes);
-    kchSheetUpdateModules_().forEach(function(module) {
+    if (launching) {
+      var cleared = kchLaunchClearPlan_(ss, meta);
+      plan.requests = plan.requests.concat(cleared.requests);
+      plan.changes = plan.changes.concat(cleared.changes);
+    } else kchSheetUpdateModules_().forEach(function(module) {
       var generated = module.buildPlan(ss, meta, ctx);
       plan.requests = plan.requests.concat(generated.requests);
       plan.changes = plan.changes.concat(generated.changes);
@@ -165,18 +181,110 @@ function kchRunSheetUpdates_(ss) {
     backupUrl = backup.getUrl();
     control.getRange('B10').setValue(backupUrl); SpreadsheetApp.flush();
     // Schema, legacy-account cleanup and generated reports commit atomically together.
-    txBatch_(ctx, plan.requests);
+    if (launching) {
+      var reservation = kchLaunchReserve_(ss, ctx, meta, stamp, backupUrl);
+      plan.requests.push(txAppend_(meta[KCH_LAUNCH_SHEET_].sheetId, [[KCH_LAUNCH_KEY_, 'COMPLETED', backupUrl, stamp]]));
+      plan.requests.push({updateCells:{start:{sheetId:control.getSheetId(),rowIndex:14,columnIndex:0},rows:[{values:[{userEnteredValue:{boolValue:false}}]}],fields:'userEnteredValue'}});
+      plan.requests.push(txUpdate_(control.getSheetId(), 16, 0, [['Selesai. Data uji dibersihkan sekali; klik Perbarui berikutnya mempertahankan data baru.']]));
+      plan.requests.push(txUpdate_(control.getSheetId(), 17, 0, [[backupUrl]]));
+      reservation.state = 'COMMITTED';
+      reservation.result_json = JSON.stringify({success:true,transactionId:reservation.transaction_id,message:'Persiapan launch November selesai.'});
+      plan.requests.push(txUpdate_(meta[KCH_TX_REQUEST_SHEET_].sheetId, reservation._row, 0, [txReceiptValues_(reservation)]));
+      try { txBatch_(ctx, plan.requests); }
+      catch (writeError) {
+        // Never repeat a reset after an ambiguous write. A matching terminal
+        // receipt proves the clear and permanent marker committed together.
+        var saved = txCommitted_(txReceipts_(ctx, meta), reservation.request_key);
+        if (!saved) {
+          if ([400,403,404].indexOf(writeError.httpStatus) >= 0) txMarkFailed_(ctx,meta,reservation,'LAUNCH_REJECTED',writeError.message);
+          throw writeError;
+        }
+      }
+    } else txBatch_(ctx, plan.requests);
     control.getRange('B8').setValue('Berhasil');
     control.getRange('B9').setValue(stamp);
     control.getRange('B11').setValue(plan.changes.join('\n') || 'Struktur sudah sesuai kode terbaru. Tidak ada sheet/kolom ganda.');
-    ss.toast('Struktur dan laporan sheet sudah mengikuti kode terbaru.', 'Pembaruan selesai', 8);
+    ss.toast(launching ? 'Semua sheet siap. Data uji dibersihkan sekali; saldo stok dan master tetap.' : 'Struktur dan laporan sheet sudah mengikuti kode terbaru.', 'Pembaruan selesai', 8);
     return { success: true, changes: plan.changes, backupUrl: backupUrl };
   } catch (err) {
     if (!control || control.getRange('A1').getValue() !== 'PUSAT PEMBARUAN SHEET') throw err;
     control.getRange('B8').setValue('Gagal / perlu diperiksa');
-    control.getRange('B11').setValue(String(err.message) + (backupUrl ? '\nCadangan: ' + backupUrl + '\nJika koneksi terputus, periksa hasil lalu klik ulang; pembaruan tidak menggandakan kolom.' : ''));
+    control.getRange('B11').setValue(String(err.message) + (backupUrl ? '\nCadangan: ' + backupUrl + (launching ? '\nJika hasil persiapan launch belum pasti, hentikan input dan periksa kiriman tertunda; jangan menghapus jurnal. Klik ulang akan ditahan sampai hasil pasti.' : '\nJika koneksi terputus, periksa hasil lalu klik ulang; pembaruan tidak menggandakan kolom.') : ''));
     throw err;
   } finally {
     try { if (control && control.getRange('A1').getValue() === 'PUSAT PEMBARUAN SHEET') control.getRange('A3').setValue(false); } finally { lock.releaseLock(); }
   }
+}
+
+// Deliberately armed once by the admin; installing new code alone never clears data.
+// This is launch-test cleanup, not a monthly reset or an archive-aware report policy.
+function siapkanAwalNovember() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  kchSheetUpdateAdmin_(ss, Session.getActiveUser().getEmail());
+  installKchSheetUpdates_();
+  var lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    assertNoPendingTransactions_();
+    var control = ss.getSheetByName(KCH_UPDATE_SHEET_);
+    if (kchLaunchCompleted_(ss)) {
+      ss.toast('Persiapan launch sudah selesai. Data baru tidak akan dikosongkan lagi.', 'KCH UJI COBA', 8);
+      return;
+    }
+    var heading = control.getRange('A14').getValue();
+    if (heading !== 'PERSIAPAN LAUNCH NOVEMBER 2026' && control.getRange('A14:D18').getDisplayValues().some(function(row) { return row.some(function(v) { return v !== ''; }); })) throw new Error('A14:D18 sudah berisi data lain; pindahkan dahulu.');
+    control.getRange('A14:D14').merge().setValue('PERSIAPAN LAUNCH NOVEMBER 2026').setFontWeight('bold');
+    control.getRange('A15').insertCheckboxes().setValue(true);
+    control.getRange('B15:D15').merge().setValue('Bersihkan data uji sekali saat Perbarui Seluruh Sheet');
+    control.getRange('A16:D16').merge().setValue('Aktivitas uji dikosongkan. Master, login, libur, berita, dokumen dan saldo stok tetap. Cadangan lengkap dibuat dahulu.').setWrap(true);
+    control.getRange('A17:D17').merge().setValue('Siap. Tutup tab webapp lain, lalu klik A3. Ini bukan reset rutin bulanan.').setWrap(true);
+    control.getRange('A18:D18').merge();
+    ss.setActiveSheet(control);
+    ss.toast('Persiapan siap. Klik A3 untuk memperbarui semua sheet dan membersihkan data uji sekali.', 'KCH UJI COBA', 10);
+  } finally { lock.releaseLock(); }
+}
+
+function kchLaunchArmed_(control) {
+  var checked = control.getRange('A15').getValue();
+  return control.getRange('A14').getValue() === 'PERSIAPAN LAUNCH NOVEMBER 2026' && (checked === true || checked === 'TRUE');
+}
+
+function kchLaunchCompleted_(ss) {
+  var sheet = ss.getSheetByName(KCH_LAUNCH_SHEET_);
+  if (!sheet || sheet.getLastRow() < 2) return false;
+  var values = sheet.getRange(1,1,sheet.getLastRow(),sheet.getLastColumn()).getDisplayValues();
+  var table = txTable_(KCH_LAUNCH_SHEET_,values,KCH_LAUNCH_HEADERS_,true);
+  return table.rows.some(function(row) { return row.launch_key === KCH_LAUNCH_KEY_ && row.status === 'COMPLETED'; });
+}
+
+function kchLaunchClearPlan_(ss, meta) {
+  // Exact allowlist: no inference from dates/names, no Drive file deletion.
+  // Journals remain to prevent replay of old request IDs after launch.
+  var names = ['SALES_TRANSACTIONS','SALES_TRANSACTION_ITEMS','ATTENDANCE',
+    'INVENTORY_MOVEMENTS','SALES_STOCK_MOVEMENTS','STOCK_PICKUPS','SALES_CASH_DEPOSITS',
+    'SKOR_EVENTS','VISIT_PHOTOS','TODAY_PLAN','WEEKLY_MEETINGS','MONTHLY_TEAM_REPORT','ACTIVITY_LOGS']
+    .concat(Object.keys(KCH_INCENTIVE_SHEET_SCHEMAS_));
+  var requests = [], changes = [];
+  names.forEach(function(name) {
+    var sheet = ss.getSheetByName(name), p = meta[name];
+    if (!sheet || !p || sheet.getLastRow() < 2) return;
+    // Clear all activity columns, including trailing manual notes, but keep
+    // header, formatting, validation and grid. Entire original file is backed up.
+    requests.push({updateCells:{range:{sheetId:p.sheetId,startRowIndex:1,endRowIndex:sheet.getLastRow(),startColumnIndex:0,endColumnIndex:Math.max(sheet.getLastColumn(),p.gridProperties.columnCount)},rows:[],fields:'userEnteredValue'}});
+    changes.push(name + ': data uji dikosongkan (tersimpan di cadangan).');
+  });
+  changes.push('Persiapan launch sekali: saldo gudang/pegangan, master dan login tetap; hasil laporan kosong sampai pembaruan berikutnya.');
+  return {requests:requests,changes:changes};
+}
+
+function kchLaunchReserve_(ss, ctx, meta, stamp, backupUrl) {
+  var requests = [], sheet = ss.getSheetByName(KCH_TX_REQUEST_SHEET_);
+  if (!meta[KCH_TX_REQUEST_SHEET_]) txAddSheet_(meta,requests,KCH_TX_REQUEST_SHEET_,KCH_TX_REQUEST_HEADERS_,true);
+  else txTable_(KCH_TX_REQUEST_SHEET_,txRead_(ctx,[KCH_TX_REQUEST_SHEET_])[KCH_TX_REQUEST_SHEET_],KCH_TX_REQUEST_HEADERS_,true);
+  var id = 'LAUNCH-' + Utilities.getUuid();
+  var receipt = {request_key:txHash_('NATIVE_LAUNCH:' + id),request_id:id,actor_uid:'NATIVE_ADMIN',actor_email:KCH_BOOTSTRAP_ADMIN_EMAIL_,
+    fingerprint:txHash_(KCH_LAUNCH_KEY_),attempt_id:id,transaction_id:KCH_LAUNCH_KEY_,state:'PENDING',result_json:'',
+    plan_json:JSON.stringify({kind:'LAUNCH_TEST_CLEANUP',backupUrl:backupUrl}),created_at:stamp,updated_at:stamp,_row:sheet ? Math.max(1,sheet.getLastRow()) : 1};
+  requests.push(txAppend_(meta[KCH_TX_REQUEST_SHEET_].sheetId,[txReceiptValues_(receipt)]));
+  txBatch_(ctx,requests);
+  return receipt;
 }

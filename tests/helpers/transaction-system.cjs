@@ -54,7 +54,7 @@ function system(options = {}) {
         edit.rows.forEach((row,y) => row.values.forEach((cell,x) => {
           const typed = cell.userEnteredValue;
           assert.ok(!Object.hasOwn(typed,'formulaValue'),'All writes must be literal values');
-          const value = Object.hasOwn(typed,'stringValue') ? typed.stringValue : typed.numberValue;
+          const value = Object.hasOwn(typed,'stringValue') ? typed.stringValue : Object.hasOwn(typed,'boolValue') ? typed.boolValue : typed.numberValue;
           if(typeof value === 'number') assert.ok(Number.isFinite(value));
           sheet.rows[rowStart+y] ??= []; sheet.rows[rowStart+y][colStart+x] = value;
         }));
