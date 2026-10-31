@@ -2350,12 +2350,15 @@
     if (editFields) editFields.disabled = !!locked;
     var pickupFields = document.getElementById('pickupFormFields');
     if (pickupFields) pickupFields.disabled = !!locked;
+    var depositFields = document.getElementById('cashDepositFormFields');
+    if (depositFields) depositFields.disabled = !!locked;
   }
 
   function txClientStatus(message, showRetry) {
     [['txRequestStatus', 'txRequestStatusText', 'txRequestCode', 'btnRetryTxRequest', 'btnCheckTxRequest'],
       ['editTxRequestStatus', 'editTxRequestStatusText', 'editTxRequestCode', 'btnRetryTxEditRequest', 'btnCheckTxEditRequest'],
-      ['pickupRequestStatus', 'pickupRequestStatusText', 'pickupRequestCode', 'btnRetryPickupRequest', 'btnCheckPickupRequest']].forEach(function(ids) {
+      ['pickupRequestStatus', 'pickupRequestStatusText', 'pickupRequestCode', 'btnRetryPickupRequest', 'btnCheckPickupRequest'],
+      ['depositRequestStatus', 'depositRequestStatusText', 'depositRequestCode', 'btnRetryDepositRequest', 'btnCheckDepositRequest']].forEach(function(ids) {
       var box = document.getElementById(ids[0]), text = document.getElementById(ids[1]), code = document.getElementById(ids[2]);
       var retry = document.getElementById(ids[3]), check = document.getElementById(ids[4]);
       if (box) box.style.display = message ? 'block' : 'none';
@@ -2395,10 +2398,13 @@
     if (editBtn) { editBtn.disabled = false; editBtn.textContent = 'Simpan perubahan'; }
     var pickupBtn = document.getElementById('btnSubmitPickup');
     if (pickupBtn) { pickupBtn.disabled = false; pickupBtn.textContent = 'Simpan pengambilan'; }
+    var depositBtn = document.getElementById('btnSubmitDeposit');
+    if (depositBtn) { depositBtn.disabled = false; depositBtn.textContent = 'Simpan setoran'; }
     if (result && result.success && result.state === 'COMMITTED') {
       try { txClientClear(); }
       catch (err) { txClientStatus('Transaksi ' + result.transactionId + ' sudah tersimpan, tetapi browser belum dapat membersihkan status kiriman. Periksa hasil lagi sebelum transaksi baru.', false); return; }
-      showToast(result.message + ' ' + result.transactionId + (result.operation === 'PICKUP' ? '' : ' — ' + formatRupiah(result.totalSales)), 'success');
+      showToast(result.message + ' ' + result.transactionId + (result.operation === 'PICKUP' ? '' : ' — ' + formatRupiah(result.operation === 'DEPOSIT' ? result.amount : result.totalSales)), 'success');
+      if (result.operation === 'DEPOSIT') { resetCashDepositForm(); loadStockPickupData(); return; }
       if (result.operation === 'PICKUP') resetPickupForm();
       else if (result.operation === 'EDIT') closeSalesTransactionEdit();
       else resetSalesTransactionForm();
@@ -2433,7 +2439,10 @@
     });
     var pickupBtn = document.getElementById('btnSubmitPickup');
     if (pickupBtn && payload.operation === 'PICKUP') { pickupBtn.disabled = true; pickupBtn.textContent = 'Menyimpan…'; }
-    if (payload.operation === 'PICKUP') runner.saveStockPickup(payload);
+    var depositBtn = document.getElementById('btnSubmitDeposit');
+    if (depositBtn && payload.operation === 'DEPOSIT') { depositBtn.disabled = true; depositBtn.textContent = 'Menyimpan…'; }
+    if (payload.operation === 'DEPOSIT') runner.saveSalesCashDeposit(payload);
+    else if (payload.operation === 'PICKUP') runner.saveStockPickup(payload);
     else if (payload.transactionId) runner.editSalesTransaction(payload);
     else runner.saveSalesTransaction(payload);
   }
@@ -2464,6 +2473,8 @@
           if (editBtn) editBtn.disabled = false;
           var pickupBtn = document.getElementById('btnSubmitPickup');
           if (pickupBtn) pickupBtn.disabled = false;
+          var depositBtn = document.getElementById('btnSubmitDeposit');
+          if (depositBtn) depositBtn.disabled = false;
           txClientStatus('Kiriman belum tercatat. Isi detail transaksi atau buka kembali edit faktur; kode kiriman sebelumnya tetap digunakan.', false);
         }
         return;

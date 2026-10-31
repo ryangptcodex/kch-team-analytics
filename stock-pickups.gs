@@ -1,5 +1,6 @@
 // Two-account stock ledger. Transfers and sales share the atomic transaction receipt.
 var KCH_STOCK_SCHEMAS_ = {
+  SALES_CASH_DEPOSITS: ['deposit_id','deposit_date','sales_id','sales_name','distributor_id','distributor_name','amount','notes','photo_file_id','photo_url','created_by','created_at'],
   SALES_STOCK: ['sales_id','product_id','distributor_id','quantity','updated_at'],
   SALES_STOCK_MOVEMENTS: ['date','sales_id','product_id','distributor_id','movement_type','quantity','stock_before','stock_after','reference_id','created_by','created_at'],
   STOCK_PICKUPS: ['pickup_id','pickup_date','sales_id','sales_name','distributor_id','distributor_name','product_id','product_name','quantity','photo_file_id','photo_url','created_by','created_at']
@@ -162,17 +163,56 @@ function getStockPickupData_() {
   var user = getCurrentUserInfo_();
   if (['ADMIN','GUEST'].indexOf(user.role) < 0) throw new Error('ACCESS_DENIED');
   var ctx = {id:getKchSpreadsheet_().getId(),token:ScriptApp.getOAuthToken()}, meta = txMetadata_(ctx);
-  var names = ['SALES','PRODUCTS','DISTRIBUTORS','SALES_STOCK','STOCK_PICKUPS'].filter(function(n) { return !!meta[n]; });
+  var names = ['SALES','PRODUCTS','DISTRIBUTORS','SALES_STOCK','STOCK_PICKUPS','SALES_CASH_DEPOSITS'].filter(function(n) { return !!meta[n]; });
   var raw = txRead_(ctx,names), tables = {};
   names.forEach(function(n) { tables[n] = txTable_(n,raw[n],KCH_STOCK_SCHEMAS_[n] || ['status'],false).rows; });
-  return {success:true,sales:tables.SALES || [],products:tables.PRODUCTS || [],distributors:tables.DISTRIBUTORS || [],holdings:(tables.SALES_STOCK || []).map(function(row) { row.quantity = stockQty_(row.quantity); return row; }),pickups:(tables.STOCK_PICKUPS || []).slice(-500).reverse()};
+  return {success:true,sales:tables.SALES || [],products:tables.PRODUCTS || [],distributors:tables.DISTRIBUTORS || [],holdings:(tables.SALES_STOCK || []).map(function(row) { row.quantity = stockQty_(row.quantity); return row; }),pickups:(tables.STOCK_PICKUPS || []).slice(-500).reverse(),cashDeposits:(tables.SALES_CASH_DEPOSITS || []).slice(-500).reverse()};
 }
 function getStockPickupEvidence_(id) {
   var data = getStockPickupData_();
   var row = data.pickups.filter(function(r) { return r.pickup_id === id; })[0];
   if (!row || !row.photo_file_id) throw new Error('Bukti foto tidak ditemukan.');
+  return stockEvidenceData_(row);
+}
+function stockEvidenceData_(row) {
+  if (!row || !row.photo_file_id) throw new Error('Bukti foto tidak ditemukan.');
   var blob = DriveApp.getFileById(row.photo_file_id).getBlob(), bytes = blob.getBytes();
   if (!/^image\/(jpeg|png|webp)$/.test(blob.getContentType())) throw new Error('Format bukti foto tidak valid.');
   if (bytes.length > 2097152) throw new Error('Foto melebihi batas.');
   return {success:true,dataUrl:'data:'+blob.getContentType()+';base64,'+Utilities.base64Encode(bytes)};
+}
+
+// Memo only: deposits do not settle invoices, change inventory or count as sales.
+function stockCashDepositPlan_(ctx,meta,payload,user,id,requestId) {
+  if (user.role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin yang boleh mencatat setoran.');
+  var date = stockDate_(payload.date), amount = txMoney_(payload.amount,'Nominal setoran');
+  if (amount <= 0) throw new Error('Nominal setoran harus lebih dari nol.');
+  if (payload.notes !== undefined && typeof payload.notes !== 'string') throw new Error('Catatan setoran tidak valid.');
+  var notes = String(payload.notes || '').trim();
+  if (notes.length > 1000) throw new Error('Catatan setoran maksimal 1.000 karakter.');
+  var names = ['SALES','DISTRIBUTORS','SALES_CASH_DEPOSITS','ACTIVITY_LOGS'].filter(function(name) { return !!meta[name]; });
+  var raw = txRead_(ctx,names);
+  var sales = txUnique_(txTable_('SALES',raw.SALES,['sales_id','full_name','status']).rows,function(row) { return normalizeKey_(row.sales_id) === normalizeKey_(payload.salesId); },'Sales penyetor');
+  if (!txActive_(sales)) throw new Error('Sales penyetor tidak aktif.');
+  var distributors = txTable_('DISTRIBUTORS',raw.DISTRIBUTORS,['distributor_id','distributor_name','status']).rows;
+  var dist = stockDistributor_(distributors,payload.distributor,true);
+  if (['GMP','GEUBRINA'].indexOf(stockDistributorKey_(dist.distributor_name)) < 0) throw new Error('Pilih GMP atau Geubrina.');
+  var requests = [];
+  ['SALES_CASH_DEPOSITS','ACTIVITY_LOGS'].forEach(function(name) {
+    var headers = KCH_STOCK_SCHEMAS_[name] || TABLE_SCHEMAS[name];
+    if (meta[name]) txTable_(name,raw[name],headers,true);
+    else txAddSheet_(meta,requests,name,headers,false);
+  });
+  var stamp = Utilities.formatDate(new Date(),TIMEZONE,DATE_FORMAT), photo = stockPickupPhoto_(payload.photo,id);
+  requests.push(txAppend_(meta.SALES_CASH_DEPOSITS.sheetId,[[id,date,sales.sales_id,sales.full_name,dist.distributor_id,dist.distributor_name,amount/100,notes,photo.fileId,photo.url,user.email,stamp]]));
+  requests.push(txAppend_(meta.ACTIVITY_LOGS.sheetId,[['AUD-'+Utilities.getUuid(),stamp,user.email,'CREATE_CASH_DEPOSIT',id,JSON.stringify({salesId:sales.sales_id,distributorId:dist.distributor_id,amount:amount/100,memoOnly:true})]]));
+  return {requests:requests,cleanupFileId:photo.fileId,result:{success:true,terminal:true,state:'COMMITTED',operation:'DEPOSIT',requestId:requestId,transactionId:id,depositId:id,amount:amount/100,message:'Catatan setoran tersimpan.',stockUpdates:[]},plan:{operation:'DEPOSIT',memoOnly:true,photoFileId:photo.fileId}};
+}
+function saveSalesCashDeposit_(payload) {
+  if (getCurrentUserInfo_().role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin yang boleh mencatat setoran.');
+  return txExecuteRequest_(payload,'DEPOSIT');
+}
+function getSalesCashDepositEvidence_(id) {
+  var data = getStockPickupData_();
+  return stockEvidenceData_(data.cashDeposits.filter(function(row) { return row.deposit_id === id; })[0]);
 }

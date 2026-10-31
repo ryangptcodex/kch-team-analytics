@@ -85,3 +85,21 @@ Lock mengurutkan penulis dari proyek Apps Script yang sama; perubahan langsung p
 6. Klik Perbarui Seluruh Sheet lagi: saldo dan catatan pengambilan lama tetap; tidak ada kolom atau baris sumber yang digandakan.
 
 Validasi lokal: 313tesNode lulus (288regresi+25baru). Chromium menguji alur produksi dengan Google tiruan: loginAdmin/Tamu, transfer tanpa/denganfoto, sumbercampuran, detail, editsumber, reset-sesi dan lebar2560/1440/390/320px. LayananGoogle nyata/deployment/spreadsheet belum diubah dari workspace ini; pemasangan dan ujiUJI COBA dilakukan pengguna.
+
+## Tambahan: Setoran Pegangan Sales (uang)
+
+Pengguna menegaskan setoran adalah **uang hasil penjualan**, hanya untuk catatan agar mudah diingat. Widget berada tepat **di bawah Stok Pegangan Sales**, sebelum Riwayat Pengambilan. Tidak menginput pencapaian ulang, tidak menambah omzet/Skor/Insentif, tidak mengurangi pegangan barang, serta tidak mengubah status/lunas/tagihan faktur.
+
+Admin mengisi tanggal, sales penyetor, distributor, nominal Rupiah positif (tanpa pemisah ribuan pada form), catatan opsional dan foto bukti opsional. Nominal mendukung maksimal dua desimal. Tanggal nyata, tidak boleh masa depan. Foto memakai kompresi, batas ukuran, akses privat dan pemeriksaan login yang sama dengan bukti pengambilan; foto setoran dan pengambilan dipisahkan pada form serta endpoint pembacaannya.
+
+Tabel pada widget menampilkan tanggal, sales, distributor, nominal, catatan dan tombol **Lihat foto** jika dilampirkan. Admin boleh menambah; Tamu hanya membaca. Riwayat menampilkan500catatan terbaru. Setiap simpan membuat catatan baru dengan ID CASH dan pelaku. Tidak tersedia edit/pembatalan catatan setoran dalam paket ini.
+
+Sheet **SALES_CASH_DEPOSITS** berisi `deposit_id, deposit_date, sales_id, sales_name, distributor_id, distributor_name, amount, notes, photo_file_id, photo_url, created_by, created_at`. Skema ditambahkan melalui modul pengambilan yang sudah terdaftar: tombol **Perbarui Seluruh Sheet** otomatis membuat tab ini tanpa mengubah catatan/stock/faktur lama. API juga dapat membuat tab kosong tersebut pada penyimpanan pertama. Audit CREATE_CASH_DEPOSIT ditulis bersama memo dan receipt atomik; tidak menggunakan CREATE_TRANSACTION. Klikulang/retry kode sama tidak menggandakan memo. Mekanisme PENDING/Periksa hasil dan pemulihan foto mengikuti pengambilan.
+
+Jika paket9file pengambilan di atas sudah dipasang, **ganti enam file** berikut: **stock-pickups.gs, transactions.gs, auth.gs, stock-client.html, index.html, js.html**. Tidak ada file baru untuk tambahan setoran. Simpan semuanya → klik **PEMBARUAN_SHEET A3 / Perbarui Seluruh Sheet**, tungguBerhasil → refresh `/dev` atau terapkan versi baru `/exec` lalu refresh. `sheet-updates.gs` yang terbaru dari paketpengambilan memakai registrydinamis sehingga tidak perlu diganti lagi hanya untuk tambahan skema ini.
+
+Jika belum memasang paketpengambilan9file, pasang semua9file dari tabel utama menggunakan versi terbaru cabang `uji-login`; versi tersebut sudah mencakup setoran. Jangan hanya memasang enam file tambahan di atas fondasi transaksi lama.
+
+Uji memo: catat stok, jumlahfaktur dan pencapaian sebelum uji, lalu simpan setoran **Rp100.000** untuk satu sales. Harus muncul satu catatan setoran, sementara seluruh angka penjualan/Skor/Insentif danstok tetap. Coba foto; buka melalui Tamu, pastikan formtulis tersembunyi. Nominalnol/negatif ditolak. Klik PerbaruiSeluruhSheet kembali harus mempertahankan barissetoran lama.
+
+Pengujian tambahan: total **327tesNode lulus** (313sebelumnya+12backendmemo+2clientrecovery). BrowserproductionUI+Googlemock menguji catatan tanpa/denganfoto, proofGuest, posisiwidget, cash/pickupphotoindependent, tanpa perubahanbusinessledger, logout dan responsive2560/1440/390/320. Belum ada penyimpanan setoran atau pemasanganGoogle nyata oleh agen.

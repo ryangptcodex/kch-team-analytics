@@ -46,3 +46,5 @@ Jika editor menampilkan **Tidak ada fungsi** pada file lama, ganti isi sheet-upd
 ## Tambahan pengambilan barang
 
 Paket pengambilan menambahkan modul `stock-pickups.gs` dan pembaruan `sheet-updates.gs`. Setelah seluruh paket dipasang, tombol yang sama menambahkan **SALES_STOCK**, **SALES_STOCK_MOVEMENTS**, **STOCK_PICKUPS**, serta kolom **stock_source/stock_distributor_id** pada SALES_TRANSACTIONS. Data lama dipertahankan; sumber kosong pada faktur lama tetap langsung distributor. Saldo pegangan tidak direset dan tidak diisi dari penjualan lama. Lihat [panduan pengambilan](PANDUAN-PENGAMBILAN-BARANG.md) untuk sembilan file dan uji transfer tanpa omzet.
+
+Tambahan widget **Setoran Pegangan Sales** menggunakan registry modul pengambilan yang sama. Setelah `stock-pickups.gs` terbaru disimpan, Perbarui Seluruh Sheet juga menambah **SALES_CASH_DEPOSITS** dan mempertahankan memo lama. Nominal setoran adalah catatan uang, bukan input penjualan/pencapaian atau mutasi stok.

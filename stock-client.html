@@ -6,7 +6,7 @@
   function loadStockPickupData() {
     var state = stockUiState(), seq = ++state.seq;
     setText('pickupStatus','Sedang memuat data');
-    ['pickupHistoryRows','salesStockRows'].forEach(function(id) { setHtml(id,'<tr><td colspan="7" class="text-muted">Sedang memuat data</td></tr>'); });
+    ['pickupHistoryRows','salesStockRows','cashDepositRows'].forEach(function(id) { setHtml(id,'<tr><td colspan="7" class="text-muted">Sedang memuat data</td></tr>'); });
     kchRun().withSuccessHandler(function(result) {
       if (seq !== state.seq) return;
       if (!result || !result.success) { stockPickupLoadError(result && result.message); return; }
@@ -18,6 +18,8 @@
       var dist = getValue('pickupDistributor');
       setHtml('pickupDistributor','<option value="">Pilih distributor</option>'+result.distributors.filter(function(d) { return normalizeKey(d.status || 'ACTIVE') === 'ACTIVE'; }).map(function(d) { return '<option value="'+escapeHtml(d.distributor_id)+'">'+escapeHtml(d.distributor_name)+'</option>'; }).join(''));
       if (dist) setValue('pickupDistributor',dist);
+      populateCashDepositForm(result);
+      renderCashDeposits(result.cashDeposits || []);
       if (!getValue('pickupDate')) setValue('pickupDate',getLocalDateInputValue());
       var body = document.getElementById('pickupItems');
       if (body && !body.children.length) addPickupRow();
@@ -33,7 +35,7 @@
   function stockPickupLoadError(message) {
     var state = stockUiState(); state.data = null;
     setText('pickupStatus','Data gagal dimuat. Klik Muat ulang.');
-    ['pickupHistoryRows','salesStockRows'].forEach(function(id) { setHtml(id,'<tr><td colspan="7" class="text-muted">Data belum berhasil dimuat.</td></tr>'); });
+    ['pickupHistoryRows','salesStockRows','cashDepositRows'].forEach(function(id) { setHtml(id,'<tr><td colspan="7" class="text-muted">Data belum berhasil dimuat.</td></tr>'); });
     showToast(message || 'Gagal membaca stok pegangan.','error');
   }
   function populateStockSource(select,value) {
@@ -95,17 +97,20 @@
     row.innerHTML = '<td><select class="form-control pickup-product" required><option value="">Pilih produk</option>'+state.data.products.filter(function(p) { return normalizeKey(p.status || 'ACTIVE') === 'ACTIVE'; }).map(function(p) { return '<option value="'+escapeHtml(p.product_id)+'">'+escapeHtml(p.product_name)+'</option>'; }).join('')+'</select></td><td><input class="form-control pickup-qty" style="width:90px" type="number" value="1" min="1" step="1" required oninvalid="updateTransactionQuantityValidity(this)" oninput="updateTransactionQuantityValidity(this)"></td><td><button class="btn btn-danger-soft btn-sm" type="button" onclick="this.closest(\'tr\').remove()">Hapus</button></td>';
     body.appendChild(row);
   }
-  function preparePickupPhoto(input) {
-    var state = stockUiState(), file = input.files && input.files[0], version = (state.photoVersion || 0)+1; state.photoVersion=version; state.photo = ''; state.photoBusy=false;
-    if (!file) { setText('pickupPhotoStatus','Foto opsional'); return; }
-    if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 15000000) { input.value=''; showToast('Pilih foto JPEG/PNG/WebP maksimal 15 MB sebelum kompresi.','error'); return; }
-    state.photoBusy = true; setText('pickupPhotoStatus','Menyiapkan foto…');
+  function preparePickupPhoto(input,kind) {
+    var deposit = kind === 'DEPOSIT', state = stockUiState(), file = input.files && input.files[0];
+    var photoKey = deposit ? 'depositPhoto' : 'photo', busyKey = deposit ? 'depositPhotoBusy' : 'photoBusy', versionKey = deposit ? 'depositPhotoVersion' : 'photoVersion';
+    var statusId = deposit ? 'depositPhotoStatus' : 'pickupPhotoStatus', version = (state[versionKey] || 0)+1;
+    state[versionKey]=version; state[photoKey]=''; state[busyKey]=false;
+    if (!file) { setText(statusId,'Foto opsional'); return; }
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 15000000) { input.value=''; setText(statusId,'Pilih ulang foto yang valid.'); showToast('Pilih foto JPEG/PNG/WebP maksimal 15 MB sebelum kompresi.','error'); return; }
+    state[busyKey]=true; setText(statusId,'Menyiapkan foto…');
     var generation = typeof kchAuthGeneration === 'number' ? kchAuthGeneration : 0;
     readAndCompressPickupPhoto(file,function(err,data) {
-      if (generation !== (typeof kchAuthGeneration === 'number' ? kchAuthGeneration : 0) || state !== appState.stockPickup || version !== state.photoVersion) return;
-      state.photoBusy = false;
-      if (err) { input.value=''; setText('pickupPhotoStatus','Foto gagal diproses; pilih ulang atau lanjut tanpa foto.'); showToast(err,'error'); return; }
-      state.photo = data; setText('pickupPhotoStatus','Foto siap dilampirkan');
+      if (generation !== (typeof kchAuthGeneration === 'number' ? kchAuthGeneration : 0) || state !== appState.stockPickup || version !== state[versionKey]) return;
+      state[busyKey]=false;
+      if (err) { input.value=''; setText(statusId,'Foto gagal diproses; pilih ulang atau lanjut tanpa foto.'); showToast(err,'error'); return; }
+      state[photoKey]=data; setText(statusId,'Foto siap dilampirkan');
     });
   }
   function readAndCompressPickupPhoto(file,callback) {
@@ -129,10 +134,38 @@
     try {payload.requestId=previous?previous.requestId:txClientNewId();appState.pendingTransaction={requestId:payload.requestId,payload:payload};txClientStore(appState.pendingTransaction);}catch(err){appState.pendingTransaction=previous||null;showToast('Pengambilan belum dikirim. Izinkan penyimpanan sesi browser.','error');return;}
     txClientSend(payload);
   }
-  function openPickupProof(id) {
+  function populateCashDepositForm(data) {
+    var selectedSales=getValue('depositSales'), selectedDist=getValue('depositDistributor');
+    setHtml('depositSales','<option value="">Pilih sales penyetor</option>'+data.sales.filter(function(row){return normalizeKey(row.status||'ACTIVE')==='ACTIVE';}).map(function(row){return '<option value="'+escapeHtml(row.sales_id)+'">'+escapeHtml(row.full_name)+'</option>';}).join(''));
+    setHtml('depositDistributor','<option value="">Pilih distributor</option>'+data.distributors.filter(function(row){return normalizeKey(row.status||'ACTIVE')==='ACTIVE';}).map(function(row){return '<option value="'+escapeHtml(row.distributor_id)+'">'+escapeHtml(row.distributor_name)+'</option>';}).join(''));
+    if(selectedSales)setValue('depositSales',selectedSales);if(selectedDist)setValue('depositDistributor',selectedDist);
+    if(!getValue('depositDate'))setValue('depositDate',getLocalDateInputValue());
+  }
+  function renderCashDeposits(rows) {
+    setHtml('cashDepositRows',rows.map(function(row){return '<tr><td>'+escapeHtml(formatDateIndo(row.deposit_date))+'</td><td>'+escapeHtml(row.sales_name)+'</td><td>'+escapeHtml(row.distributor_name)+'</td><td class="text-right font-semibold">'+formatRupiah(row.amount)+'</td><td style="white-space:pre-wrap;overflow-wrap:anywhere">'+escapeHtml(row.notes||'—')+'</td><td>'+(row.photo_file_id?'<button type="button" class="btn btn-outline btn-sm" onclick="openPickupProof(\''+escapeHtml(jsQuote(row.deposit_id))+'\',\'DEPOSIT\')">Lihat foto</button>':'—')+'</td></tr>';}).join('')||'<tr><td colspan="6" class="text-muted">Belum ada catatan setoran.</td></tr>');
+  }
+  function resetCashDepositForm() {
+    var state=stockUiState();state.depositPhotoVersion=(state.depositPhotoVersion||0)+1;state.depositPhoto='';state.depositPhotoBusy=false;
+    ['depositSales','depositDistributor','depositAmount','depositNotes','depositPhoto'].forEach(function(id){setValue(id,'');});setValue('depositDate',getLocalDateInputValue());setText('depositPhotoStatus','Foto opsional');
+  }
+  function submitCashDeposit(event) {
+    if(event)event.preventDefault();
+    if(!appState.user||appState.user.role!=='ADMIN'){showToast('Hanya admin yang boleh mencatat setoran.','error');return;}
+    var state=stockUiState(), previous=appState.pendingTransaction;
+    if(state.depositPhotoBusy||appState.isSubmittingTransaction||previous&&previous.payload){showToast('Tunggu proses atau periksa kiriman sebelumnya.','info');return;}
+    var amount=Number(getValue('depositAmount')), cents=Math.round(amount*100);
+    if(!Number.isFinite(amount)||amount<=0||!Number.isSafeInteger(cents)||Math.abs(amount*100-cents)>0.00001){showToast('Nominal setoran harus lebih dari nol dengan maksimal dua desimal.','error');return;}
+    var payload={operation:'DEPOSIT',date:getValue('depositDate'),salesId:getValue('depositSales'),distributor:getValue('depositDistributor'),amount:amount,notes:getValue('depositNotes'),photo:state.depositPhoto||''};
+    if(!payload.date||!payload.salesId||!payload.distributor){showToast('Lengkapi tanggal, sales dan distributor setoran.','error');return;}
+    try{payload.requestId=previous?previous.requestId:txClientNewId();appState.pendingTransaction={requestId:payload.requestId,payload:payload};txClientStore(appState.pendingTransaction);}catch(err){appState.pendingTransaction=previous||null;showToast('Setoran belum dikirim. Izinkan penyimpanan sesi browser.','error');return;}
+    txClientSend(payload);
+  }
+  function openPickupProof(id,kind) {
     var state=stockUiState(),version=(state.proofSeq||0)+1;state.proofSeq=version;
     setStyle('modalPickupProof','display','flex');setText('pickupProofStatus','Sedang memuat foto');
     var image=document.getElementById('pickupProofImage');image.removeAttribute('src');image.hidden=true;
-    kchRun().withSuccessHandler(function(res){if(state!==appState.stockPickup||version!==state.proofSeq)return;setText('pickupProofStatus','');image.src=res.dataUrl;image.hidden=false;}).withFailureHandler(function(err){if(state===appState.stockPickup)setText('pickupProofStatus',err.message||'Foto gagal dimuat.');}).getStockPickupEvidence(id);
+    var runner=kchRun().withSuccessHandler(function(res){if(state!==appState.stockPickup||version!==state.proofSeq)return;setText('pickupProofStatus','');image.src=res.dataUrl;image.hidden=false;}).withFailureHandler(function(err){if(state===appState.stockPickup&&version===state.proofSeq)setText('pickupProofStatus',err.message||'Foto gagal dimuat.');});
+    if (kind === 'DEPOSIT') runner.getSalesCashDepositEvidence(id);
+    else runner.getStockPickupEvidence(id);
   }
 </script>

@@ -863,6 +863,24 @@
             <div style="display:flex;justify-content:flex-end;margin-top:16px"><button type="submit" class="btn btn-primary" id="btnSubmitPickup">Simpan pengambilan</button></div>
           </fieldset></form></div>
           <div class="table-card" style="margin-bottom:20px"><div class="card-header-clean"><div class="card-title">Stok Pegangan Sales</div></div><div class="table-responsive"><table class="app-table"><thead><tr><th>Sales</th><th>Produk</th><th>Distributor asal</th><th class="text-right">Sisa</th></tr></thead><tbody id="salesStockRows"></tbody></table></div></div>
+          <div class="table-card" id="cashDepositWidget" style="margin-bottom:20px">
+            <div class="card-header-clean"><div><div class="card-title">Setoran Pegangan Sales</div><div class="card-subtitle">Catatan uang hasil penjualan yang disetorkan. Tidak menambah pencapaian atau mengubah stok.</div></div></div>
+            <div style="padding:0 20px 20px">
+              <div id="depositRequestStatus" style="display:none;padding:12px;border:1px solid #fed7aa;background:#fff7ed;border-radius:10px;margin-bottom:14px"><p id="depositRequestStatusText" role="status" aria-live="polite"></p><code id="depositRequestCode" style="display:block;overflow-wrap:anywhere"></code><button type="button" class="btn btn-outline btn-sm" id="btnCheckDepositRequest" onclick="checkPendingSalesTransaction()">Periksa hasil</button><button type="button" class="btn btn-primary btn-sm" id="btnRetryDepositRequest" style="display:none" onclick="retryPendingSalesTransaction()">Coba simpan lagi</button></div>
+              <form data-kch-write onsubmit="submitCashDeposit(event)"><fieldset id="cashDepositFormFields" style="border:0;padding:0;margin:0;min-width:0">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:16px">
+                  <div class="form-group"><label class="form-label" for="depositDate">Tanggal setoran</label><input class="form-control" type="date" id="depositDate" required></div>
+                  <div class="form-group"><label class="form-label" for="depositSales">Sales penyetor</label><select class="form-control" id="depositSales" required></select></div>
+                  <div class="form-group"><label class="form-label" for="depositDistributor">Distributor</label><select class="form-control" id="depositDistributor" required></select></div>
+                  <div class="form-group"><label class="form-label" for="depositAmount">Nominal setoran (Rp)</label><input class="form-control" type="number" inputmode="decimal" min="0.01" step="0.01" id="depositAmount" placeholder="Contoh: 100000" required oninput="this.setCustomValidity('')" oninvalid="this.setCustomValidity('Masukkan nominal setoran lebih dari nol, maksimal dua desimal.')"><small class="text-muted">Isi tanpa pemisah ribuan.</small></div>
+                </div>
+                <div class="form-group" style="margin-top:12px"><label class="form-label" for="depositNotes">Catatan (opsional)</label><textarea class="form-control" id="depositNotes" rows="2" maxlength="1000" placeholder="Contoh: setoran tunai atau nomor referensi transfer"></textarea></div>
+                <div class="form-group" style="margin-top:12px"><label class="form-label" for="depositPhoto">Foto bukti setoran (opsional)</label><input class="form-control" type="file" id="depositPhoto" accept="image/jpeg,image/png,image/webp" onchange="preparePickupPhoto(this,'DEPOSIT')"><small class="text-muted" id="depositPhotoStatus">Foto opsional</small></div>
+                <div style="display:flex;justify-content:flex-end;margin:16px 0"><button type="submit" class="btn btn-primary" id="btnSubmitDeposit">Simpan setoran</button></div>
+              </fieldset></form>
+              <div class="table-responsive"><table class="app-table"><thead><tr><th>Tanggal</th><th>Sales</th><th>Distributor</th><th class="text-right">Nominal</th><th>Catatan</th><th>Bukti</th></tr></thead><tbody id="cashDepositRows"><tr><td colspan="6" class="text-muted">Sedang memuat data</td></tr></tbody></table></div>
+            </div>
+          </div>
           <div class="table-card"><div class="card-header-clean"><div class="card-title">Riwayat Pengambilan</div></div><div class="table-responsive"><table class="app-table"><thead><tr><th>ID</th><th>Tanggal</th><th>Sales</th><th>Distributor asal</th><th>Produk</th><th>Jumlah</th><th>Bukti</th></tr></thead><tbody id="pickupHistoryRows"></tbody></table></div></div>
         </section>
 
@@ -1545,7 +1563,7 @@
     </div>
   </div>
 
-  <div class="modal-backdrop" id="modalPickupProof" style="display:none" onclick="this.style.display='none';document.getElementById('pickupProofImage').removeAttribute('src')"><div class="modal-dialog" onclick="event.stopPropagation()"><div class="modal-header"><h3 class="modal-title">Bukti pengambilan</h3><button type="button" class="btn-modal-close" onclick="document.getElementById('modalPickupProof').style.display='none';document.getElementById('pickupProofImage').removeAttribute('src')">&times;</button></div><div class="modal-body"><p id="pickupProofStatus"></p><img id="pickupProofImage" alt="Bukti pengambilan barang" style="max-width:100%" hidden></div></div></div>
+  <div class="modal-backdrop" id="modalPickupProof" style="display:none" onclick="this.style.display='none';document.getElementById('pickupProofImage').removeAttribute('src')"><div class="modal-dialog" onclick="event.stopPropagation()"><div class="modal-header"><h3 class="modal-title">Bukti pengambilan / setoran</h3><button type="button" class="btn-modal-close" onclick="document.getElementById('modalPickupProof').style.display='none';document.getElementById('pickupProofImage').removeAttribute('src')">&times;</button></div><div class="modal-body"><p id="pickupProofStatus"></p><img id="pickupProofImage" alt="Bukti pengambilan barang atau setoran uang" style="max-width:100%" hidden></div></div></div>
   <div class="toast-box" id="toastBox"></div>
 
   <?!= include_('js'); ?>
