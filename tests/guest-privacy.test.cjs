@@ -15,3 +15,10 @@ test('private native sheets and account operations stay inaccessible even when a
  const e=env();e.actor({role:'GUEST'});for(const name of ['listAccessUsers','saveGuestCredentials','setupArsipBulanan','setupKchSheetUpdates','siapkanAwalNovember','checkKchTransactionSetup'])assert.throws(()=>e.c.kchApi('T',name,[]),/ACCESS_DENIED/);
  e.c.KCH_REQUEST_USER_={role:'GUEST'};for(const name of ['ACCESS_USERS','USERS','PEMBARUAN_SHEET','SKOR_EVENTS','_KCH_MONTHLY_ARCHIVES','_KCH_ARCHIVE_ROWS','_KCH_TX_REQUESTS','_KCH_TX_EDITS'])assert.equal(e.c.filterAuthorizedRows_(name,[{password:'PRIVATE'}]).length,0,name);
 });
+test('guest metadata and raw stock responses omit all sales contacts and internal documents; admin retains them',()=>{
+ const e=env(),payload={success:true,sales:[{sales_id:'S1',full_name:'Sales One',phone:'08123456789',email:'sales@private',no_hp:'0811111111',whatsapp:'0822222222'}],attendanceSales:[{sales_id:'S1',email:'staff@private'}],files:[{file_name:'Internal payroll',drive_url:'https://private.example/document'}],products:[{product_id:'P1'}]};
+ e.c.getInitialAppMetadata_=()=>payload;e.c.getStockPickupData_=()=>payload;
+ e.actor({role:'GUEST'});for(const method of ['getInitialAppMetadata','getStockPickupData']){const r=e.c.kchApi('T',method,[]);assert.equal(r.files.length,0);assert.equal(r.sales[0].full_name,'Sales One');assert.equal(r.products[0].product_id,'P1');assert.ok(!JSON.stringify(r).includes('08123456789'));assert.ok(!JSON.stringify(r).includes('@private'));assert.ok(!JSON.stringify(r).includes('0811111111'));assert.ok(!JSON.stringify(r).includes('0822222222'));assert.ok(!JSON.stringify(r).includes('private.example'));}
+ e.actor({role:'ADMIN'});assert.equal(e.c.kchApi('T','getInitialAppMetadata',[]).files[0].drive_url,'https://private.example/document');assert.equal(e.c.kchApi('T','getStockPickupData',[]).sales[0].phone,'08123456789');
+ e.c.KCH_REQUEST_USER_={role:'GUEST'};assert.equal(e.c.filterAuthorizedRows_('FILES',[{drive_url:'PRIVATE'}]).length,0);
+});

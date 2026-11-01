@@ -146,3 +146,8 @@ test('archive table privacy removes private columns and snapshot references for 
  e.actor({role:'GUEST'});const list=e.c.kchApi('T','getMonthlyArchives',[]);assert.equal(list.canOpenSnapshot,false);assert.ok(!JSON.stringify(list).includes('snapshot-'));assert.ok(!Object.hasOwn(list.months[0],'snapshotUrl'));
  const guest=e.c.kchApi('T','getMonthlyArchiveTable',['2026-10','SALES_TRANSACTIONS',1]);for(const header of ['backup_url','password_hash','created_by'])assert.ok(!guest.headers.includes(header));assert.ok(!JSON.stringify(guest).includes('PRIVATE-'));assert.equal(guest.total,1);
 });
+test('guest archive rows omit structured contact columns while admin still sees their original values',()=>{
+ const e=prepare();e.rows('SALES_TRANSACTIONS')[0].push('phone','email','no_hp');e.rows('SALES_TRANSACTIONS')[1].push('08123456789','staff@private','08234567890');e.run();
+ assert.ok(e.c.kchApi('T','getMonthlyArchiveTable',['2026-10','SALES_TRANSACTIONS',1]).headers.includes('phone'));
+ e.actor({role:'GUEST'});const r=e.c.kchApi('T','getMonthlyArchiveTable',['2026-10','SALES_TRANSACTIONS',1]);for(const h of ['phone','email','no_hp'])assert.ok(!r.headers.includes(h));assert.ok(!JSON.stringify(r).includes('staff@private'));assert.ok(!JSON.stringify(r).includes('08123456789'));
+});

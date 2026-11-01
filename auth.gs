@@ -206,7 +206,7 @@ function kchGuestPrivateField_(name) {
   var key=String(name||'').replace(/[^a-z0-9]/gi,'').toLowerCase();
   if (key==='canopensnapshot') return false;
   return String(name).charAt(0)==='_' || /password|credential|secret|token|salt|hash|snapshot|backup/.test(key) ||
-    ['actor','actoremail','actoruid','actorrole','createdby','updatedby','revision','previousid','requestkey','requestid','planjson','resultjson'].indexOf(key)>=0;
+    ['email','emailaddress','phone','phonenumber','telephone','telepon','telpon','telp','notelp','nohp','nomorhp','nomortelepon','whatsapp','contactphone','contactemail','mobile','mobilenumber','mobilephone','tel','telephonenumber','nomortelp','notelpon','nomortelpon','nomorwhatsapp','wa','driveurl','linkfile','actor','actoremail','actoruid','actorrole','createdby','updatedby','revision','previousid','requestkey','requestid','planjson','resultjson'].indexOf(key)>=0;
 }
 function kchGuestView_(value) {
   if(value===null || typeof value!=='object')return value;
@@ -214,7 +214,7 @@ function kchGuestView_(value) {
   var safe={};
   Object.keys(value).forEach(function(key){
     if(kchGuestPrivateField_(key))return;
-    safe[key]=key==='recentActivities'?[]:kchGuestView_(value[key]);
+    safe[key]=['recentActivities','files'].indexOf(key)>=0?[]:kchGuestView_(value[key]);
   });
   return safe;
 }
@@ -223,7 +223,7 @@ function filterAuthorizedRows_(sheetName, rows) {
   var user = KCH_REQUEST_USER_;
   if (!user || user.role === 'ADMIN') return rows;
   if (['USERS', 'ACCESS_USERS', 'SKOR_EVENTS', 'PEMBARUAN_SHEET'].indexOf(sheetName) >= 0 || sheetName.indexOf('_KCH_') === 0) return [];
-  if (user.role === 'GUEST') return sheetName === 'ACTIVITY_LOGS' ? [] : rows;
+  if (user.role === 'GUEST') return ['ACTIVITY_LOGS','FILES'].indexOf(sheetName)>=0 ? [] : rows;
   if (['SALES', 'SALES_TRANSACTIONS', 'ATTENDANCE', 'VISIT_PHOTOS', 'TODAY_PLAN'].indexOf(sheetName) >= 0) {
     return rows.filter(function(row) { return normalizeKey_(row.sales_id) === normalizeKey_(user.salesId); });
   }

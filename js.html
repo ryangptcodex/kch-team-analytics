@@ -280,6 +280,7 @@
   }
 
   function switchView(viewName) {
+    if (viewName === 'dokumen' && (!appState.user || appState.user.role !== 'ADMIN')) { showToast('Dokumen internal hanya tersedia untuk Admin.', 'error'); return; }
     if (appState.user && appState.user.role === 'GUEST' && viewName === 'input-tx') { showToast('Akun Tamu hanya boleh melihat data.', 'error'); return; }
     appState.currentView = viewName;
 
@@ -2977,10 +2978,10 @@
           '<div class="profile-metric-item"><span class="profile-metric-title">Status</span><span class="profile-hk-badge"><i class="fa-solid fa-circle-check"></i> ' + escapeHtml(s.status || 'ACTIVE') + '</span></div>' +
         '</div>' +
         '<div class="profile-card-footer">' +
-          '<div class="profile-contact-group">' +
+          (appState.user && appState.user.role==='ADMIN' ? '<div class="profile-contact-group">' +
             '<a class="profile-contact-btn btn-wa-action" href="' + escapeHtml(waHref) + '" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i></a>' +
             '<a class="profile-contact-btn btn-email-action" href="' + escapeHtml(mailHref) + '"><i class="fa-regular fa-envelope"></i></a>' +
-          '</div>' +
+          '</div>' : '') +
           '<div class="profile-attendance-status" title="Jumlah tanggal absensi hadir yang berbeda pada bulan ini"><i class="fa-regular fa-calendar-check" aria-hidden="true"></i> ' + escapeHtml(hk) + '</div>' +
         '</div>' +
       '</div>';
@@ -2998,6 +2999,7 @@
     renderSalesProfiles();
   }
 function renderDriveFiles() {
+    if (!appState.user || appState.user.role!=='ADMIN') { appState.files=[];setHtml('driveFilesGridContainer','');return; }
     var container = document.getElementById('driveFilesGridContainer');
     if (!container) return;
     var keyword = String(getValue('fileSearchInput') || '').toLowerCase().trim();

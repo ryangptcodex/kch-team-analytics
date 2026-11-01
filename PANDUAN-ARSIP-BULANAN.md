@@ -75,11 +75,23 @@ Revisi mengosongkan nilai baris lama setelah menyimpannya di arsip, tanpa mengha
 
 ## Privasi Admin dan Tamu
 
-Paket penguatan privasi mengganti **3 file**: [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth.gs), [monthly-archives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/monthly-archives.gs), dan [archive-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/archive-client.html). Salin isi lengkap, Simpan, refresh `/dev`; untuk `/exec`, terapkan Versi baru pada deployment yang sama. Tidak perlu Perbarui Sheet atau menjalankan arsip lagi hanya untuk revisi privasi ini.
+Paket penguatan privasi awal mengganti **3 file**: [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth.gs), [monthly-archives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/monthly-archives.gs), dan [archive-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/archive-client.html). Salin isi lengkap, Simpan, refresh `/dev`; untuk `/exec`, terapkan Versi baru pada deployment yang sama. Tidak perlu Perbarui Sheet atau menjalankan arsip lagi hanya untuk revisi privasi ini.
 
 - Tamu tidak menerima properti URL salinan/snapshot sama sekali dari server. Link “Buka salinan spreadsheet lengkap” hanya dibuat bila peran UI **ADMIN** dan izin server **canOpenSnapshot** bernilai true. Mengubah tombol/peran tampilan dari browser tidak memberi URL dari server.
 - Tamu tidak dapat meminta tabel akun/password, kontrol pembaruan, jurnal transaksi/edit, log aktivitas, tabel internal arsip atau payload AA/branding mentah. Pengelolaan akun, seluruh input/edit dan fungsi native Admin tetap ditolak server.
 - Respons RPC Tamu disaring rekursif agar hash/password, token/secret, URL backup/snapshot, metadata pelaku pencatatan, revisi edit dan array sel mentah tidak ikut terkirim. Tabel arsip juga menyaring kolom privat sebelum dikirim. Log aktivitas dashboard tidak dikirim ke Tamu.
 - Data laporan bisnis, nominal/kuantitas, saldo, pencapaian, Skor, Insentif dan foto bukti yang boleh dibaca tetap tersedia. Data sumber tidak ditulis ulang atau dihapus oleh penyaringan ini; Admin tetap memperoleh datanya.
 
-Klasifikasi tambahan untuk **kontak sales dan tautan dokumen FILES** masih menunggu pilihan pengguna; revisi ini belum mengubah izin baca kedua fitur tersebut. Pembatasan ini berlaku pada akses webapp dan bukan perubahan izin berbagi file Google Drive secara langsung.
+Pengguna sudah mengonfirmasi **kontak sales dan dokumen internal khusus Admin**. Paket privasi lengkap sekarang **5 file**:
+
+1. [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth.gs)
+2. [monthly-archives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/monthly-archives.gs)
+3. [archive-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/archive-client.html)
+4. [auth-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth-client.html)
+5. [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/js.html)
+
+Ganti seluruh isi lewat Copy raw file, Simpan, refresh `/dev`; untuk `/exec`, terapkan Versi baru. Jika 3 file privasi awal sudah dipasang, perlu mengganti **auth.gs sekali lagi**, ditambah **auth-client.html dan js.html**. Tidak perlu Perbarui Sheet atau mengarsipkan ulang.
+
+Field telepon/email sales dan alias kontak umum dihapus dari respons RPC Tamu, termasuk metadata profil, data stok mentah dan kolom tambahan arsip. Tamu tidak menerima daftar FILES maupun URL dokumen internal. Tombol WhatsApp/email tidak dibuat untuk Tamu; menu/view Arsip Dokumen disembunyikan dan navigasi langsung diblokir. Merender dokumen langsung dari browser juga membersihkan daftar, sehingga perubahan tampilan tidak memberi akses ke data server.
+
+Admin tetap mendapat kontak, tombol dan dokumen seperti sebelumnya. Tamu tetap melihat nama/tim/profil kinerja serta laporan/arsip bisnis dan foto bukti yang diizinkan. Data asli tidak dihapus. Pembatasan ini berlaku pada akses webapp dan bukan perubahan izin berbagi file Google Drive secara langsung.

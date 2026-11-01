@@ -234,6 +234,10 @@
   }
 
   function installKchAccountActions(user) {
+    var documentsNav=document.getElementById('nav-dokumen');
+    if(documentsNav)documentsNav.style.display=user.role==='ADMIN'?'':'none';
+    var documentsView=document.getElementById('view-dokumen');
+    if(documentsView)documentsView.hidden=user.role!=='ADMIN';
     if (document.body) { if (user.role === 'GUEST') document.body.classList.add('kch-readonly'); else document.body.classList.remove('kch-readonly'); }
     var roleLabel = document.querySelector('.user-role-header');
     if (roleLabel) roleLabel.textContent = user.role === 'ADMIN' ? 'TEAM LEADER' : user.role === 'GUEST' ? 'Tamu' : 'Sales';
