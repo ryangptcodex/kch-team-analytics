@@ -1,0 +1,6 @@
+{"case":"future attendance accepted","observedSuccess":true,"status":"Hadir Tepat Waktu","sharing":"ANYONE_WITH_LINK"}
+{"case":"impossible Gregorian attendance date accepted","observedSuccess":true,"storedISO":"2026-12-01"}
+{"case":"photo write acknowledged as failed after append","observedSuccess":false,"persistedAttendanceRows":1,"referencedPhotoTrashed":true}
+{"case":"successful guest logins exhaust shared ten-minute limiter","successfulLogins":20,"nextCorrectLoginBlocked":true}
+{"case":"export wrapper masks source read error","observedSuccess":true,"returnedRows":0}
+{"case":"legacy database mutators still exposed in Sheet menu","callbacks":["setupSalesTransactionsUnifiedSheet_","setupInventorySheetStructure_","purgeObsoleteColumnsAndSheets_","syncProductsToInventory_"]}
