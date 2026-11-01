@@ -257,6 +257,7 @@ function saveAccessUser_(payload) {
 
 function kchApi(token, method, args) {
   var handlers = {
+    getMonthlyArchives:function(){return getMonthlyArchives_();}, getMonthlyArchiveTable:function(month,name,page){return getMonthlyArchiveTable_(month,name,page);},
     getIncentiveSetup: function() { return getIncentiveSetup_(); },
     getIncentiveReport: function(month, salesId) { return getIncentiveReport_(month, salesId); },
     getScoreTeamSummary: function(month) { return getScoreTeamSummary_(month); },
@@ -288,7 +289,7 @@ function kchApi(token, method, args) {
   try {
     KCH_REQUEST_USER_ = typeof token === 'string' && token.indexOf('KCHG_') === 0 ? resolveGuestSession_(token) : resolveAccessUser_(verifyFirebaseIdentity_(token));
     var user = getCurrentUserInfo_();
-    var guestReads = ['getSalesCashDepositEvidence', 'getStockPickupData', 'getStockPickupEvidence', 'getAuthProfile', 'getInitialAppMetadata', 'getDashboardMetrics',
+    var guestReads = ['getMonthlyArchives','getMonthlyArchiveTable','getSalesCashDepositEvidence', 'getStockPickupData', 'getStockPickupEvidence', 'getAuthProfile', 'getInitialAppMetadata', 'getDashboardMetrics',
       'getAttendanceByDate', 'getVisitPhotosByDate', 'getTodayPlans', 'getWeeklyMeetings', 'getKchNews',
       'getTransactionsPaginated', 'getTransactionDetail', 'getAllTransactionsForExport', 'getMonthlyTeamReport',
       'getScoreSetup', 'getScoreReport', 'getScoreTeamSummary', 'getIncentiveSetup', 'getIncentiveReport'];
@@ -309,6 +310,7 @@ function kchApi(token, method, args) {
       args[0] = 'CLIENT_' + String(args[0] || '').slice(0, 100);
       args[3] = user.email;
     }
+    if (/^(save|edit|archive)/.test(method) && typeof archivePendingGuard_ === 'function') archivePendingGuard_();
     var result = handlers[method].apply(null, args);
     if (method === 'saveSalesPhotoUpload' && result.success) {
       logActivity_(user.email, 'UPLOAD_' + String(args[1]).toUpperCase(), args[0].salesId,

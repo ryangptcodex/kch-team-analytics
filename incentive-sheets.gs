@@ -71,7 +71,7 @@ function kchIncentiveSheetRows_(data) {
       month = n === 12 ? String(y+1)+'-01' : String(y)+'-'+('0'+(n+1)).slice(-2);
     }
   });
-  return result;
+  return typeof archiveReportRows_ === 'function' ? archiveReportRows_(result) : result;
 }
 
 function kchIncentiveSyncPlan_(ss, meta, ctx) {

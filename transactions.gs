@@ -190,6 +190,7 @@ function txPlan_(ctx, meta, payload, user, transactionId, requestId, options) {
   if (payload.notes !== undefined && typeof payload.notes !== 'string') throw new Error('Catatan transaksi tidak valid.');
   var notes = String(payload.notes || '').trim();
   if (notes.length > 2000) throw new Error('Catatan maksimal 2.000 karakter.');
+  if (typeof archiveAssertOpenDate_ === 'function') archiveAssertOpenDate_(date);
   var names = ['SALES', 'PRODUCTS', 'PRICE_MASTER', 'DISTRIBUTORS', 'INVENTORY'];
   names.forEach(function(name) { if (!meta[name]) throw new Error('Sheet ' + name + ' belum tersedia.'); });
   var optional = ['SALES_TRANSACTIONS', 'INVENTORY_MOVEMENTS', 'ACTIVITY_LOGS', 'SALES_STOCK', 'SALES_STOCK_MOVEMENTS'].filter(function(name) { return !!meta[name]; });

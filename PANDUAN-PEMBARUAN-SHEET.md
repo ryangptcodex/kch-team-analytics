@@ -1,3 +1,5 @@
+> **Digantikan untuk pergantian bulan:** gunakan [PANDUAN-ARSIP-BULANAN.md](PANDUAN-ARSIP-BULANAN.md). Histori kini diarsipkan; fungsi reset launch lama tidak lagi menghapus data pada kode terbaru.
+
 > **Persiapan launch November sekali:** lihat [PANDUAN-AWAL-NOVEMBER.md](PANDUAN-AWAL-NOVEMBER.md). Mode ini hanya aktif setelah menjalankan `siapkanAwalNovember`; pemakaian A3 biasa tetap mempertahankan data sumber.
 
 > **Pembaruan terbaru:** tombol Perbarui kini juga membuat dan mengisi tiga sheet hasil Insentif. Pasang paket pada [PANDUAN-SINKRON-INSENTIF.md](PANDUAN-SINKRON-INSENTIF.md); penjelasan lama bahwa Insentif hanya membaca/tidak mempunyai sheet digantikan untuk fungsi pembaruan spreadsheet. Halaman webapp tetap hanya membaca.

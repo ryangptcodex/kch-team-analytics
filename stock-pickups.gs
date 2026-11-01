@@ -20,6 +20,7 @@ function stockDate_(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || normalizeDateString_(value).slice(0,10) !== value) throw new Error('Tanggal tidak valid.');
   var parts = value.split('-').map(Number);
   if (parts[2] < 1 || parts[2] > new Date(Date.UTC(parts[0],parts[1],0)).getUTCDate() || parts[1] < 1 || parts[1] > 12 || value > Utilities.formatDate(new Date(),TIMEZONE,'yyyy-MM-dd')) throw new Error('Tanggal tidak valid atau di masa depan.');
+  if (typeof archiveAssertOpenDate_ === 'function') archiveAssertOpenDate_(value);
   return value;
 }
 function stockDistributorKey_(name) {
@@ -171,6 +172,7 @@ function getStockPickupData_() {
 function getStockPickupEvidence_(id) {
   var data = getStockPickupData_();
   var row = data.pickups.filter(function(r) { return r.pickup_id === id; })[0];
+  if (!row && typeof archiveFindEvidence_ === 'function') row=archiveFindEvidence_('STOCK_PICKUPS',id);
   if (!row || !row.photo_file_id) throw new Error('Bukti foto tidak ditemukan.');
   return stockEvidenceData_(row);
 }
@@ -214,5 +216,7 @@ function saveSalesCashDeposit_(payload) {
 }
 function getSalesCashDepositEvidence_(id) {
   var data = getStockPickupData_();
-  return stockEvidenceData_(data.cashDeposits.filter(function(row) { return row.deposit_id === id; })[0]);
+  var row=data.cashDeposits.filter(function(row) { return row.deposit_id === id; })[0];
+  if (!row && typeof archiveFindEvidence_ === 'function') row=archiveFindEvidence_('SALES_CASH_DEPOSITS',id);
+  return stockEvidenceData_(row);
 }

@@ -186,6 +186,10 @@ function formatVisitPhotoTime_(value) {
 }
 
 function getSheetData_(sheetName) {
+  if (typeof archiveEnabled_ === 'function' && archiveEnabled_() && ['SALES_TRANSACTIONS','ATTENDANCE'].indexOf(sheetName)>=0) return archiveHistoryObjects_(sheetName);
+  return getActiveSheetData_(sheetName);
+}
+function getActiveSheetData_(sheetName) {
   var ss = getKchSpreadsheet_();
   var sheet = ss.getSheetByName(sheetName);
   if (!sheet) return { headers: [], rows: [] };
@@ -1172,6 +1176,8 @@ function saveTodayPlan_(payload) {
     var lock = LockService.getScriptLock();
     lock.waitLock(30000);
     try {
+      if (typeof archivePendingGuard_ === 'function') archivePendingGuard_();
+      if (typeof archiveAssertOpenDate_ === 'function') archiveAssertOpenDate_(planDate);
       var sheet = getKchSpreadsheet_().getSheetByName('TODAY_PLAN') || setupTodayPlanSheet_();
       var headerMap = {};
       TODAY_PLAN_HEADERS.forEach(function(header, i) { headerMap[header] = i; });
@@ -1230,11 +1236,13 @@ function archiveTodayPlan_(planId) {
     var lock = LockService.getScriptLock();
     lock.waitLock(30000);
     try {
+      if (typeof archivePendingGuard_ === 'function') archivePendingGuard_();
       var sheet = getKchSpreadsheet_().getSheetByName('TODAY_PLAN') || setupTodayPlanSheet_();
       if (sheet.getLastRow() < 2) return { success: false, message: 'Rencana tidak ditemukan.' };
       var ids = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getDisplayValues();
       for (var i = 0; i < ids.length; i++) {
         if (String(ids[i][0] || '').trim() === planId) {
+          if (typeof archiveAssertOpenDate_ === 'function') archiveAssertOpenDate_(normalizeDateString_(sheet.getRange(i+2,2).getValue()));
           sheet.getRange(i + 2, 10).setValue('ARCHIVED');
           sheet.getRange(i + 2, 13).setValue(new Date()).setNumberFormat('dd/MM/yyyy HH:mm:ss');
           SpreadsheetApp.flush();
@@ -1304,6 +1312,8 @@ function saveWeeklyMeeting_(payload) {
     var lock = LockService.getScriptLock();
     lock.waitLock(30000);
     try {
+      if (typeof archivePendingGuard_ === 'function') archivePendingGuard_();
+      if (typeof archiveAssertOpenDate_ === 'function') archiveAssertOpenDate_(date);
       var sheet = getKchSpreadsheet_().getSheetByName('WEEKLY_MEETINGS') || setupWeeklyMeetingsSheet_();
       var headerMap = {};
       WEEKLY_MEETING_HEADERS.forEach(function(header, i) { headerMap[header] = i; });
@@ -1359,11 +1369,13 @@ function archiveWeeklyMeeting_(meetingId) {
     var lock = LockService.getScriptLock();
     lock.waitLock(30000);
     try {
+      if (typeof archivePendingGuard_ === 'function') archivePendingGuard_();
       var sheet = getKchSpreadsheet_().getSheetByName('WEEKLY_MEETINGS');
       if (!sheet || sheet.getLastRow() < 2) return { success: false, message: 'Hasil meeting tidak ditemukan.' };
       var ids = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getDisplayValues();
       for (var i = 0; i < ids.length; i++) {
         if (String(ids[i][0] || '').trim() === meetingId) {
+          if (typeof archiveAssertOpenDate_ === 'function') archiveAssertOpenDate_(normalizeDateString_(sheet.getRange(i+2,2).getValue()));
           sheet.getRange(i + 2, 7).setValue('ARCHIVED');
           sheet.getRange(i + 2, 10).setValue(new Date()).setNumberFormat('dd/MM/yyyy HH:mm:ss');
           SpreadsheetApp.flush();
@@ -1582,6 +1594,7 @@ function saveSalesPhotoUpload_(payload, photoType) {
 
   var uploadedFile = null;
   try {
+    if (typeof archivePendingGuard_ === 'function') archivePendingGuard_();
     payload = payload || {};
     var type = String(photoType || '').toLowerCase();
     if (type !== 'attendance' && type !== 'visit') throw new Error('Jenis foto tidak dikenali.');
@@ -1610,6 +1623,7 @@ function saveSalesPhotoUpload_(payload, photoType) {
     var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
     var valuesByHeader = {};
     var now = new Date();
+    if (typeof archiveAssertOpenDate_ === 'function') archiveAssertOpenDate_(dateStr);
     var dateParts = dateStr.split('-');
     var dateValue = new Date(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2]));
     var timeValue = Utilities.formatDate(now, TIMEZONE, 'HH:mm:ss');
@@ -1715,6 +1729,7 @@ function getTransactionsPaginated_(page, limit, searchKeyword, teamFilter, distF
         if (rowTeamNorm !== filterNorm) continue;
       }
       if (dateFilter && row.transaction_date !== dateFilter) continue;
+      if (!dateFilter && typeof archiveEnabled_ === 'function' && archiveEnabled_() && normalizeDateString_(row.transaction_date).slice(0,7)!==archiveMonth_()) continue;
 
       if (searchKeyword) {
         var matchId = txId.toLowerCase().indexOf(searchKeyword) > -1;
@@ -1728,6 +1743,7 @@ function getTransactionsPaginated_(page, limit, searchKeyword, teamFilter, distF
       if (!invoiceMap[txId]) {
         invoiceMap[txId] = {
           id: txId,
+          archived: typeof archiveEnabled_ === 'function' && archiveEnabled_() && normalizeDateString_(row.transaction_date).slice(0,7)<archiveMonth_(),
           date: row.transaction_date,
           salesId: row.sales_id,
           salesName: salesName,
@@ -1960,10 +1976,11 @@ function getMonthlyTeamReport_(reportMonth, salesId) {
       ];
     });
 
-    if (getCurrentUserInfo_().role !== 'GUEST') {
+    if (getCurrentUserInfo_().role !== 'GUEST' && !(typeof archiveEnabled_ === 'function' && archiveEnabled_() && reportMonth < archiveMonth_())) {
       var lock = LockService.getScriptLock();
       lock.waitLock(30000);
       try {
+        if (typeof archivePendingGuard_ === 'function') archivePendingGuard_();
         var reportSheet = setupMonthlyTeamReportSheet_();
         var existing = getSheetData_('MONTHLY_TEAM_REPORT').rows;
         var retainedRows = existing.filter(function(row) {

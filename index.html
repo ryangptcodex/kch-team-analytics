@@ -49,6 +49,7 @@
           <span>Input Penjualan</span>
         </a>
         <a href="javascript:void(0)" class="nav-item" id="nav-pengambilan" onclick="switchView('pengambilan')"><i class="fa-solid fa-boxes-packing nav-icon"></i><span>Pengambilan Barang</span></a>
+        <a href="javascript:void(0)" class="nav-item" id="nav-arsip-bulanan" onclick="switchView('arsip-bulanan')"><i class="fa-solid fa-box-archive nav-icon"></i><span>Arsip Bulanan</span></a>
         <a href="javascript:void(0)" class="nav-item" id="nav-riwayat" onclick="switchView('riwayat')">
           <i class="fa-solid fa-receipt nav-icon"></i>
           <span>Riwayat Transaksi</span>
@@ -851,6 +852,15 @@
           </div>
         </section>
 
+        <section class="content-view" id="view-arsip-bulanan">
+          <div class="page-header"><h2>Arsip Bulanan</h2><p>Data bulan yang sudah selesai tetap tersimpan. Master dan saldo stok diteruskan ke bulan berjalan.</p></div>
+          <div class="chart-card" style="min-width:0;max-width:100%;overflow:hidden"><div style="min-width:0">
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px"><label style="max-width:100%">Bulan<select id="archiveMonth" class="form-control" onchange="loadMonthlyArchiveTable(1)"><option value="">Pilih bulan</option></select></label><label style="max-width:100%">Data<select id="archiveTable" class="form-control" onchange="loadMonthlyArchiveTable(1)"><option value="">Pilih data</option></select></label></div>
+            <p id="archiveStatus" aria-live="polite">Pilih bulan untuk melihat arsip.</p><p id="archiveSnapshot"></p>
+            <div class="table-responsive" style="overflow-x:auto;max-width:100%"><table class="table"><thead id="archiveTableHead"></thead><tbody id="archiveTableBody"></tbody></table></div>
+            <div style="display:flex;gap:8px;margin-top:16px"><button type="button" class="btn btn-outline btn-sm" id="archivePrev" disabled onclick="loadMonthlyArchiveTable(appState.archive.page-1)">Sebelumnya</button><button type="button" class="btn btn-outline btn-sm" id="archiveNext" disabled onclick="loadMonthlyArchiveTable(appState.archive.page+1)">Berikutnya</button></div>
+          </div></div>
+        </section>
         <section class="content-view" id="view-pengambilan">
           <div class="page-title-box"><div><h2 class="page-title">Pengambilan Barang</h2><div class="page-subtitle">Pindahkan stok distributor ke pegangan sales tanpa menambah penjualan.</div></div><button class="btn btn-outline btn-sm" onclick="loadStockPickupData()">Muat ulang</button></div>
           <p class="text-muted" id="pickupStatus" role="status">Sedang memuat data</p>
@@ -1569,6 +1579,7 @@
   <?!= include_('js'); ?>
   <script>window.KCH_FIREBASE_CONFIG = <?!= JSON.stringify(getFirebaseWebConfig_()); ?>;</script>
   <?!= include_('stock-client'); ?>
+  <?!= include_('archive-client'); ?>
   <?!= include_('score-client'); ?>
   <?!= include_('incentive-client'); ?>
   <?!= include_('auth-client'); ?>

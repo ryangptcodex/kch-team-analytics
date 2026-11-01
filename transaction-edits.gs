@@ -55,6 +55,7 @@ function getSalesTransactionForEdit_(transactionId) {
 
 function txEditPlan_(ctx, meta, payload, user, transactionId, requestId) {
   var snapshot = txEditSnapshot_(ctx, meta, transactionId, user);
+  if (typeof archiveAssertOpenDate_ === 'function') archiveAssertOpenDate_(snapshot.header.date);
   if (typeof payload.expectedRevision !== 'string' || payload.expectedRevision !== snapshot.revision) throw new Error('Faktur sudah berubah sejak dibuka. Tutup edit lalu buka kembali dari riwayat.');
   var reason = typeof payload.reason === 'string' ? payload.reason.trim() : '';
   if (reason.length < 3 || reason.length > 500) throw new Error('Isi alasan edit sepanjang 3 sampai 500 karakter.');

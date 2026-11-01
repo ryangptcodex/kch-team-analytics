@@ -42,7 +42,11 @@ function scoreContext_(withTransactions, withPrices) {
   var names = ['SALES', 'PRODUCTS', KCH_SCORE_EVENTS_, 'HOLIDAYS', 'HARI_LIBUR', 'LIBUR'];
   if (withTransactions) names.push('SALES_TRANSACTIONS');
   if (withPrices) names.push('PRICE_MASTER');
+  if (typeof archiveEnabled_ === 'function' && archiveEnabled_() && meta[KCH_ARCHIVE_ROWS_]) names.push(KCH_ARCHIVE_ROWS_);
   var raw = txRead_(ctx, names.filter(function(n) { return !!meta[n]; }));
+  if (typeof archiveMergeTable_ === 'function') {
+    [KCH_SCORE_EVENTS_,'SALES_TRANSACTIONS'].forEach(function(name){if(raw[name])raw[name]=archiveMergeTable_(name,raw[name],raw[KCH_ARCHIVE_ROWS_]||[KCH_ARCHIVE_SCHEMAS_[KCH_ARCHIVE_ROWS_]]);});
+  }
   function table(name, headers) {
     if (!meta[name]) throw new Error('Sheet ' + name + ' tidak tersedia.');
     return txTable_(name, raw[name], headers, false).rows;
@@ -141,9 +145,11 @@ function saveScoreDailyCount_(input, metric) {
   var label = metric === 'BRANDING' ? 'Branding' : 'AA';
   var user = scoreAdmin_(), lock = LockService.getScriptLock(); lock.waitLock(10000);
   try {
+    if (typeof archivePendingGuard_ === 'function') archivePendingGuard_();
     if (!input || typeof input.count !== 'number' || !Number.isSafeInteger(input.count) || input.count < 0) throw new Error(label + ' harus bilangan bulat minimal 0.');
     var date = scoreDate_(input.date);
     if (date !== input.date || date > scoreToday_()) throw new Error('Tanggal ' + label + ' tidak boleh di masa depan dan harus berformat yyyy-MM-dd.');
+    if (typeof archiveAssertOpenDate_ === 'function') archiveAssertOpenDate_(date);
     var data = scoreContext_(false), sales = scoreSales_(data, input.salesId);
     if (metric === 'BRANDING' && !scoreBrandingTeam_(sales.team_name)) throw new Error('Branding Skor hanya tersedia untuk MPR dan Canvasser.');
     if (!txActive_(sales)) throw new Error('Profil sales tidak aktif.');

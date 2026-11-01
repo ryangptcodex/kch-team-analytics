@@ -1,3 +1,5 @@
+> **Digantikan untuk pergantian bulan:** gunakan [PANDUAN-ARSIP-BULANAN.md](PANDUAN-ARSIP-BULANAN.md). Histori kini diarsipkan; fungsi reset launch lama tidak lagi menghapus data pada kode terbaru.
+
 # Persiapan launch November 2026 — UJI COBA
 
 Ini pembersihan **data percobaan sekali sebelum launch**, sesuai persetujuan pengguna. Bukan reset rutin setiap awal bulan. Setelah selesai, data November yang baru dimasukkan tetap dipertahankan pada pembaruan berikutnya. Untuk pergantian bulan operasional nanti, gunakan filter bulan; jangan menghapus histori penjualan karena laporan triwulan membutuhkannya.
