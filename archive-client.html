@@ -8,7 +8,7 @@
     kchRun().withSuccessHandler(function(result){
       if(appState.archive!==state||appState.archive.generation!==generation||generation!==kchAuthGeneration)return;
       if(!result.success){setText('archiveStatus',result.message||'Arsip belum berhasil dimuat.');return;}
-      appState.archive.months=result.months;
+      appState.archive.months=result.months;appState.archive.canOpenSnapshot=result.canOpenSnapshot===true;
       setHtml('archiveMonth','<option value="">Pilih bulan</option>'+result.months.map(function(row){return '<option value="'+escapeHtml(row.month)+'">'+escapeHtml(row.month)+'</option>';}).join(''));
       setHtml('archiveTable',result.tables.map(function(name){return '<option value="'+escapeHtml(name)+'">'+escapeHtml(archiveTableLabels[name]||name)+'</option>';}).join(''));
       setText('archiveStatus',result.months.length?'Pilih bulan untuk melihat data arsip. Arsip hanya dapat dilihat.':'Belum ada bulan yang diarsipkan.');
@@ -23,7 +23,7 @@
     document.getElementById('archivePrev').disabled=true;document.getElementById('archiveNext').disabled=true;
     setText('archiveStatus','Memuat data arsip…');setHtml('archiveTableHead','');setHtml('archiveTableBody','');
     var entry=(state.months||[]).find(function(row){return row.month===month;});setHtml('archiveSnapshot','');
-    if(entry&&entry.snapshotUrl){var link=document.createElement('a');link.textContent='Buka salinan spreadsheet lengkap';link.href=entry.snapshotUrl;link.target='_blank';link.rel='noopener noreferrer';document.getElementById('archiveSnapshot').appendChild(link);}
+    if(appState.user&&appState.user.role==='ADMIN'&&state.canOpenSnapshot&&entry&&entry.snapshotUrl){var link=document.createElement('a');link.textContent='Buka salinan spreadsheet lengkap';link.href=entry.snapshotUrl;link.target='_blank';link.rel='noopener noreferrer';document.getElementById('archiveSnapshot').appendChild(link);}
     kchRun().withSuccessHandler(function(result){
       if(!appState.archive||appState.archive!==state||generation!==kchAuthGeneration||version!==state.version)return;
       setHtml('archiveTableHead','<tr>'+result.headers.map(function(h){return '<th>'+escapeHtml(h)+'</th>';}).join('')+'</tr>');

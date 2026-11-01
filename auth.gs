@@ -201,11 +201,29 @@ function resolveAccessUser_(identity) {
   } finally { lock.releaseLock(); }
 }
 
+// Server-side response minimization: hidden buttons are not an access boundary.
+function kchGuestPrivateField_(name) {
+  var key=String(name||'').replace(/[^a-z0-9]/gi,'').toLowerCase();
+  if (key==='canopensnapshot') return false;
+  return String(name).charAt(0)==='_' || /password|credential|secret|token|salt|hash|snapshot|backup/.test(key) ||
+    ['actor','actoremail','actoruid','actorrole','createdby','updatedby','revision','previousid','requestkey','requestid','planjson','resultjson'].indexOf(key)>=0;
+}
+function kchGuestView_(value) {
+  if(value===null || typeof value!=='object')return value;
+  if(Array.isArray(value))return value.map(kchGuestView_);
+  var safe={};
+  Object.keys(value).forEach(function(key){
+    if(kchGuestPrivateField_(key))return;
+    safe[key]=key==='recentActivities'?[]:kchGuestView_(value[key]);
+  });
+  return safe;
+}
+
 function filterAuthorizedRows_(sheetName, rows) {
   var user = KCH_REQUEST_USER_;
   if (!user || user.role === 'ADMIN') return rows;
   if (['USERS', 'ACCESS_USERS', 'SKOR_EVENTS', 'PEMBARUAN_SHEET'].indexOf(sheetName) >= 0 || sheetName.indexOf('_KCH_') === 0) return [];
-  if (user.role === 'GUEST') return rows;
+  if (user.role === 'GUEST') return sheetName === 'ACTIVITY_LOGS' ? [] : rows;
   if (['SALES', 'SALES_TRANSACTIONS', 'ATTENDANCE', 'VISIT_PHOTOS', 'TODAY_PLAN'].indexOf(sheetName) >= 0) {
     return rows.filter(function(row) { return normalizeKey_(row.sales_id) === normalizeKey_(user.salesId); });
   }
@@ -316,6 +334,6 @@ function kchApi(token, method, args) {
       logActivity_(user.email, 'UPLOAD_' + String(args[1]).toUpperCase(), args[0].salesId,
         JSON.stringify({ salesId: args[0].salesId, date: args[0].date, actorRole: user.role, assisted: user.role === 'ADMIN' }));
     }
-    return result;
+    return user.role === 'GUEST' ? kchGuestView_(result) : result;
   } finally { KCH_REQUEST_USER_ = null; }
 }

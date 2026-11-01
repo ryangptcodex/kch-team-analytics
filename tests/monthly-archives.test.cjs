@@ -78,7 +78,7 @@ test('uncertain archive blocks financial and AA writes plus native updates until
  e.settle();e.run();assert.equal(e.obj('SALES_TRANSACTIONS').length,0);assert.equal(e.save({requestId:'AFTER-ARCHIVE-0000001',date:'2026-11-01'}).success,true);
 });
 test('guests read only allowed month/table data without snapshot links, internal IDs or mutation access',()=>{
- const e=prepare();e.run();e.actor({role:'GUEST'});const list=e.c.kchApi('MOCK','getMonthlyArchives',[]);assert.equal(list.months[0].snapshotUrl,'');assert.ok(!list.tables.includes('SKOR_EVENTS'));
+ const e=prepare();e.run();e.actor({role:'GUEST'});const list=e.c.kchApi('MOCK','getMonthlyArchives',[]);assert.equal(Object.hasOwn(list.months[0],'snapshotUrl'),false);assert.equal(list.canOpenSnapshot,false);assert.ok(!list.tables.includes('SKOR_EVENTS'));
  assert.equal(e.c.kchApi('MOCK','getMonthlyArchiveTable',['2026-10','SALES_TRANSACTIONS',1]).total,1);
  for(const table of ['ACCESS_USERS','_KCH_TX_REQUESTS','SKOR_EVENTS','ACTIVITY_LOGS'])assert.throws(()=>e.c.kchApi('MOCK','getMonthlyArchiveTable',['2026-10',table,1]));
  assert.throws(()=>e.c.kchApi('MOCK','setupArsipBulanan',[]));assert.throws(()=>e.c.kchApi('MOCK','getMonthlyArchiveTable',['2026-10','SALES_TRANSACTIONS',-1]));
@@ -139,4 +139,10 @@ test('archiving clears old values in place and leaves current/future cell positi
 });
 test('native archive failures show the short Google reason and distinguish definite rejection from uncertainty',()=>{
  const e=prepare();e.options.rejectTarget='_KCH_ARCHIVE_ROWS';assert.throws(()=>e.run());const detail=e.ss.getSheetByName('PEMBARUAN_SHEET').getRange('B11').getValue();assert.match(detail,/Rincian Google: injected request validation failure/);assert.match(detail,/pemindahan aktivitas tidak diterapkan/);assert.equal(e.c.txHasPending_(e.c.txReceipts_(e.ctx,e.c.txMetadata_(e.ctx))),false);
+});
+test('archive table privacy removes private columns and snapshot references for guests but retains them for admin',()=>{
+ const e=prepare();e.rows('SALES_TRANSACTIONS')[0].push('backup_url','password_hash');e.rows('SALES_TRANSACTIONS')[1].push('PRIVATE-SNAPSHOT-URL','PRIVATE-HASH');e.run();
+ const admin=e.c.kchApi('T','getMonthlyArchiveTable',['2026-10','SALES_TRANSACTIONS',1]);assert.ok(admin.headers.includes('backup_url'));assert.ok(admin.headers.includes('password_hash'));assert.ok(e.c.kchApi('T','getMonthlyArchives',[]).months[0].snapshotUrl);
+ e.actor({role:'GUEST'});const list=e.c.kchApi('T','getMonthlyArchives',[]);assert.equal(list.canOpenSnapshot,false);assert.ok(!JSON.stringify(list).includes('snapshot-'));assert.ok(!Object.hasOwn(list.months[0],'snapshotUrl'));
+ const guest=e.c.kchApi('T','getMonthlyArchiveTable',['2026-10','SALES_TRANSACTIONS',1]);for(const header of ['backup_url','password_hash','created_by'])assert.ok(!guest.headers.includes(header));assert.ok(!JSON.stringify(guest).includes('PRIVATE-'));assert.equal(guest.total,1);
 });

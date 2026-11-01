@@ -72,3 +72,14 @@ Pengujian lokal mencakup cutoff menit terakhir, Februari/tahun kabisat/pergantia
 Ganti seluruh isi **dua Script** dengan versi terbaru: [monthly-archives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/monthly-archives.gs) dan [transactions.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/transactions.gs). Simpan, lalu jalankan **setupArsipBulanan** lagi sebagai Gmail Admin. Tidak perlu mengganti HTML untuk perbaikan ini. Proses native Sheet memakai kode yang disimpan, sehingga tidak perlu deployment baru hanya untuk menjalankan ulang arsip.
 
 Revisi mengosongkan nilai baris lama setelah menyimpannya di arsip, tanpa menghapus baris fisik—menghindari penolakan pada grid ringkas/frozen. Jika masih gagal, B11 sekarang juga memuat **Rincian Google** (maksimal 600 karakter pesan penyebab, bukan dump request/token). Salin pesan tersebut untuk diagnosis; jangan menghapus jurnal PENDING atau data arsip secara manual. Penolakan HTTP yang pasti dibedakan dari hasil koneksi belum pasti.
+
+## Privasi Admin dan Tamu
+
+Paket penguatan privasi mengganti **3 file**: [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth.gs), [monthly-archives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/monthly-archives.gs), dan [archive-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/archive-client.html). Salin isi lengkap, Simpan, refresh `/dev`; untuk `/exec`, terapkan Versi baru pada deployment yang sama. Tidak perlu Perbarui Sheet atau menjalankan arsip lagi hanya untuk revisi privasi ini.
+
+- Tamu tidak menerima properti URL salinan/snapshot sama sekali dari server. Link “Buka salinan spreadsheet lengkap” hanya dibuat bila peran UI **ADMIN** dan izin server **canOpenSnapshot** bernilai true. Mengubah tombol/peran tampilan dari browser tidak memberi URL dari server.
+- Tamu tidak dapat meminta tabel akun/password, kontrol pembaruan, jurnal transaksi/edit, log aktivitas, tabel internal arsip atau payload AA/branding mentah. Pengelolaan akun, seluruh input/edit dan fungsi native Admin tetap ditolak server.
+- Respons RPC Tamu disaring rekursif agar hash/password, token/secret, URL backup/snapshot, metadata pelaku pencatatan, revisi edit dan array sel mentah tidak ikut terkirim. Tabel arsip juga menyaring kolom privat sebelum dikirim. Log aktivitas dashboard tidak dikirim ke Tamu.
+- Data laporan bisnis, nominal/kuantitas, saldo, pencapaian, Skor, Insentif dan foto bukti yang boleh dibaca tetap tersedia. Data sumber tidak ditulis ulang atau dihapus oleh penyaringan ini; Admin tetap memperoleh datanya.
+
+Klasifikasi tambahan untuk **kontak sales dan tautan dokumen FILES** masih menunggu pilihan pengguna; revisi ini belum mengubah izin baca kedua fitur tersebut. Pembatasan ini berlaku pada akses webapp dan bukan perubahan izin berbagi file Google Drive secara langsung.

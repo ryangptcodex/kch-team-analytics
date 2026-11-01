@@ -154,8 +154,8 @@ function archiveRun_(ss, scheduled) {
 function getMonthlyArchives_() {
   var user=getCurrentUserInfo_();if(['ADMIN','GUEST'].indexOf(user.role)<0)throw new Error('ACCESS_DENIED');
   var groups=Object.create(null);
-  archiveIndex_().forEach(function(row){if(row.status!=='COMPLETED')return;if(!groups[row.month])groups[row.month]={month:row.month,cutoff:row.cutoff_wib,rows:0,snapshotUrl:user.role==='ADMIN'?row.snapshot_url:''};groups[row.month].rows+=Number(row.row_count)||0;});
-  return {success:true,months:Object.keys(groups).sort().reverse().map(function(m){return groups[m];}),tables:Object.keys(KCH_ARCHIVE_DATES_).filter(function(n){return user.role==='ADMIN'||['ACTIVITY_LOGS','SKOR_EVENTS'].indexOf(n)<0;})};
+  archiveIndex_().forEach(function(row){if(row.status!=='COMPLETED')return;if(!groups[row.month]){groups[row.month]={month:row.month,cutoff:row.cutoff_wib,rows:0};if(user.role==='ADMIN')groups[row.month].snapshotUrl=row.snapshot_url;}groups[row.month].rows+=Number(row.row_count)||0;});
+  return {success:true,canOpenSnapshot:user.role==='ADMIN',months:Object.keys(groups).sort().reverse().map(function(m){return groups[m];}),tables:Object.keys(KCH_ARCHIVE_DATES_).filter(function(n){return user.role==='ADMIN'||['ACTIVITY_LOGS','SKOR_EVENTS'].indexOf(n)<0;})};
 }
 function getMonthlyArchiveTable_(month,name,page) {
   var setup=getMonthlyArchives_();
@@ -164,7 +164,7 @@ function getMonthlyArchiveTable_(month,name,page) {
   var stored=archiveAllRows_().filter(function(row){return row.month===month&&row.sheet_name===name;}),headers=stored.length?JSON.parse(stored[0].headers_json):[];
   var rows=stored.map(function(row){var hs=JSON.parse(row.headers_json),vs=JSON.parse(row.values_json);return headers.map(function(h){var i=hs.indexOf(h);return i<0?'':vs[i];});});
   // Hide private Drive IDs and actor tokens from the generic viewer.
-  var columns=headers.map(function(h,i){return {h:h,i:i};}).filter(function(c){return ['photo_file_id','actor_uid'].indexOf(c.h)<0;});
+  var columns=headers.map(function(h,i){return {h:h,i:i};}).filter(function(c){return ['photo_file_id','actor_uid'].indexOf(c.h)<0 && (getCurrentUserInfo_().role==='ADMIN' || !kchGuestPrivateField_(c.h));});
   return {success:true,headers:columns.map(function(c){return c.h;}),rows:rows.slice((page-1)*100,page*100).map(function(row){return columns.map(function(c){return row[c.i];});}),total:rows.length,page:page};
 }
 
