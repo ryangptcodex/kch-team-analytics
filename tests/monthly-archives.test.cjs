@@ -124,3 +124,19 @@ test('a run crossing midnight cannot mark the following month checked and skip i
 test('a failed scheduled run pauses retries so it cannot create a new full copy every minute',()=>{
  const e=prepare();e.options.rejectTarget='_KCH_ARCHIVE_ROWS';assert.throws(()=>e.c.kchMonthlyArchiveTick_());const n=e.backups.length;e.c.kchMonthlyArchiveTick_();assert.equal(e.backups.length,n);e.options.rejectTarget=null;e.c.kchRunSheetUpdates_(e.ss);e.c.kchMonthlyArchiveTick_();assert.equal(e.obj('SALES_TRANSACTIONS').length,0);
 });
+test('compact sheets with a frozen header archive successfully without deleting all non-frozen rows',()=>{
+ const e=prepare();e.options.enforceGrid=true;
+ const p=e.c.txMetadata_(e.ctx).SALES_TRANSACTIONS;
+ e.c.txBatch_(e.ctx,[{updateSheetProperties:{properties:{sheetId:p.sheetId,gridProperties:{rowCount:2,frozenRowCount:1}},fields:'gridProperties.rowCount,gridProperties.frozenRowCount'}}]);
+ // Reproduce the Sheets rejection the old row-deletion strategy could encounter.
+ assert.throws(()=>e.c.txBatch_(e.ctx,[{deleteDimension:{range:{sheetId:p.sheetId,dimension:'ROWS',startIndex:1,endIndex:2}}}]),err=>err.httpStatus===400&&/non-frozen/.test(err.apiMessage));
+ const result=e.run();assert.equal(result.success,true);assert.equal(e.obj('SALES_TRANSACTIONS').length,0);assert.ok(e.obj('_KCH_ARCHIVE_ROWS').some(r=>r.sheet_name==='SALES_TRANSACTIONS'));
+ assert.equal(e.c.txMetadata_(e.ctx).SALES_TRANSACTIONS.gridProperties.rowCount,2);
+});
+test('archiving clears old values in place and leaves current/future cell positions and formulas untouched',()=>{
+ const e=prepare();e.rows('SALES_TRANSACTIONS').push([...e.rows('SALES_TRANSACTIONS')[1]]);const current=e.rows('SALES_TRANSACTIONS')[2];current[0]='NOVEMBER-KEEP';current[1]='2026-11-01';current[15]='=SUM(1,2)';const before=JSON.stringify(current);
+ e.run();assert.equal(JSON.stringify(e.rows('SALES_TRANSACTIONS')[2]),before);assert.ok(e.rows('SALES_TRANSACTIONS')[1].every(v=>v===''));assert.equal(e.c.getSheetData_('SALES_TRANSACTIONS').rows.length,2);
+});
+test('native archive failures show the short Google reason and distinguish definite rejection from uncertainty',()=>{
+ const e=prepare();e.options.rejectTarget='_KCH_ARCHIVE_ROWS';assert.throws(()=>e.run());const detail=e.ss.getSheetByName('PEMBARUAN_SHEET').getRange('B11').getValue();assert.match(detail,/Rincian Google: injected request validation failure/);assert.match(detail,/pemindahan aktivitas tidak diterapkan/);assert.equal(e.c.txHasPending_(e.c.txReceipts_(e.ctx,e.c.txMetadata_(e.ctx))),false);
+});

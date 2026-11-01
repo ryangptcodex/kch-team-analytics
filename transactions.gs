@@ -25,6 +25,9 @@ function txApi_(ctx, suffix, method, body) {
     var failure = new Error(status === 403 ? 'Google Sheets API atau izin spreadsheet belum aktif. Jalankan pemeriksaan transaksi dari editor.' : 'Layanan spreadsheet menolak permintaan (HTTP ' + status + ').');
     failure.httpStatus = status;
     failure.apiStatus = data.error && data.error.status || '';
+    // Keep a short provider diagnostic for the native admin archive status only;
+    // do not log HTTP bodies, request payloads or authorization headers.
+    failure.apiMessage = String(data.error && data.error.message || '').slice(0,600);
     throw failure;
   }
   return data;

@@ -107,9 +107,9 @@ function archivePlan_(ss,meta,ctx) {
       if(encoded.length>45000 || encodedHeaders.length>45000) throw new Error(name+': isi baris terlalu panjang untuk arsip aman.');
       records.push([period,name,encodedHeaders,encoded]);months[period]=(months[period]||0)+1;remove.push(i+1);
     });
-    // Delete consecutive groups from the bottom, preserving formulas/extra columns
-    // in all current/future rows and keeping the original header/format.
-    if (name.indexOf('INSENTIF_')!==0) for(var i=remove.length-1;i>=0;i--){var end=remove[i]+1,start=remove[i];while(i>0&&remove[i-1]===start-1){i--;start=remove[i];}requests.push({deleteDimension:{range:{sheetId:meta[name].sheetId,dimension:'ROWS',startIndex:start,endIndex:end}}});}
+    // Clear only archived cells; never delete physical rows (a compact/frozen
+    // sheet must retain its grid). Current/future rows, formulas and formats stay put.
+    if (name.indexOf('INSENTIF_')!==0) for(var i=remove.length-1;i>=0;i--){var end=remove[i]+1,start=remove[i];while(i>0&&remove[i-1]===start-1){i--;start=remove[i];}requests.push({updateCells:{range:{sheetId:meta[name].sheetId,startRowIndex:start,endRowIndex:end,startColumnIndex:0,endColumnIndex:(meta[name].gridProperties||{}).columnCount||headers.length},rows:[],fields:'userEnteredValue'}});}
     if(remove.length)changes.push(name+': '+remove.length+' baris dipindah ke arsip.');
   });
   if (records.length>15000 || JSON.stringify([records,requests]).length>7500000) throw new Error('Arsip terlalu besar untuk satu proses aman; tidak ada aktivitas dihapus. Hubungi pengelola untuk migrasi bertahap.');
@@ -148,7 +148,7 @@ function archiveRun_(ss, scheduled) {
     PropertiesService.getScriptProperties().setProperty('KCH_ARCHIVE_CHECKED_MONTH',archiveMonth_());
     if(control){control.getRange('B8').setValue('Berhasil');control.getRange('B11').setValue(plan.changes.join('\n')+'\nMaster, akun dan saldo stok tetap. Lihat menu Arsip Bulanan.');}
     return {success:true,archivedRows:plan.records.length,backupUrl:backupUrl};
-  }catch(err){PropertiesService.getScriptProperties().setProperty('KCH_ARCHIVE_ERROR_MONTH',archiveMonth_());if(control){control.getRange('B8').setValue('Arsip gagal / perlu diperiksa');control.getRange('B11').setValue(err.message+(backupUrl?'\nSalinan lengkap: '+backupUrl:'')+'\nHentikan input bila hasil belum pasti; jangan hapus jurnal PENDING.');}throw err;}
+  }catch(err){PropertiesService.getScriptProperties().setProperty('KCH_ARCHIVE_ERROR_MONTH',archiveMonth_());if(control){control.getRange('B8').setValue('Arsip gagal / perlu diperiksa');control.getRange('B11').setValue(err.message+(err.apiMessage?'\nRincian Google: '+err.apiMessage:'')+(backupUrl?'\nSalinan lengkap: '+backupUrl:'')+([400,403,404].indexOf(err.httpStatus)>=0?'\nPermintaan ditolak Google; pemindahan aktivitas tidak diterapkan. Perbaiki penyebab lalu jalankan setupArsipBulanan lagi.':'\nHentikan input bila hasil belum pasti; jangan hapus jurnal PENDING.'));}throw err;}
   finally{KCH_ARCHIVE_RUN_MONTH_=previousRunMonth;lock.releaseLock();}
 }
 function getMonthlyArchives_() {

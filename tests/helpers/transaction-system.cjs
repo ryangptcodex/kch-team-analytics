@@ -12,7 +12,9 @@ function system(options = {}) {
   let actor = { uid: 'user-1', email: 'one@example.test', username: 'one@example.test', role: 'SALES', salesId: 'S1' };
   function add(name, rows) { store[name] = { sheetId: nextId++, title: name, hidden: false, rows: copy(rows), gridProperties: { rowCount: 1000, columnCount: 30 } }; }
   function native(name) {
-    const sheet = store[name]; if (!sheet) return null;
+    if (!store[name]) return null;
+    // Native Sheet/Range handles stay live after an atomic API commit.
+    const sheet = new Proxy({}, {get:(_,key)=>store[name][key]});
     return { getSheetId:()=>sheet.sheetId, appendRow(row){sheet.rows.push([...row]);}, setFrozenRows(){}, getLastRow: () => sheet.rows.length, getLastColumn: () => Math.max(0, ...sheet.rows.map(r => r.length)),
       getRange(r, c, h=1, w=1) { const values = () => Array.from({length:h},(_,y)=>Array.from({length:w},(_,x)=>sheet.rows[r-1+y]?.[c-1+x]??''));
         const range={ getValues: values, getDisplayValues: () => values().map(row => row.map(String)),getValue:()=>values()[0][0],setValue(v){return range.setValues([[v]]);},setValues(v){v.forEach((row,y)=>row.forEach((cell,x)=>{if(!sheet.rows[r-1+y])sheet.rows[r-1+y]=[];sheet.rows[r-1+y][c-1+x]=cell;}));return range;},setRichTextValue(v){return range.setValue(v.getText());},setNumberFormat(){return range;}};return range; } };
@@ -39,10 +41,14 @@ function system(options = {}) {
         if(!byId(draft,request.repeatCell.range.sheetId))throw Error('missing sheet');
       } else if(request.insertDimension || request.deleteDimension) {
         const r=(request.insertDimension||request.deleteDimension).range,sheet=byId(draft,r.sheetId);if(!sheet)throw Error('missing sheet');const count=r.endIndex-r.startIndex;
-        if(r.dimension==='ROWS'){if(request.deleteDimension)sheet.rows.splice(r.startIndex,count);else sheet.rows.splice(r.startIndex,0,...Array.from({length:count},()=>[]));}
+        if(r.dimension==='ROWS'){
+          if(options.enforceGrid && request.deleteDimension && sheet.gridProperties.rowCount-count<=(sheet.gridProperties.frozenRowCount||0))throw Error('You cannot delete all non-frozen rows.');
+          if(request.deleteDimension){sheet.rows.splice(r.startIndex,count);sheet.gridProperties.rowCount-=count;}else{sheet.rows.splice(r.startIndex,0,...Array.from({length:count},()=>[]));sheet.gridProperties.rowCount+=count;}
+        }
         else for(const row of sheet.rows){if(request.deleteDimension)row.splice(r.startIndex,count);else {while(row.length<r.startIndex)row.push('');row.splice(r.startIndex,0,...Array(count).fill(''));}}
       } else if(request.updateCells?.range) {
         const r=request.updateCells.range,sheet=byId(draft,r.sheetId);if(!sheet)throw Error('missing sheet');if(options.rejectTarget===sheet.title)throw Error('injected request validation failure');
+        if(options.enforceGrid && (r.endRowIndex>sheet.gridProperties.rowCount || r.endColumnIndex>sheet.gridProperties.columnCount))throw Error('Range exceeds grid limits.');
         for(let y=r.startRowIndex;y<Math.min(r.endRowIndex,sheet.rows.length);y++)for(let x=r.startColumnIndex;x<r.endColumnIndex;x++)sheet.rows[y][x]='';
       } else {
         const edit = request.updateCells || request.appendCells;
@@ -77,7 +83,7 @@ function system(options = {}) {
         if(options.financialFault==='reject400') return response(400,{error:{status:'INVALID_ARGUMENT'}});
         if(options.financialFault==='unknownBefore') { delayed=copy(requests); throw Error('lost connection before result'); }
       }
-      try { apply(requests); } catch(err) { return response(400,{error:{status:'INVALID_ARGUMENT'}}); }
+      try { apply(requests); } catch(err) { return response(400,{error:{status:'INVALID_ARGUMENT',message:err.message}}); }
       if(isFinancial) {
         committedBatches++;
         if(options.financialFault==='lostAfterCommit' || options.financialFault==='lostAndReadFail') {
