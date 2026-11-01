@@ -1577,6 +1577,7 @@
   <div class="toast-box" id="toastBox"></div>
 
   <?!= include_('js'); ?>
+  <script>window.KCH_ENVIRONMENT_KEY = <?!= JSON.stringify(getKchEnvironmentKey_()); ?>;</script>
   <script>window.KCH_FIREBASE_CONFIG = <?!= JSON.stringify(getFirebaseWebConfig_()); ?>;</script>
   <?!= include_('stock-client'); ?>
   <?!= include_('archive-client'); ?>

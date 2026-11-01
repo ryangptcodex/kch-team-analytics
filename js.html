@@ -2326,7 +2326,7 @@
 
   function txClientStorageKey() {
     if (!appState.user || !appState.user.uid) throw new Error('Silakan masuk ulang sebelum menyimpan transaksi.');
-    return 'kch.tx.pending.v1:' + window.location.hostname + ':' + appState.user.uid;
+    return 'kch.tx.pending.v1:' + window.location.hostname + ':' + appState.user.uid + (window.KCH_ENVIRONMENT_KEY ? ':' + String(window.KCH_ENVIRONMENT_KEY) : '');
   }
 
   function txClientNewId() {

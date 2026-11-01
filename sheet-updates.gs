@@ -8,7 +8,7 @@ var KCH_LAUNCH_HEADERS_ = ['launch_key', 'status', 'backup_url', 'completed_at']
 
 function kchSheetUpdateAdmin_(ss, email) {
   if (String(email || '').trim().toLowerCase() !== KCH_BOOTSTRAP_ADMIN_EMAIL_) throw new Error('ACCESS_DENIED: Hanya Gmail admin yang boleh memperbarui sheet.');
-  if (!ss || ss.getId() !== KCH_TEST_SPREADSHEET_ID_) throw new Error('ACCESS_DENIED: Gunakan spreadsheet UJI COBA yang dikonfigurasi.');
+  if (!ss || ss.getId() !== getKchSpreadsheetId_()) throw new Error('ACCESS_DENIED: Gunakan spreadsheet lingkungan aktif yang dikonfigurasi (UJI COBA atau Production).');
 }
 
 // Visible editor entry point; the installer retains native admin/spreadsheet checks.
@@ -41,7 +41,7 @@ function installKchSheetUpdates_() {
     if (!triggers.length) ScriptApp.newTrigger(KCH_UPDATE_HANDLER_).forSpreadsheet(ss).onEdit().create();
     triggers.slice(1).forEach(function(t) { ScriptApp.deleteTrigger(t); });
     ss.setActiveSheet(sheet); ss.moveActiveSheet(ss.getNumSheets());
-    ss.toast('Tab pembaruan siap. Klik checkbox A3 untuk memperbarui struktur.', 'KCH UJI COBA', 8);
+    ss.toast('Tab pembaruan siap. Klik checkbox A3 untuk memperbarui struktur.', getKchEnvironmentLabel_(), 8);
   } finally { lock.releaseLock(); }
 }
 
@@ -67,6 +67,7 @@ function kchSheetSchemas_() {
   schemas[KCH_TX_REQUEST_SHEET_] = KCH_TX_REQUEST_HEADERS_.slice();
   schemas[KCH_TX_EDIT_SHEET_] = KCH_TX_EDIT_HEADERS_.slice();
   schemas[KCH_LAUNCH_SHEET_] = KCH_LAUNCH_HEADERS_.slice();
+  if (typeof productionSchemas_ === 'function' && isKchProduction_()) Object.keys(productionSchemas_()).forEach(function(name){schemas[name]=productionSchemas_()[name].slice();});
   kchSheetUpdateModules_().forEach(function(module) { Object.keys(module.schemas).forEach(function(name) { schemas[name] = module.schemas[name].slice(); }); });
   return schemas;
 }

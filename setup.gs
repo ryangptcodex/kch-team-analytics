@@ -114,30 +114,13 @@ var WEEKLY_MEETING_HEADERS = [
 
 function onOpen() {
   try {
-    var ui = SpreadsheetApp.getUi();
-    ui.createMenu('⚡ KCH Lhokseumawe')
+    SpreadsheetApp.getUi().createMenu('⚡ KCH Lhokseumawe')
       .addItem('🔄 Siapkan Tab Pembaruan Sheet (Aman)', 'setupKchSheetUpdates')
-      .addItem('📅 Siapkan Sheet HOLIDAYS (Libur Nasional/Aceh)', 'setupHolidaysSheet_')
-      .addItem('📑 Satukan Transaksi & Item (All-in-One)', 'setupSalesTransactionsUnifiedSheet_')
-      .addItem('📊 Siapkan Sheet MONTHLY_TEAM_REPORT', 'setupMonthlyTeamReportSheet_')
-      .addItem('🗺 Siapkan Sheet TODAY_PLAN', 'setupTodayPlanSheet_')
-      .addItem('📝 Siapkan Sheet WEEKLY_MEETINGS', 'setupWeeklyMeetingsSheet_')
-      .addItem('🗑 Hapus Sheet SALES PROFILES', 'deleteSalesProfilesSheet_')
-      .addItem('⚡ Gabungkan & Selaraskan Sheet SALES (All-in-One)', 'consolidateSalesSheetStructure_')
-      .addItem('📁 Rapikan & Sinkronkan Sheet FILES (4 Kolom)', 'setupFilesSheet_')
-      .addItem('📰 Siapkan Sheet KCH_NEWS', 'setupKchNewsSheet_')
-      .addItem('💲 Format & Kunci Harga di PRICE_MASTER (Anti-Reset)', 'setupPriceMasterSheetStructure_')
-      .addItem('🏢 Siapkan & Sinkronkan Sheet DISTRIBUTORS', 'setupDistributorsSheet_')
-      .addItem('📦 Format & Sinkronkan INVENTORY', 'setupInventorySheetStructure_')
-      .addItem('📋 Format & Siapkan Sheet ATTENDANCE', 'setupAttendanceSheetForManualInput_')
-      .addItem('📷 Siapkan Sheet VISIT_PHOTOS', 'setupVisitPhotosSheet_')
-      .addItem('🔄 Sinkronkan Nama & Tim di Sheet ATTENDANCE', 'syncAttendanceSalesDetails_')
-      .addItem('🖼 Buka Akses & Konversi Foto GDrive di ATTENDANCE', 'convertAndAuthorizeDrivePhotosInAttendance_')
-      .addItem('🛠 Perbarui & Rapikan Seluruh Database Spreadsheet', 'repairAndOptimizeSpreadsheet')
-      .addItem('🗑 Hapus Sheet Usang & Kolom Duplikat', 'purgeObsoleteColumnsAndSheets_')
-      .addItem('📦 Sinkronkan Produk ke INVENTORY', 'syncProductsToInventory_')
-      .addItem('💲 Sinkronkan Produk ke PRICE_MASTER', 'syncProductsToPriceMaster_')
-      .addItem('🧹 Hapus Semua Dropdown di Seluruh Sheet', 'removeAllSheetDropdowns_')
+      .addItem('📁 Siapkan Arsip Bulanan', 'setupArsipBulanan')
+      .addItem('🔎 Periksa Koneksi & Kiriman Transaksi', 'checkKchTransactionSetup')
+      .addItem('🏢 Siapkan Database Production Baru', 'siapkanDatabaseProduksiBaru')
+      .addItem('📦 Terapkan Stok Awal Production', 'terapkanStokAwalProduksi')
+      .addItem('🛠 Perbarui Seluruh Sheet (Aman)', 'repairAndOptimizeSpreadsheet')
       .addToUi();
   } catch (e) {}
 }
@@ -1262,36 +1245,13 @@ function repairAndOptimizeSpreadsheet() {
     throw new Error('ACCESS_DENIED: Pembaruan spreadsheet hanya boleh dijalankan oleh Gmail admin.');
   }
   try { SpreadsheetApp.getUi(); }
-  catch (err) { throw new Error('ACCESS_DENIED: Jalankan pembaruan dari spreadsheet UJI COBA, bukan web app.'); }
+  catch (err) { throw new Error('ACCESS_DENIED: Jalankan pembaruan dari spreadsheet yang sesuai, bukan web app.'); }
   var active = SpreadsheetApp.getActiveSpreadsheet();
-  if (!active || active.getId() !== KCH_TEST_SPREADSHEET_ID_) {
-    throw new Error('ACCESS_DENIED: Spreadsheet aktif bukan salinan UJI COBA yang dikonfigurasi.');
+  if (!active || active.getId() !== (typeof getKchSpreadsheetId_ === 'function' ? getKchSpreadsheetId_() : KCH_TEST_SPREADSHEET_ID_)) {
+    throw new Error('ACCESS_DENIED: Spreadsheet aktif bukan database UJI COBA/Production yang dikonfigurasi.');
   }
-  var lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  try {
-    if (typeof assertNoPendingTransactions_ === 'function') assertNoPendingTransactions_();
-    SpreadsheetApp.flush();
-    var backup;
-    try {
-      var stamp = Utilities.formatDate(new Date(), KCH_CONFIG.TIMEZONE, 'yyyy-MM-dd HH.mm.ss');
-      backup = active.copy(active.getName() + ' - BACKUP ' + stamp);
-      if (!backup || backup.getId() === active.getId()) throw new Error('Salinan cadangan tidak valid.');
-    } catch (err) {
-      throw new Error('Cadangan gagal dibuat; pembaruan dibatalkan. ' + err.message);
-    }
-    var backupUrl = backup.getUrl();
-    console.log('Cadangan sebelum pembaruan: ' + backupUrl);
-    try {
-      var result = repairAndOptimizeSpreadsheet_();
-      SpreadsheetApp.flush();
-      result.backupUrl = backupUrl;
-      active.toast('Pembaruan selesai. Cadangan tersedia di Google Drive: ' + backup.getName(), 'KCH UJI COBA', 10);
-      return result;
-    } catch (err) {
-      throw new Error('Pembaruan berhenti: ' + err.message + ' Cadangan sebelum pembaruan: ' + backupUrl);
-    }
-  } finally { lock.releaseLock(); }
+  if (typeof kchRunSheetUpdates_ !== 'function') throw new Error('Pasang sheet-updates.gs terbaru; pembaruan legacy dinonaktifkan.');
+  return kchRunSheetUpdates_(active);
 }
 
 function repairAndOptimizeSpreadsheet_() {

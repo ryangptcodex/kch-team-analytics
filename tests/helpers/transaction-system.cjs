@@ -20,7 +20,7 @@ function system(options = {}) {
         const range={ getValues: values, getDisplayValues: () => values().map(row => row.map(String)),getValue:()=>values()[0][0],setValue(v){return range.setValues([[v]]);},setValues(v){v.forEach((row,y)=>row.forEach((cell,x)=>{if(!sheet.rows[r-1+y])sheet.rows[r-1+y]=[];sheet.rows[r-1+y][c-1+x]=cell;}));return range;},setRichTextValue(v){return range.setValue(v.getText());},setNumberFormat(){return range;}};return range; } };
   }
   const properties={};
-  const context = { console, PropertiesService:{getScriptProperties:()=>({getProperty:k=>properties[k]??null,setProperty(k,v){properties[k]=v;},deleteProperty(k){delete properties[k];},getProperties:()=>({...properties})})}, ScriptApp: { getOAuthToken: () => 'TEST_ONLY_OAUTH',getProjectTriggers:()=>[],newTrigger:()=>({timeBased:()=>({everyMinutes:()=>({create(){}})})}) },
+  const context = { console, PropertiesService:{getScriptProperties:()=>({getProperty:k=>properties[k]??null,setProperty(k,v){properties[k]=v;},deleteProperty(k){delete properties[k];},getProperties:()=>({...properties})})}, ScriptApp: { getScriptId:()=> options.scriptId||'mock-uji-script', getOAuthToken: () => 'TEST_ONLY_OAUTH',getProjectTriggers:()=>[],newTrigger:()=>({timeBased:()=>({everyMinutes:()=>({create(){}})})}) },
     SpreadsheetApp: { newRichTextValue:()=>({setText(text){return {build:()=>({getText:()=>text})};}}), flush() {} }, Session: { getActiveUser: () => ({getEmail:()=> 'mhmdryyan7@gmail.com'}) },
     LockService: { getScriptLock: () => ({ waitLock() { if(options.busy) throw Error('busy'); }, releaseLock() {} }) },
     Utilities: { DigestAlgorithm: { SHA_256: 'sha256' }, Charset: { UTF_8: 'utf8' },
@@ -49,7 +49,7 @@ function system(options = {}) {
       } else if(request.updateCells?.range) {
         const r=request.updateCells.range,sheet=byId(draft,r.sheetId);if(!sheet)throw Error('missing sheet');if(options.rejectTarget===sheet.title)throw Error('injected request validation failure');
         if(options.enforceGrid && (r.endRowIndex>sheet.gridProperties.rowCount || r.endColumnIndex>sheet.gridProperties.columnCount))throw Error('Range exceeds grid limits.');
-        for(let y=r.startRowIndex;y<Math.min(r.endRowIndex,sheet.rows.length);y++)for(let x=r.startColumnIndex;x<r.endColumnIndex;x++)sheet.rows[y][x]='';
+        for(let y=r.startRowIndex;y<Math.min(r.endRowIndex,sheet.rows.length);y++){sheet.rows[y]??=[];for(let x=r.startColumnIndex;x<r.endColumnIndex;x++)sheet.rows[y][x]='';}
       } else {
         const edit = request.updateCells || request.appendCells;
         const sheet = byId(draft, edit.sheetId ?? edit.start.sheetId);
@@ -77,7 +77,8 @@ function system(options = {}) {
     if(parsed.pathname.endsWith(':batchUpdate')) {
       const requests = JSON.parse(request.payload).requests;
       const isArchive = requests.some(r=>r.appendCells && byId(store,r.appendCells.sheetId)?.title==='_KCH_ARCHIVE_ROWS');
-      const isFinancial = isArchive || requests.some(r => { const edit=r.appendCells||r.updateCells; if(!edit || (r.updateCells && r.updateCells.start?.rowIndex===0))return false; const id=edit.sheetId??edit.start?.sheetId??edit.range?.sheetId; return ['SALES_TRANSACTIONS','STOCK_PICKUPS','SALES_CASH_DEPOSITS'].includes(byId(store,id)?.title || requests.find(a=>a.addSheet?.properties.sheetId===id)?.addSheet.properties.title); });
+      const isProduction = requests.some(r=>r.updateCells?.start?.rowIndex===1 && (byId(store,r.updateCells.start.sheetId)?.title==='_KCH_PRODUCTION_STATE'||requests.some(a=>a.addSheet?.properties.sheetId===r.updateCells.start.sheetId&&a.addSheet.properties.title==='_KCH_PRODUCTION_STATE')));
+      const isFinancial = isProduction || isArchive || requests.some(r => { const edit=r.appendCells||r.updateCells; if(!edit || (r.updateCells && r.updateCells.start?.rowIndex===0))return false; const id=edit.sheetId??edit.start?.sheetId??edit.range?.sheetId; return ['SALES_TRANSACTIONS','STOCK_PICKUPS','SALES_CASH_DEPOSITS'].includes(byId(store,id)?.title || requests.find(a=>a.addSheet?.properties.sheetId===id)?.addSheet.properties.title); });
       if(isFinancial) {
         financialAttempts++;
         if(options.financialFault==='reject400') return response(400,{error:{status:'INVALID_ARGUMENT'}});
@@ -91,24 +92,24 @@ function system(options = {}) {
           throw Error('response lost after commit');
         }
       }
-      return response(200,{spreadsheetId:'test-book',replies:requests.map(()=>({}))});
+      return response(200,{spreadsheetId:options.bookId||'test-book',replies:requests.map(()=>({}))});
     }
     if(parsed.pathname.endsWith('/values:batchGet')) {
       const names = parsed.searchParams.getAll('ranges').map(s=>s.slice(1,-1).replace(/''/g,"'"));
       if(failReceiptRead && names.includes('_KCH_TX_REQUESTS')) { failReceiptRead=false; throw Error('temporary receipt read failure'); }
-      return response(200,{spreadsheetId:'test-book',valueRanges:names.map(name=>({range:name,values:copy(store[name]?.rows||[])}))});
+      return response(200,{spreadsheetId:options.bookId||'test-book',valueRanges:names.map(name=>({range:name,values:copy(store[name]?.rows||[])}))});
     }
-    return response(200,{spreadsheetId:'test-book',sheets:Object.values(store).map(s=>({properties:{sheetId:s.sheetId,title:s.title,gridProperties:s.gridProperties}}))});
+    return response(200,{spreadsheetId:options.bookId||'test-book',sheets:Object.values(store).map(s=>({properties:{sheetId:s.sheetId,title:s.title,gridProperties:s.gridProperties}}))});
   }};
   vm.createContext(context);
-  for(const f of ['firebase-config.gs','code.gs','setup.gs','transactions.gs','stock-pickups.gs','transaction-edits.gs','monthly-archives.gs','guest-crypto.gs','guest-auth.gs','auth.gs']) vm.runInContext(fs.readFileSync(path.join(root,f),'utf8'),context,{filename:f});
+  for(const f of ['firebase-config.gs','code.gs','setup.gs','transactions.gs','stock-pickups.gs','transaction-edits.gs','monthly-archives.gs','production-setup.gs','guest-crypto.gs','guest-auth.gs','auth.gs']) vm.runInContext(fs.readFileSync(path.join(root,f),'utf8'),context,{filename:f});
   add('SALES',[['sales_id','full_name','team_name','status'],['S1','Sales One','Motoris','ACTIVE'],['S2','Sales Two','Motoris','ACTIVE']]);
   add('PRODUCTS',[['product_id','product_name','status'],['P1','Product One','ACTIVE'],['P2','Product Two','ACTIVE']]);
   add('PRICE_MASTER',[['product_id','team_name','cost_price','selling_price','shj','status'],['P1','Motoris',60,100,10,'ACTIVE'],['P2','Motoris',20,40,20,'ACTIVE']]);
   add('DISTRIBUTORS',[['distributor_id','distributor_name','status'],['D1','PT. Global Mitra Prima (Subdist)','ACTIVE'],['D2','AP. Geubrina Rizki (Panel)','ACTIVE']]);
   add('INVENTORY',[['product_id','product_name','PT. Global Mitra Prima','AP. Geubrina Rizki'],['P1','Product One',10,5],['P2','Product Two',20,3]]);
   for(const name of ['SALES_TRANSACTIONS','INVENTORY_MOVEMENTS','ACTIVITY_LOGS']) add(name,[[...context.TABLE_SCHEMAS[name]]]);
-  context.getKchSpreadsheet_=()=>({getId:()=> 'test-book',getSheetByName:n=>native(n)});
+  context.getKchSpreadsheet_=()=>({getId:()=> options.bookId||'test-book',getSheetByName:n=>native(n)});
   context.verifyFirebaseIdentity_=()=>({uid:actor.uid,email:actor.email}); context.resolveAccessUser_=()=>({...actor});
   const fixture = {context,calls,options,
     rows:name=>store[name]?.rows, remove:name=>{delete store[name]}, actor:value=>{actor={...actor,...value}},

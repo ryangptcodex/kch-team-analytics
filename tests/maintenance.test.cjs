@@ -1,58 +1,13 @@
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const vm = require('node:vm');
-
-function maintenance(options = {}) {
-  const events = [];
-  const callbacks = [];
-  const backup = { getId: () => 'backup-id', getUrl: () => 'https://docs.google.com/spreadsheets/d/backup-id/edit', getName: () => 'KCH BACKUP' };
-  const sheet = { getId: () => options.activeId || 'test-sheet', getName: () => 'KCH UJI COBA',
-    copy(name) { events.push('backup'); assert.match(name, /BACKUP/); if (options.copyFailure) throw new Error('Drive unavailable'); return backup; },
-    toast() { events.push('toast'); } };
-  const menu = { addItem(label, callback) { callbacks.push(callback); return menu; }, addToUi() {} };
-  const context = { Session: { getActiveUser: () => ({ getEmail: () => options.email ?? 'admin@gmail.com' }) },
-    KCH_BOOTSTRAP_ADMIN_EMAIL_: 'admin@gmail.com', KCH_TEST_SPREADSHEET_ID_: 'test-sheet',
-    SpreadsheetApp: { getUi() { if (options.webContext) throw new Error('UI unavailable'); return { createMenu: () => menu }; },
-      getActiveSpreadsheet: () => options.noActive ? null : sheet, flush() { events.push('flush'); } },
-    LockService: { getScriptLock: () => ({ waitLock() { events.push('lock'); }, releaseLock() { events.push('unlock'); } }) },
-    Utilities: { formatDate: () => '2026-10-25 14.00.00' }, console: { log(message) { events.push('log-backup'); assert.match(message, /backup-id/); } } };
-  vm.createContext(context);
-  vm.runInContext(fs.readFileSync(path.join(__dirname, '../setup.gs'), 'utf8'), context);
-  context.repairAndOptimizeSpreadsheet_ = () => { events.push('migration'); if (options.migrationFailure) throw new Error('Header mismatch'); return { status: 'success' }; };
-  return { context, events, callbacks };
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+function fixture(options={}){
+ const calls=[],callbacks=[],ss={getId:()=>options.activeId||'test-book'},menu={addItem(label,fn){callbacks.push(fn);return menu;},addToUi(){}};
+ const c={Session:{getActiveUser:()=>({getEmail:()=>options.email??'admin@test'})},KCH_BOOTSTRAP_ADMIN_EMAIL_:'admin@test',KCH_TEST_SPREADSHEET_ID_:'test-book',SpreadsheetApp:{getActiveSpreadsheet:()=>options.noActive?null:ss,getUi:()=>{if(options.web)throw Error('No UI');return {createMenu:()=>menu};}}};
+ vm.createContext(c);vm.runInContext(fs.readFileSync(path.join(__dirname,'../setup.gs'),'utf8'),c);
+ c.repairAndOptimizeSpreadsheet_=()=>{calls.push('UNSAFE_LEGACY');throw Error('Legacy must not run');};
+ c.kchRunSheetUpdates_=book=>{assert.equal(book,ss);calls.push('SAFE_UPDATER');return {success:true,backupUrl:'BACKUP'};};return {c,calls,callbacks,ss};
 }
-
-test('existing sheet callback takes a backup before running legacy migration', () => {
-  const e = maintenance(); const result = e.context.repairAndOptimizeSpreadsheet();
-  assert.equal(result.status, 'success'); assert.match(result.backupUrl, /backup-id/);
-  assert.ok(e.events.indexOf('backup') < e.events.indexOf('migration'));
-  assert.ok(e.events.indexOf('log-backup') < e.events.indexOf('migration'));
-  assert.equal(e.events.at(-1), 'unlock');
-});
-test('maintenance rejects anonymous users, sales and web app contexts before backup or mutation', () => {
-  for (const options of [{ email: '' }, { email: 'sales@gmail.com' }, { webContext: true }]) {
-    const e = maintenance(options); assert.throws(() => e.context.repairAndOptimizeSpreadsheet(), /ACCESS_DENIED/);
-    assert.equal(e.events.includes('backup'), false); assert.equal(e.events.includes('migration'), false);
-  }
-});
-test('maintenance rejects missing or different active spreadsheet to protect the original', () => {
-  for (const options of [{ noActive: true }, { activeId: 'original-october-sheet' }]) {
-    const e = maintenance(options); assert.throws(() => e.context.repairAndOptimizeSpreadsheet(), /UJI COBA/);
-    assert.equal(e.events.includes('backup'), false); assert.equal(e.events.includes('migration'), false);
-  }
-});
-test('backup failure prevents migration and releases its lock', () => {
-  const e = maintenance({ copyFailure: true }); assert.throws(() => e.context.repairAndOptimizeSpreadsheet(), /Cadangan gagal/);
-  assert.equal(e.events.includes('migration'), false); assert.equal(e.events.at(-1), 'unlock');
-});
-test('migration failure reports the recovery copy and releases its lock', () => {
-  const e = maintenance({ migrationFailure: true }); assert.throws(() => e.context.repairAndOptimizeSpreadsheet(), /Header mismatch.*backup-id/);
-  assert.equal(e.events.at(-1), 'unlock');
-});
-test('rebuilt spreadsheet menu calls the stable maintenance entry point', () => {
-  const e = maintenance(); e.context.onOpen();
-  assert.ok(e.callbacks.includes('repairAndOptimizeSpreadsheet'));
-  assert.equal(e.callbacks.includes('repairAndOptimizeSpreadsheet_'), false);
-});
+test('stable spreadsheet repair callback delegates to safe updater and never calls legacy rebuild',()=>{const e=fixture();assert.equal(e.c.repairAndOptimizeSpreadsheet().success,true);assert.deepEqual(e.calls,['SAFE_UPDATER']);});
+test('native maintenance rejects wrong user, missing/wrong spreadsheet and web context before delegation',()=>{for(const options of [{email:''},{email:'guest@test'},{noActive:true},{activeId:'original-other-book'},{web:true}]){const e=fixture(options);assert.throws(()=>e.c.repairAndOptimizeSpreadsheet(),/ACCESS_DENIED/);assert.equal(e.calls.length,0);}});
+test('maintenance refuses missing safe updater rather than falling back to destructive legacy helpers',()=>{const e=fixture();delete e.c.kchRunSheetUpdates_;assert.throws(()=>e.c.repairAndOptimizeSpreadsheet(),/legacy dinonaktifkan/);assert.equal(e.calls.length,0);});
+test('safe updater failures propagate without another migration or retry',()=>{const e=fixture();e.c.kchRunSheetUpdates_=()=>{throw Error('Backup unavailable');};assert.throws(()=>e.c.repairAndOptimizeSpreadsheet(),/Backup unavailable/);assert.equal(e.calls.length,0);});
+test('menu exposes only safe update, archive and guarded production actions',()=>{const e=fixture();e.c.onOpen();assert.ok(e.callbacks.includes('repairAndOptimizeSpreadsheet'));assert.ok(e.callbacks.includes('siapkanDatabaseProduksiBaru'));for(const name of ['setupSalesTransactionsUnifiedSheet_','setupInventorySheetStructure_','syncProductsToInventory_','purgeObsoleteColumnsAndSheets_','repairAndOptimizeSpreadsheet_'])assert.ok(!e.callbacks.includes(name));});

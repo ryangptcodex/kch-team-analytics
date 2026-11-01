@@ -92,3 +92,8 @@ test('cash memo success resets its own form only and refreshes its list, without
  const e=browser();let cleared=0,loaded=0;e.c.resetCashDepositForm=()=>cleared++;e.c.loadStockPickupData=()=>loaded++;e.c.appState.pendingTransaction={requestId:'CASH-CLIENT-00000001',payload:{operation:'DEPOSIT'}};
  e.c.txClientHandleResult({success:true,state:'COMMITTED',operation:'DEPOSIT',transactionId:'CASH-1',amount:100000,message:'Tersimpan'});assert.equal(cleared,1);assert.equal(loaded,1);assert.equal(e.refreshes(),0);assert.equal(e.resets(),0);assert.equal(e.c.appState.pendingTransaction,null);assert.equal(e.els.cashDepositFormFields.disabled,false);assert.match(e.toasts[0][0],/100[.]000/);
 });
+test('Production pending-request storage is separate from UJI for the same browser and admin UID',()=>{
+ const storage=new Map(),uji=browser(storage);uji.c.submitSalesTransaction();const originalKey=uji.c.txClientStorageKey();assert.ok(storage.has(originalKey));
+ const prod=browser(storage);prod.c.window.KCH_ENVIRONMENT_KEY='production-project';assert.notEqual(prod.c.txClientStorageKey(),originalKey);prod.c.restorePendingSalesTransaction();assert.equal(prod.c.appState.pendingTransaction,null);
+ prod.c.submitSalesTransaction();assert.equal(storage.size,2);assert.ok(storage.has(originalKey));
+});

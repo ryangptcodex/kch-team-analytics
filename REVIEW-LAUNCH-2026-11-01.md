@@ -4,6 +4,8 @@ Keputusan saat review: **belum disarankan memakai deployment/database sekarang l
 
 Pengguna mengonfirmasi **seluruh isi spreadsheet saat ini masih data uji**. Menyimpan arsip Oktober tidak mengeluarkan angka uji dari perhitungan historis/triwulan. Jangan menghapus sebagian baris transaksi atau mengubah saldo tanpa rekonsiliasi.
 
+**Pembaruan setelah review:** paket pemisahan Production dan pengamanan menu legacy sudah diimplementasikan serta diuji lokal. Lihat [panduan Production](PANDUAN-PRODUKSI-TERPISAH.md). Pemasangan/persiapan Google nyata belum dijalankan agen. Temuan lain di bawah tetap terbuka; bagian bukti berikut merekam keadaan saat audit awal.
+
 ## Cakupan dan bukti
 
 - Source ditinjau pada commit `8f5e12b553a4d237dd825672acbe333795a0753e`, aplikasi terakhir berubah pada a96ae2d. Branch `uji-login`.

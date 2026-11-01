@@ -41,7 +41,7 @@ function environment(options = {}) {
   const identity = { localId: 'sales-uid', email: 'sales@gmail.com', emailVerified: true, displayName: 'Sales One', providerUserInfo: [{ providerId: 'google.com' }], ...(options.identity || {}) };
   const ss = { getSheetByName: name => sheets.get(name) || null, insertSheet: name => sheet(name) };
   const properties = {};
-  const context = {
+  const context = { ScriptApp:{getScriptId:()=> 'mock-uji-script'},
     PropertiesService: { getScriptProperties: () => ({getProperty: k => properties[k] ?? null,setProperty(k,v){properties[k]=v;},deleteProperty(k){delete properties[k];},getProperties:()=>({...properties})}) },
     Date, console,
     Session: { getActiveUser: () => ({ getEmail: () => options.editorEmail || '' }) },

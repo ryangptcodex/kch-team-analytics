@@ -328,6 +328,7 @@ function kchApi(token, method, args) {
       args[0] = 'CLIENT_' + String(args[0] || '').slice(0, 100);
       args[3] = user.email;
     }
+    if (/^(save|edit|archive)/.test(method) && ['saveGuestCredentials','saveAccessUser','saveMyProfile'].indexOf(method)<0 && typeof productionRequireReady_==='function') productionRequireReady_();
     if (/^(save|edit|archive)/.test(method) && typeof archivePendingGuard_ === 'function') archivePendingGuard_();
     var result = handlers[method].apply(null, args);
     if (method === 'saveSalesPhotoUpload' && result.success) {
