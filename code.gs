@@ -969,7 +969,7 @@ function getDashboardMetrics_(filters) {
           teamName: sTeam,
           time: formatVisitPhotoTime_(aRow.time) || '-',
           photoUrl: '', photoRef: photoEvidenceRef_('attendance',aRow),
-          status: aRow.status || 'Hadir',
+          status: attendanceCategory_(aRow.status,aRow.time),
           location: aRow.location || 'Cabang Lhokseumawe',
           notes: aRow.notes || 'Dokumentasi Absensi Lapangan'
         });
@@ -1070,7 +1070,7 @@ function getAttendanceByDate_(dateStr) {
           teamName: sTeam,
           time: formatVisitPhotoTime_(aRow.time) || '-',
           photoUrl: '', photoRef: photoEvidenceRef_('attendance',aRow),
-          status: aRow.status || 'Hadir',
+          status: attendanceCategory_(aRow.status,aRow.time),
           location: aRow.location || 'Cabang Lhokseumawe',
           notes: aRow.notes || 'Dokumentasi Absensi Lapangan'
         });
@@ -1678,7 +1678,20 @@ function saveSalesPhotoUpload_(payload, photoType) {
   return txExecuteRequest_(request, 'PHOTO');
 }
 
-// Office rule supplied by Admin: start 08:00 WIB, tolerance through 09:00:00 WIB.
+// Categories use the recorded WIB minute. Reclassify only presence labels;
+// leave Izin/Sakit/Tidak Hadir and unknown explicit statuses intact.
+function attendanceCategory_(status,time) {
+  var key=normalizeKey_(status || '');
+  if(['','ACTIVE','PRESENT','TERLAMBAT','TELAT','LATE','MASUK','CHECK IN','CHECKIN'].indexOf(key)<0 && !/^HADIR(?: |$)/.test(key))return status;
+  var clock=formatVisitPhotoTime_(time),match=/^([01]\d|2[0-3]):([0-5]\d)$/.exec(clock);
+  if(!match)return 'HADIR';
+  var minute=Number(match[1])*60+Number(match[2]);
+  if(minute<=8*60)return 'HADIR TEPAT WAKTU';
+  if(minute<=9*60)return 'HADIR';
+  return 'HADIR TELAT';
+}
+
+// Office categories: on time through 08:00, present through 09:00, late from 09:01 WIB (also after noon).
 function attendanceClock_(date,payload,user,now) {
   var today=Utilities.formatDate(now,TIMEZONE,'yyyy-MM-dd'),received=Utilities.formatDate(now,TIMEZONE,'HH:mm:ss');
   var input=payload.attendanceTime;
@@ -1690,7 +1703,7 @@ function attendanceClock_(date,payload,user,now) {
   var time=input?(input.length===5?input+':00':input):received;
   if(!/^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/.test(time))throw new Error('Waktu server belum dapat diperiksa. Coba kembali.');
   if(date===today && time>received)throw new Error('Jam absensi hari ini tidak boleh melebihi waktu server WIB.');
-  return {time:time,status:time<='09:00:00'?'Hadir Tepat Waktu':'Hadir Terlambat',timeSource:input?'ADMIN_INPUT':'SERVER',workStart:'08:00:00',toleranceUntil:'09:00:00'};
+  return {time:time,status:attendanceCategory_('HADIR',time),timeSource:input?'ADMIN_INPUT':'SERVER',workStart:'08:00:00',toleranceUntil:'09:00:59',lateFrom:'09:01:00',afterNoonStatus:'HADIR TELAT',timePrecision:'MINUTE'};
 }
 
 // The photo row, audit entry and COMMITTED receipt share one atomic Sheets batch.

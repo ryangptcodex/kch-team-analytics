@@ -1070,7 +1070,8 @@
 
       var statusClass = 'att-status-hadir';
       if (statusNorm.indexOf('TEPAT') > -1) statusClass = 'att-status-tepat-waktu';
-      else if (statusNorm.indexOf('TERLAMBAT') > -1) statusClass = 'att-status-terlambat';
+      else if (statusNorm.indexOf('TERLAMBAT') > -1 || statusNorm.indexOf('TELAT') > -1) statusClass = 'att-status-terlambat';
+      else if (statusNorm === 'HADIR') statusClass = 'att-status-toleransi';
       else if (statusNorm.indexOf('IZIN') > -1) statusClass = 'att-status-izin';
       else if (statusNorm.indexOf('SAKIT') > -1) statusClass = 'att-status-sakit';
       else if (statusNorm.indexOf('TIDAK') > -1 || statusNorm.indexOf('ALPHA') > -1) statusClass = 'att-status-tidak-hadir';
