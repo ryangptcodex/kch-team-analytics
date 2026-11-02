@@ -125,3 +125,6 @@ test('photo upload fails before RPC when session recovery storage is unavailable
 test('manual attendance time is captured before compression and locked with the same replay draft',()=>{
  const e=browser();photoDraft(e);e.values.photoUploadTime='08:45';let done;e.c.compressPhotoFile=(file,callback)=>{done=callback;};e.c.submitPhotoUploadForm();assert.equal(e.els.photoUploadTime.disabled,true);e.values.photoUploadTime='09:30';done('data:image/jpeg;base64,AQI=',null);assert.equal(e.calls[0].payload.attendanceTime,'08:45');assert.equal(e.calls[0].payload.operation,'PHOTO');
 });
+test('visit form sends the actual visit time captured before compression, without mixing in attendance time',()=>{
+ const e=browser();photoDraft(e);e.c.appState.photoUploadType='visit';e.values.photoUploadTime='15:40';let done;e.c.compressPhotoFile=(file,callback)=>{done=callback;};e.c.submitPhotoUploadForm();assert.equal(e.els.photoUploadTime.disabled,true);e.values.photoUploadTime='21:30';done('data:image/jpeg;base64,AQI=',null);assert.equal(e.calls[0].payload.visitTime,'15:40');assert.equal('attendanceTime' in e.calls[0].payload,false);assert.equal(e.calls[0].type,'visit');
+});

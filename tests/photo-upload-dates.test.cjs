@@ -7,7 +7,7 @@ function fixture(){
  for(const name of ['ATTENDANCE','VISIT_PHOTOS'])c.txAddSheet_(meta,requests,name,c.TABLE_SCHEMAS[name],false);
  c.txBatch_(ctx,requests);let files=0;
  c.createUploadedPhotoFile_=()=>{files++;return {getId:()=> 'DATE_TEST_IMAGE',getUrl:()=> 'https://drive.google.com/file/d/DATE_TEST_IMAGE/view',setTrashed(){}};};
- return {...e,c,files:()=>files,upload:(date,type)=>c.kchApi('MOCK','saveSalesPhotoUpload',[{requestId:'REQ-DATE-REGRESSION-0001',salesId:'S1',date,notes:'Date regression',attendanceTime:'08:30',imageDataUrl:'data:image/jpeg;base64,AQI='},type])};
+ return {...e,c,files:()=>files,upload:(date,type)=>c.kchApi('MOCK','saveSalesPhotoUpload',[{requestId:'REQ-DATE-REGRESSION-0001',salesId:'S1',date,notes:'Date regression',attendanceTime:'08:30',visitTime:'08:30',imageDataUrl:'data:image/jpeg;base64,AQI='},type])};
 }
 test('invalid calendar dates and malformed inputs reject attendance and visits before uploading or appending',()=>{
  for(const type of ['attendance','visit'])for(const date of ['2026-11-31','2026-02-29','2024-02-30','2026-04-31','2026-00-10','2026-13-01','2026-10-00','2026-10-32','0000-01-01','25/10/2026','2026-10-25T12:00:00Z','2026-10-25 garbage','2026-1-2',null,undefined,20261025,'']){
