@@ -1,6 +1,6 @@
 # Paket Skor — Motoris dan MMTW
 
-Dikembangkan di cabang **uji-login**, 27 Oktober 2026. Paket ini menambah menu **Skor** tanpa mengganti fitur transaksi, edit transaksi, stok, login, atau absensi yang sudah ada. Pemasangan dilakukan pada proyek Apps Script yang terikat ke spreadsheet **KCH Analytics - UJI COBA**.
+Dikembangkan di cabang **production**, 27 Oktober 2026. Paket ini menambah menu **Skor** tanpa mengganti fitur transaksi, edit transaksi, stok, login, atau absensi yang sudah ada. Pemasangan dilakukan pada proyek Apps Script yang terikat ke spreadsheet **KCH Analytics - UJI COBA**.
 
 ## File lengkap yang dipasang
 
@@ -8,11 +8,11 @@ Buka tiap tautan → **Raw / Copy raw file** → salin **seluruh isi**, bukan ha
 
 | File di GitHub | Tindakan di editor Apps Script UJI COBA |
 | --- | --- |
-| [score.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/score.gs) | **Baru**: tombol **+ → Script**, beri nama `score`, tempel seluruh isi. Editor menambahkan `.gs`. |
-| [score-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/score-client.html) | **Baru**: tombol **+ → HTML**, beri nama `score-client`, tempel seluruh isi. |
-| [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth.gs) | Ganti seluruh isi file Script `auth` yang sudah ada. |
-| [index.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/index.html) | Ganti seluruh isi file HTML `index`. |
-| [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/js.html) | Ganti seluruh isi file HTML `js`. |
+| [score.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/score.gs) | **Baru**: tombol **+ → Script**, beri nama `score`, tempel seluruh isi. Editor menambahkan `.gs`. |
+| [score-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/score-client.html) | **Baru**: tombol **+ → HTML**, beri nama `score-client`, tempel seluruh isi. |
+| [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/auth.gs) | Ganti seluruh isi file Script `auth` yang sudah ada. |
+| [index.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/index.html) | Ganti seluruh isi file HTML `index`. |
+| [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/js.html) | Ganti seluruh isi file HTML `js`. |
 
 Pasang **kelima file bersama-sama** sebelum membuka aplikasi. Biarkan `code.gs` (atau `Kode.gs`), `setup.gs`, `transactions.gs`, `transaction-edits.gs`, `firebase-config.gs`, `auth-client.html`, `auth-ui.html`, `css.html`, dan `appsscript.json` versi terbaru yang sudah terpasang tetap ada. Paket Skor memakai helper Google Sheets API dari `transactions.gs`; paket transaksi dan edit sebelumnya harus sudah terpasang lengkap.
 

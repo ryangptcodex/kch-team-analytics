@@ -36,7 +36,7 @@ Disimpan 25 Oktober 2026, waktu Jakarta. Ini ringkasan keputusan dan progres, bu
 - Kode memakai ID spreadsheet uji secara eksplisit melalui `getKchSpreadsheet_()`.
 - 18 tes lokal lulus: `node --test tests/auth.test.cjs`. Layanan Firebase/Spreadsheet pada tes adalah simulasi; ini belum membuktikan login nyata atau deployment berfungsi.
 - Kode login diunggah atas persetujuan pengguna ke cabang **uji-login**, commit `d5dfabc75bd6c4e2ea0a8114f1903dc7660a5264`.
-- Repository: https://github.com/ryangptcodex/kch-team-analytics/tree/uji-login
+- Repository: https://github.com/ryangptcodex/kch-team-analytics/tree/production
 - Panduan pemasangan lengkap: `PANDUAN-UJI-LOGIN.md`.
 
 ## Posisi terakhir pengguna
@@ -629,3 +629,11 @@ Pengguna berhenti sementara untuk jualan dan meminta progres disimpan. Lanjut na
 Pengguna meminta: “nanti cabang uji login diganti saja namanya jadi production ya, biar ga salah2 atau ketuker nanti”. Ini instruksi mengganti nama cabang saat melanjutkan pekerjaan, bukan membuat salinan kode berbeda atau mengubah data Google. Pada jeda ini hanya preferensinya disimpan; nama cabang belum diubah.
 
 Saat melanjutkan, lakukan rename `uji-login` menjadi `production` dengan mekanisme rename GitHub yang tersedia, pertahankan seluruh histori, dan perbarui tautan file/panduan yang masih mengarah ke cabang lama. Periksa pengaturan cabang/default/PR yang terpengaruh sebelum menentukan langkah teknis. Jangan menghapus histori, menimpa cabang lain atau melakukan force push. Nama cabang repository tidak mengubah binding spreadsheet, Firebase maupun versi deployment Apps Script; konfigurasi lingkungan tetap memakai ID proyek yang sudah dikunci. Permintaan rename sudah disetujui pengguna, tidak perlu meminta persetujuan ulang untuk pekerjaan rutin tersebut.
+
+### Melanjutkan: transisi cabang production — 2 November 2026
+
+Pengguna kembali dengan “bro gw mau lanjut”. Checkpoint dibaca. Cabang lokal diganti menjadi `production` dan tautan GitHub/raw pada semua panduan termasuk tautan historis checkpoint diarahkan ke production agar link salin terbaru konsisten. Penyebutan nama cabang dalam catatan historis tetap dibiarkan sebagai riwayat.
+
+GitHub API melalui gh untuk repo/branches/PR mengembalikan Forbidden; tidak tersedia konektor GitHub lain. Git ls-remote membuktikan hanya uji-login yang ada pada awal langkah ini, HEAD/default menunjuk uji-login dengan SHA3670a51. Tidak bisa melakukan native rename/default change lewat API. Fallback yang dijelaskan kepada pengguna: publish production dengan seluruh histori, pertahankan uji-login pada checkpoint lama tanpa force push/delete, lalu pemilik mengganti default menjadi production melalui Settings → General → Default branch. Jangan mengklaim rename remote/default sudah selesai atau PR/proteksi sudah diperiksa. PANDUAN-CABANG-PRODUCTION.md menjelaskan langkah manual tersisa.
+
+Langkah absensi berikut menunggu jawaban async: status cukup “Hadir” atau hitung tepat waktu/terlambat dengan batas jam masuk/toleransi WIB. Pencarian source/panduan tidak menemukan aturan jam masuk yang sudah ditentukan. Sambil menunggu, pekerjaan cabang/tautan dilanjutkan. Jangan mengarang cutoff.

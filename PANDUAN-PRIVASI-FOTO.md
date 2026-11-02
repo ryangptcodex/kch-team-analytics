@@ -6,9 +6,9 @@ Foto baru tidak lagi dibagikan sebagai ANYONE_WITH_LINK. Gambar kartu dan modal 
 
 Buka tautan → **Copy raw file** → ganti seluruh isi file dengan nama yang sama di Apps Script **Production**:
 
-- [code.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/code.gs)
-- [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth.gs)
-- [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/js.html)
+- [code.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/code.gs)
+- [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/auth.gs)
+- [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/js.html)
 
 Simpan semuanya lalu refresh `/dev`. Untuk `/exec`, terapkan Versi baru pada deployment Production. File transactions.gs dan index.html tahap sebelumnya tetap dipakai. Tidak perlu menjalankan persiapan database, saldo awal atau reset sheet.
 

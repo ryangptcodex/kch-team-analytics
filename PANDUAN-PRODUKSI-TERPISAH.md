@@ -1,6 +1,6 @@
 # Menyiapkan KCH Team Analytics Production
 
-Paket ini memisahkan database Production dari UJI COBA. Kode dan pengujian sudah disiapkan di cabang `uji-login`; pemasangan dan eksekusi di Google masih dilakukan Admin. Mengganti nama saja tidak memisahkan database.
+Paket ini memisahkan database Production dari UJI COBA. Kode dan pengujian sudah disiapkan di cabang `production`; pemasangan dan eksekusi di Google masih dilakukan Admin. Mengganti nama saja tidak memisahkan database.
 
 ## Tujuan yang sudah ditentukan
 
@@ -17,15 +17,15 @@ Buka tautan file berikut. Klik **Raw**, tekan **Ctrl+A → Ctrl+C**. Di editor A
 
 | File lengkap | Tindakan |
 | --- | --- |
-| [firebase-config.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/firebase-config.gs) | Ganti seluruh isi |
-| [production-setup.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/production-setup.gs) | Buat Script baru |
-| [sheet-updates.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/sheet-updates.gs) | Ganti seluruh isi |
-| [setup.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/setup.gs) | Ganti seluruh isi |
-| [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth.gs) | Ganti seluruh isi |
-| [index.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/index.html) | Ganti seluruh isi |
-| [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/js.html) | Ganti seluruh isi |
+| [firebase-config.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/firebase-config.gs) | Ganti seluruh isi |
+| [production-setup.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/production-setup.gs) | Buat Script baru |
+| [sheet-updates.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/sheet-updates.gs) | Ganti seluruh isi |
+| [setup.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/setup.gs) | Ganti seluruh isi |
+| [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/auth.gs) | Ganti seluruh isi |
+| [index.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/index.html) | Ganti seluruh isi |
+| [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/js.html) | Ganti seluruh isi |
 
-File lain dari salinan UJI COBA terbaru tetap diperlukan. Ini paket perubahan untuk salinan lengkap, bukan aplikasi tujuh file yang berdiri sendiri. Bila proyek baru ternyata kosong, salin seluruh file aplikasi dari cabang `uji-login` terlebih dahulu, termasuk manifest `appsscript.json`.
+File lain dari salinan UJI COBA terbaru tetap diperlukan. Ini paket perubahan untuk salinan lengkap, bukan aplikasi tujuh file yang berdiri sendiri. Bila proyek baru ternyata kosong, salin seluruh file aplikasi dari cabang `production` terlebih dahulu, termasuk manifest `appsscript.json`.
 
 Menu spreadsheet lama yang membangun ulang data diganti dengan jalur pembaruan aman. Fungsi `repairAndOptimizeSpreadsheet` sekarang meneruskan ke updater yang mempertahankan data. Struktur fitur lama tetap dilayani tombol Perbarui Seluruh Sheet. Tampilan webapp tidak diubah.
 

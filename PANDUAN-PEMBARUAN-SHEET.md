@@ -12,9 +12,9 @@ Tab **PEMBARUAN_SHEET** dibuat di posisi paling kanan (setelah ACTIVITY_LOGS bil
 
 Di proyek Apps Script **UJI COBA** yang terikat ke spreadsheet, sebagai Gmail admin:
 
-1. Buat file **Script** baru bernama `sheet-updates`, lalu salin seluruh [sheet-updates.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/sheet-updates.gs) lewat Raw / Copy raw file. Jangan membuatnya sebagai HTML.
-2. Ganti seluruh isi Script `setup` dengan [setup.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/setup.gs).
-3. Ganti seluruh isi Script `auth` dengan [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth.gs). Tambahan ini melindungi tab kontrol/tautan cadangan dari pembacaan akun Tamu melalui webapp.
+1. Buat file **Script** baru bernama `sheet-updates`, lalu salin seluruh [sheet-updates.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/sheet-updates.gs) lewat Raw / Copy raw file. Jangan membuatnya sebagai HTML.
+2. Ganti seluruh isi Script `setup` dengan [setup.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/setup.gs).
+3. Ganti seluruh isi Script `auth` dengan [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/auth.gs). Tambahan ini melindungi tab kontrol/tautan cadangan dari pembacaan akun Tamu melalui webapp.
 4. Simpan, muat ulang spreadsheet. Pilih menu **⚡ KCH Lhokseumawe → 🔄 Siapkan Tab Pembaruan Sheet (Aman)**. Berikan izin Google yang diminta untuk menjalankan skrip dan memasang trigger edit. Alternatif: jalankan `setupKchSheetUpdates` sekali dari editor Apps Script.
 5. Tab baru terbuka. Klik checkbox **A3** untuk memperbarui seluruh struktur. Lihat Status, Terakhir diperiksa, Cadangan, dan Rincian.
 

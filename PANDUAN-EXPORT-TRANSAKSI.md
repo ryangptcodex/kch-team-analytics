@@ -4,7 +4,7 @@ Sebelumnya pembaca transaksi bisa mengembalikan success:false, tetapi pembungkus
 
 ## Pasang satu file
 
-Ganti seluruh isi **[code.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/code.gs)** pada Apps Script **Production** melalui **Copy raw file**, lalu Simpan dan refresh webapp `/dev`. Untuk `/exec`, terapkan Versi baru pada deployment Production. Revisi hanya membutuhkan code.gs; js.html yang sudah dipasang telah menangani success:false pada export CSV dan laporan cetak.
+Ganti seluruh isi **[code.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/code.gs)** pada Apps Script **Production** melalui **Copy raw file**, lalu Simpan dan refresh webapp `/dev`. Untuk `/exec`, terapkan Versi baru pada deployment Production. Revisi hanya membutuhkan code.gs; js.html yang sudah dipasang telah menangani success:false pada export CSV dan laporan cetak.
 
 Tidak perlu menjalankan fungsi persiapan, reset data, penerapan stok awal atau pembaruan struktur sheet. Seluruh perbaikan tanggal/foto/privasi sebelumnya tetap ada dalam file lengkap ini.
 

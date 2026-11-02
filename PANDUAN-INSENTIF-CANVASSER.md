@@ -8,14 +8,14 @@ Raw / Copy raw file → salin seluruh isi file:
 
 | File | Jenis/tindakan |
 | --- | --- |
-| [canvasser-incentives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/canvasser-incentives.gs) | **BARU Script** `canvasser-incentives`, bukan HTML. Memuat loading, pasangan, dan alokasi Junior. |
-| [incentives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/incentives.gs) | Ganti Script `incentives`. |
-| [incentive-sheets.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/incentive-sheets.gs) | Ganti Script `incentive-sheets`. |
-| [score.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/score.gs) | Ganti Script `score`; koreksi Promag Herbal menjadi LPRGR. |
-| [sheet-updates.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/sheet-updates.gs) | Ganti Script `sheet-updates`; dependency modul dan preservasi lebar kolom saat migrasi. |
-| [incentive-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/incentive-client.html) | Ganti HTML `incentive-client`. |
-| [index.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/index.html) | Ganti HTML `index`. |
-| [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/js.html) | Ganti HTML `js`. |
+| [canvasser-incentives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/canvasser-incentives.gs) | **BARU Script** `canvasser-incentives`, bukan HTML. Memuat loading, pasangan, dan alokasi Junior. |
+| [incentives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/incentives.gs) | Ganti Script `incentives`. |
+| [incentive-sheets.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/incentive-sheets.gs) | Ganti Script `incentive-sheets`. |
+| [score.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/score.gs) | Ganti Script `score`; koreksi Promag Herbal menjadi LPRGR. |
+| [sheet-updates.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/sheet-updates.gs) | Ganti Script `sheet-updates`; dependency modul dan preservasi lebar kolom saat migrasi. |
+| [incentive-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/incentive-client.html) | Ganti HTML `incentive-client`. |
+| [index.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/index.html) | Ganti HTML `index`. |
+| [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/js.html) | Ganti HTML `js`. |
 
 Pasang bersama, **Simpan**, refresh `/dev` atau terapkan **Versi baru** untuk deployment `/exec` yang sama. Tidak perlu mengganti auth/login/CSS/score-client/transaksi/setup. Tidak perlu repair.
 

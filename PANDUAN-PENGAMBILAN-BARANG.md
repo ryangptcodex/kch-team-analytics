@@ -1,6 +1,6 @@
 # Pengambilan barang dan sumber stok per produk
 
-Paket cabang `uji-login` ini menambahkan perpindahan stok distributor → pegangan sales. Pencatatan pengambilan tidak membuat faktur penjualan, tidak menambah omzet, dan tidak menambah skor/insentif. Penjualan yang terjadi kemudian tetap dihitung melalui faktur seperti sebelumnya.
+Paket cabang `production` ini menambahkan perpindahan stok distributor → pegangan sales. Pencatatan pengambilan tidak membuat faktur penjualan, tidak menambah omzet, dan tidak menambah skor/insentif. Penjualan yang terjadi kemudian tetap dihitung melalui faktur seperti sebelumnya.
 
 ## Pasang sembilan file pada Apps Script UJI COBA
 
@@ -98,7 +98,7 @@ Sheet **SALES_CASH_DEPOSITS** berisi `deposit_id, deposit_date, sales_id, sales_
 
 Jika paket9file pengambilan di atas sudah dipasang, **ganti enam file** berikut: **stock-pickups.gs, transactions.gs, auth.gs, stock-client.html, index.html, js.html**. Tidak ada file baru untuk tambahan setoran. Simpan semuanya → klik **PEMBARUAN_SHEET A3 / Perbarui Seluruh Sheet**, tungguBerhasil → refresh `/dev` atau terapkan versi baru `/exec` lalu refresh. `sheet-updates.gs` yang terbaru dari paketpengambilan memakai registrydinamis sehingga tidak perlu diganti lagi hanya untuk tambahan skema ini.
 
-Jika belum memasang paketpengambilan9file, pasang semua9file dari tabel utama menggunakan versi terbaru cabang `uji-login`; versi tersebut sudah mencakup setoran. Jangan hanya memasang enam file tambahan di atas fondasi transaksi lama.
+Jika belum memasang paketpengambilan9file, pasang semua9file dari tabel utama menggunakan versi terbaru cabang `production`; versi tersebut sudah mencakup setoran. Jangan hanya memasang enam file tambahan di atas fondasi transaksi lama.
 
 Uji memo: catat stok, jumlahfaktur dan pencapaian sebelum uji, lalu simpan setoran **Rp100.000** untuk satu sales. Harus muncul satu catatan setoran, sementara seluruh angka penjualan/Skor/Insentif danstok tetap. Coba foto; buka melalui Tamu, pastikan formtulis tersembunyi. Nominalnol/negatif ditolak. Klik PerbaruiSeluruhSheet kembali harus mempertahankan barissetoran lama.
 

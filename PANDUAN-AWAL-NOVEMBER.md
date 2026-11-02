@@ -6,7 +6,7 @@ Ini pembersihan **data percobaan sekali sebelum launch**, sesuai persetujuan pen
 
 ## Pasang dan jalankan
 
-1. Buka [sheet-updates.gs lengkap](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/sheet-updates.gs). Klik **Copy raw file** (ikon salin di kanan atas kode; atau Raw lalu Ctrl+A, Ctrl+C).
+1. Buka [sheet-updates.gs lengkap](https://github.com/ryangptcodex/kch-team-analytics/blob/production/sheet-updates.gs). Klik **Copy raw file** (ikon salin di kanan atas kode; atau Raw lalu Ctrl+A, Ctrl+C).
 2. Buka Apps Script **UJI COBA**, pilih Script **sheet-updates.gs**, ganti seluruh isinya dengan kode tersebut, lalu Simpan. Jangan membuat file dengan nama sama kedua kali. Revisi ini hanya mengganti satu file aplikasi.
 3. Pastikan paket fitur sebelumnya sudah dipasang, termasuk `stock-pickups.gs` versi setoran, `incentive-sheets.gs`, `incentives.gs`, `canvasser-incentives.gs` dan paket [Pengambilan Barang](PANDUAN-PENGAMBILAN-BARANG.md). Updater membaca modul yang dipasang di Apps Script; tidak mengunduh kode otomatis. Modul wajib yang belum dipasang akan menghentikan pembaruan dengan pesan pemasangan.
 4. Tutup tab webapp lain dan hentikan input/manual edit spreadsheet selama persiapan. Di dropdown fungsi editor Apps Script pilih **siapkanAwalNovember**, klik **Jalankan** sebagai Gmail admin. Ini memasang tab/trigger jika perlu dan menyiapkan mode pembersihan; belum menghapus aktivitas.

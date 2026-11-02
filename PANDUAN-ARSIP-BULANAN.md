@@ -8,18 +8,18 @@ Buka tautan GitHub, klik **Copy raw file**, lalu tempel **seluruh isi** ke file 
 
 | File lengkap | Tindakan di Apps Script |
 |---|---|
-| [monthly-archives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/monthly-archives.gs) | **Script baru** `monthly-archives` |
-| [archive-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/archive-client.html) | **HTML baru** `archive-client` |
-| [sheet-updates.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/sheet-updates.gs) | Ganti seluruh Script `sheet-updates` |
-| [code.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/code.gs) | Ganti seluruh Script `Kode.gs` / `code.gs` yang sudah ada; **jangan keduanya** |
-| [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth.gs) | Ganti seluruh Script `auth` |
-| [transactions.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/transactions.gs) | Ganti seluruh Script `transactions` |
-| [transaction-edits.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/transaction-edits.gs) | Ganti seluruh Script `transaction-edits` |
-| [stock-pickups.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/stock-pickups.gs) | Ganti seluruh Script `stock-pickups` |
-| [score.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/score.gs) | Ganti seluruh Script `score` |
-| [incentive-sheets.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/incentive-sheets.gs) | Ganti seluruh Script `incentive-sheets` |
-| [index.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/index.html) | Ganti seluruh HTML `index` |
-| [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/js.html) | Ganti seluruh HTML `js` |
+| [monthly-archives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/monthly-archives.gs) | **Script baru** `monthly-archives` |
+| [archive-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/archive-client.html) | **HTML baru** `archive-client` |
+| [sheet-updates.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/sheet-updates.gs) | Ganti seluruh Script `sheet-updates` |
+| [code.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/code.gs) | Ganti seluruh Script `Kode.gs` / `code.gs` yang sudah ada; **jangan keduanya** |
+| [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/auth.gs) | Ganti seluruh Script `auth` |
+| [transactions.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/transactions.gs) | Ganti seluruh Script `transactions` |
+| [transaction-edits.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/transaction-edits.gs) | Ganti seluruh Script `transaction-edits` |
+| [stock-pickups.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/stock-pickups.gs) | Ganti seluruh Script `stock-pickups` |
+| [score.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/score.gs) | Ganti seluruh Script `score` |
+| [incentive-sheets.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/incentive-sheets.gs) | Ganti seluruh Script `incentive-sheets` |
+| [index.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/index.html) | Ganti seluruh HTML `index` |
+| [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/js.html) | Ganti seluruh HTML `js` |
 
 Paket ini melanjutkan fitur Pengambilan/Setoran dan Insentif yang sudah dibuat. Bila paket sebelumnya belum dipasang, lengkapi juga file dependensinya pada [panduan pengambilan](PANDUAN-PENGAMBILAN-BARANG.md) dan [panduan insentif](PANDUAN-SINKRON-INSENTIF.md). CSS, login, rumus tarif Insentif, manifest dan `setup.gs` tidak perlu diganti untuk revisi ini.
 
@@ -69,13 +69,13 @@ Pengujian lokal mencakup cutoff menit terakhir, Februari/tahun kabisat/pergantia
 
 ## Jika sebelumnya muncul HTTP 400 saat mengarsipkan
 
-Ganti seluruh isi **dua Script** dengan versi terbaru: [monthly-archives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/monthly-archives.gs) dan [transactions.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/transactions.gs). Simpan, lalu jalankan **setupArsipBulanan** lagi sebagai Gmail Admin. Tidak perlu mengganti HTML untuk perbaikan ini. Proses native Sheet memakai kode yang disimpan, sehingga tidak perlu deployment baru hanya untuk menjalankan ulang arsip.
+Ganti seluruh isi **dua Script** dengan versi terbaru: [monthly-archives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/monthly-archives.gs) dan [transactions.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/transactions.gs). Simpan, lalu jalankan **setupArsipBulanan** lagi sebagai Gmail Admin. Tidak perlu mengganti HTML untuk perbaikan ini. Proses native Sheet memakai kode yang disimpan, sehingga tidak perlu deployment baru hanya untuk menjalankan ulang arsip.
 
 Revisi mengosongkan nilai baris lama setelah menyimpannya di arsip, tanpa menghapus baris fisik—menghindari penolakan pada grid ringkas/frozen. Jika masih gagal, B11 sekarang juga memuat **Rincian Google** (maksimal 600 karakter pesan penyebab, bukan dump request/token). Salin pesan tersebut untuk diagnosis; jangan menghapus jurnal PENDING atau data arsip secara manual. Penolakan HTTP yang pasti dibedakan dari hasil koneksi belum pasti.
 
 ## Privasi Admin dan Tamu
 
-Paket penguatan privasi awal mengganti **3 file**: [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth.gs), [monthly-archives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/monthly-archives.gs), dan [archive-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/archive-client.html). Salin isi lengkap, Simpan, refresh `/dev`; untuk `/exec`, terapkan Versi baru pada deployment yang sama. Tidak perlu Perbarui Sheet atau menjalankan arsip lagi hanya untuk revisi privasi ini.
+Paket penguatan privasi awal mengganti **3 file**: [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/auth.gs), [monthly-archives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/monthly-archives.gs), dan [archive-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/archive-client.html). Salin isi lengkap, Simpan, refresh `/dev`; untuk `/exec`, terapkan Versi baru pada deployment yang sama. Tidak perlu Perbarui Sheet atau menjalankan arsip lagi hanya untuk revisi privasi ini.
 
 - Tamu tidak menerima properti URL salinan/snapshot sama sekali dari server. Link “Buka salinan spreadsheet lengkap” hanya dibuat bila peran UI **ADMIN** dan izin server **canOpenSnapshot** bernilai true. Mengubah tombol/peran tampilan dari browser tidak memberi URL dari server.
 - Tamu tidak dapat meminta tabel akun/password, kontrol pembaruan, jurnal transaksi/edit, log aktivitas, tabel internal arsip atau payload AA/branding mentah. Pengelolaan akun, seluruh input/edit dan fungsi native Admin tetap ditolak server.
@@ -84,11 +84,11 @@ Paket penguatan privasi awal mengganti **3 file**: [auth.gs](https://github.com/
 
 Pengguna sudah mengonfirmasi **kontak sales dan dokumen internal khusus Admin**. Paket privasi lengkap sekarang **5 file**:
 
-1. [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth.gs)
-2. [monthly-archives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/monthly-archives.gs)
-3. [archive-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/archive-client.html)
-4. [auth-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth-client.html)
-5. [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/js.html)
+1. [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/auth.gs)
+2. [monthly-archives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/monthly-archives.gs)
+3. [archive-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/archive-client.html)
+4. [auth-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/auth-client.html)
+5. [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/js.html)
 
 Ganti seluruh isi lewat Copy raw file, Simpan, refresh `/dev`; untuk `/exec`, terapkan Versi baru. Jika 3 file privasi awal sudah dipasang, perlu mengganti **auth.gs sekali lagi**, ditambah **auth-client.html dan js.html**. Tidak perlu Perbarui Sheet atau mengarsipkan ulang.
 

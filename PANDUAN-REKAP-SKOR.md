@@ -47,10 +47,10 @@ Buka masing-masing tautan → **Raw / Copy raw file** → ganti seluruh isi file
 
 | File | Jenis di Apps Script |
 | --- | --- |
-| [score.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/score.gs) | **Script `score`**, bukan HTML. Memuat perhitungan Skor, rekap dan acuan harga. |
-| [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth.gs) | Script `auth`, menambah endpoint baca rekap untuk Admin/Tamu. |
-| [score-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/score-client.html) | HTML `score-client`, menampilkan rekap/catatan dan mempertahankan perbaikan loading AA. |
-| [index.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/index.html) | HTML `index`, menambahkan widget di posisi yang diminta. |
+| [score.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/score.gs) | **Script `score`**, bukan HTML. Memuat perhitungan Skor, rekap dan acuan harga. |
+| [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/auth.gs) | Script `auth`, menambah endpoint baca rekap untuk Admin/Tamu. |
+| [score-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/score-client.html) | HTML `score-client`, menampilkan rekap/catatan dan mempertahankan perbaikan loading AA. |
+| [index.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/index.html) | HTML `index`, menambahkan widget di posisi yang diminta. |
 
 Pasang **keempatnya bersama-sama**, lalu **Simpan**. Untuk `/dev`, refresh. Untuk `/exec`, perbarui deployment UJI COBA yang sama → ikon pensil → Versi baru → Terapkan → refresh. Tidak perlu mengganti file lain, mengubah master, membuat sheet manual, menekan Perbarui Sheet atau menjalankan repair.
 

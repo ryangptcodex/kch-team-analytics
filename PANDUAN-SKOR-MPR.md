@@ -22,11 +22,11 @@ Buka masing-masing tautan → **Raw / Copy raw file** → ganti **seluruh isi** 
 
 | File | Jenis di editor |
 | --- | --- |
-| [score.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/score.gs) | **Script `score`**, bukan HTML. Jika belum ada, + → Script → beri nama `score`. Berkas lengkap ini memuat `getScoreSetup_`, `getScoreReport_`, AA dan branding. |
-| [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth.gs) | Script `auth`: endpoint branding khusus admin; akun Tamu tetap hanya baca. |
-| [score-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/score-client.html) | HTML `score-client`: tampilkan/input branding hanya saat sales MPR/Canvasser dipilih. |
-| [index.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/index.html) | HTML `index`: kartu branding di halaman Skor. |
-| [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/js.html) | HTML `js`: judul Skor mencakup MPR/Canvasser. |
+| [score.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/score.gs) | **Script `score`**, bukan HTML. Jika belum ada, + → Script → beri nama `score`. Berkas lengkap ini memuat `getScoreSetup_`, `getScoreReport_`, AA dan branding. |
+| [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/auth.gs) | Script `auth`: endpoint branding khusus admin; akun Tamu tetap hanya baca. |
+| [score-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/score-client.html) | HTML `score-client`: tampilkan/input branding hanya saat sales MPR/Canvasser dipilih. |
+| [index.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/index.html) | HTML `index`: kartu branding di halaman Skor. |
+| [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/js.html) | HTML `js`: judul Skor mencakup MPR/Canvasser. |
 
 Pertahankan file lain, termasuk css.html, code.gs/Kode.gs, transactions.gs, transaction-edits.gs, firebase-config.gs, auth-client.html, auth-ui.html, setup.gs dan manifest, pada versi terbaru yang sudah terpasang. Tidak perlu membuat sheet baru secara manual, mengubah master, menekan Perbarui Sheet, atau menjalankan repair.
 

@@ -4,8 +4,8 @@ Revisi ini menghapus **akun login**, bukan profil sales atau histori bisnis.
 
 ## Pasang
 
-1. Ganti seluruh isi Script [setup.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/setup.gs).
-2. Ganti seluruh isi Script [sheet-updates.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/sheet-updates.gs).
+1. Ganti seluruh isi Script [setup.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/setup.gs).
+2. Ganti seluruh isi Script [sheet-updates.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/sheet-updates.gs).
 3. Simpan. Buka spreadsheet UJI COBA sebagai admin → tab PEMBARUAN_SHEET → klik checkbox **PERBARUI SELURUH SHEET** sekali. Tunggu status Berhasil dan periksa Rincian.
 
 Fungsi checkbox menggunakan kode tersimpan; tidak perlu memperbarui deployment webapp hanya untuk menjalankan pembersihan ini. Bila webapp memakai `/exec` dan ingin menyamakan seluruh kode deployment, terapkan Versi baru yang sama seperti biasa. Tidak perlu menjalankan repair lama.

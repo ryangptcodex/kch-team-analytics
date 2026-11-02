@@ -12,9 +12,9 @@ Di proyek Apps Script **UJI COBA**, gunakan Raw / Copy raw file:
 
 | File | Tindakan |
 | --- | --- |
-| [incentive-sheets.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/incentive-sheets.gs) | **BARU Script `incentive-sheets`**, bukan HTML. |
-| [incentives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/incentives.gs) | Ganti seluruh isi Script `incentives`. Perhitungan webapp tetap sama; helper bersama kini dipakai pembaruan sheet. |
-| [sheet-updates.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/sheet-updates.gs) | Ganti seluruh isi Script `sheet-updates`. Mendaftarkan modul, struktur, dan penulisan hasil Insentif. |
+| [incentive-sheets.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/incentive-sheets.gs) | **BARU Script `incentive-sheets`**, bukan HTML. |
+| [incentives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/incentives.gs) | Ganti seluruh isi Script `incentives`. Perhitungan webapp tetap sama; helper bersama kini dipakai pembaruan sheet. |
+| [sheet-updates.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/sheet-updates.gs) | Ganti seluruh isi Script `sheet-updates`. Mendaftarkan modul, struktur, dan penulisan hasil Insentif. |
 
 **Simpan**, lalu buka spreadsheet sebagai admin → tab **PEMBARUAN_SHEET → klik checkbox A3**. Tunggu **Berhasil**. Rincian menunjukkan jumlah baris yang diperbarui pada setiap tab. Tab kontrol kembali ditempatkan paling kanan.
 

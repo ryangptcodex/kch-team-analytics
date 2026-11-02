@@ -10,11 +10,11 @@ Gunakan **Raw / Copy raw file**, lalu salin seluruh isi:
 
 | File | Jenis/tindakan di Apps Script |
 | --- | --- |
-| [incentives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/incentives.gs) | **BARU Script `incentives`**, bukan HTML. |
-| [incentive-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/incentive-client.html) | **BARU HTML `incentive-client`**. |
-| [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth.gs) | Ganti Script `auth` seluruhnya; menambah dua endpoint baca pada whitelist Admin/Tamu. |
-| [index.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/index.html) | Ganti HTML `index` seluruhnya; menu, widget dan include baru. |
-| [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/js.html) | Ganti HTML `js` seluruhnya; state/reset sesi, navigasi dan subtitle. |
+| [incentives.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/incentives.gs) | **BARU Script `incentives`**, bukan HTML. |
+| [incentive-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/incentive-client.html) | **BARU HTML `incentive-client`**. |
+| [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/auth.gs) | Ganti Script `auth` seluruhnya; menambah dua endpoint baca pada whitelist Admin/Tamu. |
+| [index.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/index.html) | Ganti HTML `index` seluruhnya; menu, widget dan include baru. |
+| [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/js.html) | Ganti HTML `js` seluruhnya; state/reset sesi, navigasi dan subtitle. |
 
 Pasang bersama lalu **Simpan**. Tetap pertahankan semua file Skor/login/transaksi/edit/CSS/setup yang sudah ada; modul insentif menggunakan helper Skor yang ada, tanpa mengubah perhitungan Skor.
 

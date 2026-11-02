@@ -6,11 +6,11 @@ Absensi dan foto kunjungan sekarang memakai kode kiriman serta receipt yang sama
 
 Ganti seluruh isi **kelima file** berikut melalui **Copy raw file**, lalu simpan semuanya sebelum mencoba upload. Jangan hanya memasang server atau browser saja.
 
-- [code.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/code.gs)
-- [transactions.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/transactions.gs)
-- [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth.gs)
-- [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/js.html)
-- [index.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/index.html)
+- [code.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/code.gs)
+- [transactions.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/transactions.gs)
+- [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/auth.gs)
+- [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/js.html)
+- [index.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/index.html)
 
 Refresh webapp `/dev`. Untuk `/exec`, terapkan Versi baru pada deployment Production. Tidak perlu menjalankan persiapan database, penerapan stok awal, atau pembersihan sheet. File ini mempertahankan konfigurasi Firebase terpisah, nama profil, sumber stok, perhitungan dan tampilan lain yang sudah ada. Kode lama yang mengirim foto tanpa requestId akan ditolak; browser harus direfresh setelah seluruh file dipasang.
 

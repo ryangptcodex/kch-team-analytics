@@ -146,13 +146,13 @@ Paket ini memperbaiki pembuatan transaksi; **edit/pembatalan transaksi dan stok 
 ### Pasang tujuh file bersama di proyek UJI COBA
 
 1. Buat file **Script** baru bernama **transactions**, salin seluruh `transactions.gs` ke sana.
-2. Ganti seluruh isi `code.gs` (bisa bernama `Kode.gs` di editor), `auth.gs`, `setup.gs`, `js.html`, dan `index.html` dengan versi cabang `uji-login` yang sama. Jangan membuat dua file code/Kode berisi fungsi duplikat.
+2. Ganti seluruh isi `code.gs` (bisa bernama `Kode.gs` di editor), `auth.gs`, `setup.gs`, `js.html`, dan `index.html` dengan versi cabang `production` yang sama. Jangan membuat dua file code/Kode berisi fungsi duplikat.
 3. Ganti `appsscript.json` dengan versi terbaru. Jika belum terlihat, buka **Setelan proyek → tampilkan file manifes appsscript.json**. Manifest menambahkan layanan Sheets v4. Alternatifnya, pada **Layanan → + → Google Sheets API → Tambahkan**, dengan identifier `Sheets`. Ini API spreadsheet, bukan pengaturan Firebase.
 4. Simpan semuanya. Jalankan **checkKchTransactionSetup** dari dropdown fungsi editor memakai akun admin utama. Setujui izin Google yang diminta oleh proyek salinan. Pemeriksaan ini membaca koneksi, ketersediaan sheet master dan kiriman tertunda; tidak menyimpan transaksi atau mengubah stok.
 5. Hasil normal: `success:true`, `missingSheets:[]`, `pendingRequests:[]`. Ini pemeriksaan koneksi, **bukan bukti validitas seluruh data master**. Jika ada HTTP 403/API belum aktif: pastikan layanan Google Sheets API telah ditambahkan. Bila proyek memakai Google Cloud project khusus, aktifkan Google Sheets API di Cloud Console proyek tersebut. Jalankan pemeriksaan lagi.
 6. Untuk `/dev`: simpan lalu refresh webapp. Untuk `/exec`: **Terapkan → Kelola deployment → pilih deployment → Edit → Versi baru → Terapkan**, kemudian refresh URL yang biasa digunakan. Browser dengan versi lama perlu refresh sebelum menyimpan transaksi.
 
-Cara salin sekali klik: buka file di GitHub cabang `uji-login`, klik ikon **Copy raw file** di area kanan atas kode. Di file tujuan Apps Script: **Ctrl+A → Ctrl+V**. Jangan menyalin teks panduan atau pembatas Markdown ke editor.
+Cara salin sekali klik: buka file di GitHub cabang `production`, klik ikon **Copy raw file** di area kanan atas kode. Di file tujuan Apps Script: **Ctrl+A → Ctrl+V**. Jangan menyalin teks panduan atau pembatas Markdown ke editor.
 
 ### Perilaku yang berubah
 
@@ -198,7 +198,7 @@ Fitur baru: tombol **Edit** pada setiap faktur di Riwayat Transaksi. SALES hanya
 
 ### Pemasangan lima file
 
-Di proyek Apps Script **UJI COBA**, buat file **Script** baru bernama `transaction-edits`, isi seluruh `transaction-edits.gs`. Kemudian ganti seluruh isi `transactions.gs`, `auth.gs`, `index.html`, dan `js.html` dengan versi cabang `uji-login` yang sama. Pasang kelimanya sebelum menjalankan aplikasi. File baru berjenis Script (.gs), bukan HTML. Tidak perlu membuat proyek Firebase, mengubah manifest/layanan API yang sudah berhasil, atau menjalankan Perbarui Sheet/repair. `code.gs`, `setup.gs`, CSS dan file autentikasi lain tidak berubah pada paket edit.
+Di proyek Apps Script **UJI COBA**, buat file **Script** baru bernama `transaction-edits`, isi seluruh `transaction-edits.gs`. Kemudian ganti seluruh isi `transactions.gs`, `auth.gs`, `index.html`, dan `js.html` dengan versi cabang `production` yang sama. Pasang kelimanya sebelum menjalankan aplikasi. File baru berjenis Script (.gs), bukan HTML. Tidak perlu membuat proyek Firebase, mengubah manifest/layanan API yang sudah berhasil, atau menjalankan Perbarui Sheet/repair. `code.gs`, `setup.gs`, CSS dan file autentikasi lain tidak berubah pada paket edit.
 
 Simpan semua file. `/dev`: refresh webapp. `/exec`: Terapkan → Kelola deployment → Edit → Versi baru → Terapkan, lalu refresh. Pastikan akun SALES menguji versi `/exec` yang sudah diperbarui.
 

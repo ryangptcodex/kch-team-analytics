@@ -10,12 +10,12 @@ Di proyek Apps Script **UJI COBA**, gunakan Raw / Copy raw file pada masing-masi
 
 | File | Tindakan |
 | --- | --- |
-| [guest-crypto.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/guest-crypto.gs) | **BARU, Script** `guest-crypto`, bukan HTML. Library SHA-256/HMAC server, js-sha256 0.11.1 berlisensi MIT disertakan lengkap. |
-| [guest-auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/guest-auth.gs) | **BARU, Script** `guest-auth`, bukan HTML. Password Tamu dan sesi. |
-| [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth.gs) | Ganti seluruh isi Script `auth`. |
-| [auth-ui.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth-ui.html) | Ganti seluruh isi HTML `auth-ui`. |
-| [auth-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth-client.html) | Ganti seluruh isi HTML `auth-client`. |
-| [sheet-updates.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/sheet-updates.gs) | Ganti seluruh isi Script `sheet-updates`; daftar skema ACCESS_USERS sekarang mencakup kolom kredensial. |
+| [guest-crypto.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/guest-crypto.gs) | **BARU, Script** `guest-crypto`, bukan HTML. Library SHA-256/HMAC server, js-sha256 0.11.1 berlisensi MIT disertakan lengkap. |
+| [guest-auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/guest-auth.gs) | **BARU, Script** `guest-auth`, bukan HTML. Password Tamu dan sesi. |
+| [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/auth.gs) | Ganti seluruh isi Script `auth`. |
+| [auth-ui.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/auth-ui.html) | Ganti seluruh isi HTML `auth-ui`. |
+| [auth-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/auth-client.html) | Ganti seluruh isi HTML `auth-client`. |
+| [sheet-updates.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/sheet-updates.gs) | Ganti seluruh isi Script `sheet-updates`; daftar skema ACCESS_USERS sekarang mencakup kolom kredensial. |
 
 **Pasang semuanya sebelum dipakai, lalu Simpan.** File setup/index/css/js/score/transaksi/manifest/firebase-config tidak perlu diganti. Tidak perlu repair, menghapus akun/sales lama, atau mengubah stok/harga/data transaksi.
 
@@ -82,7 +82,7 @@ Validasi terbaru: **234 tes Node lulus**, termasuk hash lama tanpa mirror wajib 
 
 Sesuai permintaan pengguna, **Google khusus Admin sekarang memakai Firebase LOCAL persistence**, menggantikan NONE pada versi sebelumnya. Refresh/reload pada browser dan URL webapp yang sama memulihkan identitas Google, lalu server tetap memeriksa akun admin/ACCESS_USERS sebelum menampilkan data. Firebase menangani penyimpanan dan pembaruan token Google. Tidak ada salinan token/password Google yang ditulis ke sheet atau log aplikasi.
 
-Cukup ganti seluruh isi **[auth-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth-client.html)**, Simpan dan refresh dev atau perbarui Versi baru pada exec yang sama. Setelah memasang, **login Google admin sekali**; refresh berikutnya tidak perlu memilih/login Google ulang. Klik **Keluar akun** untuk menghapus sesi Firebase tersimpan. Pergantian versi aplikasi tidak menghapus sesi secara sengaja. Jika Google mencabut sesi, akses admin dinonaktifkan, atau data penyimpanan browser dihapus, autentikasi tetap harus dilakukan kembali; pemulihan tidak melewati pemeriksaan server.
+Cukup ganti seluruh isi **[auth-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/auth-client.html)**, Simpan dan refresh dev atau perbarui Versi baru pada exec yang sama. Setelah memasang, **login Google admin sekali**; refresh berikutnya tidak perlu memilih/login Google ulang. Klik **Keluar akun** untuk menghapus sesi Firebase tersimpan. Pergantian versi aplikasi tidak menghapus sesi secara sengaja. Jika Google mencabut sesi, akses admin dinonaktifkan, atau data penyimpanan browser dihapus, autentikasi tetap harus dilakukan kembali; pemulihan tidak melewati pemeriksaan server.
 
 **Tamu tidak ikut persisten:** token Tamu tetap hanya di memori tab dan refresh tetap kembali ke login. Login Tamu yang bertepatan dengan pemulihan identitas Google akan membersihkan identitas Google tersebut terlebih dahulu agar refresh Tamu tidak berubah menjadi admin. Identitas Google nonadmin yang ditolak juga dibersihkan; gangguan jaringan sementara tidak mengeluarkan admin secara otomatis.
 
@@ -90,7 +90,7 @@ Cukup ganti seluruh isi **[auth-client.html](https://github.com/ryangptcodex/kch
 
 ## Perbaikan batas login Production — 2 November 2026
 
-Cukup ganti seluruh isi **[guest-auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/guest-auth.gs)** pada Apps Script **Production**, Simpan, lalu refresh `/dev`. Untuk `/exec`, terapkan Versi baru pada deployment Production. Tidak perlu mengisi ulang username/password, memperbarui struktur sheet, menerapkan saldo awal atau reset database.
+Cukup ganti seluruh isi **[guest-auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/guest-auth.gs)** pada Apps Script **Production**, Simpan, lalu refresh `/dev`. Untuk `/exec`, terapkan Versi baru pada deployment Production. Tidak perlu mengisi ulang username/password, memperbarui struktur sheet, menerapkan saldo awal atau reset database.
 
 Sebelumnya semua percobaan dihitung, sehingga20 login benar bisa memblokir login benar berikutnya. Sekarang server memesan satu jatah sebelum pemeriksaan password; setelah identitas dan sesi terverifikasi, hanya jatah tersebut yang dikembalikan. Ini mempertahankan perlindungan sebelum hashing password yang mahal, tanpa menghabiskan batas akibat login berhasil. Pemeriksaan yang belum selesai atau gagal tetap dihitung.
 

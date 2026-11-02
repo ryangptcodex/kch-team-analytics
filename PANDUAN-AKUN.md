@@ -2,7 +2,7 @@
 
 # Dua akun: Admin dan Tamu
 
-Revisi cabang **uji-login**, 28 Oktober 2026. Nama akun pembaca adalah **Tamu**, bukan akun bos.
+Revisi cabang **production**, 28 Oktober 2026. Nama akun pembaca adalah **Tamu**, bukan akun bos.
 
 ## Akses yang berlaku
 
@@ -23,15 +23,15 @@ Semua adalah **pengganti file yang sudah ada**, tidak ada file aplikasi baru. Bu
 
 | File lengkap | File di editor |
 | --- | --- |
-| [firebase-config.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/firebase-config.gs) | Script `firebase-config`; berisi dua Gmail yang ditentukan. Konfigurasi Firebase dan ID spreadsheet tetap untuk UJI COBA. |
-| [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth.gs) | Script `auth`; verifikasi akun, peran, daftar operasi baca dan pengelolaan status Tamu. |
-| [code.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/code.gs) | Script `code` / `Kode` yang sudah ada; jangan membuat dua salinan kode yang sama. Jalur laporan/rencana Tamu tidak menulis sheet. |
-| [score.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/score.gs) | Script `score`; Tamu dapat memilih seluruh Motoris/MMTW untuk membaca Skor. |
-| [auth-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth-client.html) | HTML `auth-client`; label Tamu, menu sesuai peran, reset sesi dan pengelolaan dua akun. |
-| [auth-ui.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/auth-ui.html) | HTML `auth-ui`; keterangan login dan panel Kelola akun. Warna, ilustrasi dan copyright login tetap. |
-| [index.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/index.html) | HTML `index`; menandai kontrol tulis agar disembunyikan untuk Tamu. |
-| [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/js.html) | HTML `js`; pencegahan membuka form tulis dan pemulihan transaksi lama pada sesi Tamu. |
-| [css.html](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/css.html) | HTML `css`; menyembunyikan kontrol tulis hanya ketika peran Tamu aktif. Layout responsif dan loading abu-abu tetap. |
+| [firebase-config.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/firebase-config.gs) | Script `firebase-config`; berisi dua Gmail yang ditentukan. Konfigurasi Firebase dan ID spreadsheet tetap untuk UJI COBA. |
+| [auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/auth.gs) | Script `auth`; verifikasi akun, peran, daftar operasi baca dan pengelolaan status Tamu. |
+| [code.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/code.gs) | Script `code` / `Kode` yang sudah ada; jangan membuat dua salinan kode yang sama. Jalur laporan/rencana Tamu tidak menulis sheet. |
+| [score.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/production/score.gs) | Script `score`; Tamu dapat memilih seluruh Motoris/MMTW untuk membaca Skor. |
+| [auth-client.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/auth-client.html) | HTML `auth-client`; label Tamu, menu sesuai peran, reset sesi dan pengelolaan dua akun. |
+| [auth-ui.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/auth-ui.html) | HTML `auth-ui`; keterangan login dan panel Kelola akun. Warna, ilustrasi dan copyright login tetap. |
+| [index.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/index.html) | HTML `index`; menandai kontrol tulis agar disembunyikan untuk Tamu. |
+| [js.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/js.html) | HTML `js`; pencegahan membuka form tulis dan pemulihan transaksi lama pada sesi Tamu. |
+| [css.html](https://github.com/ryangptcodex/kch-team-analytics/blob/production/css.html) | HTML `css`; menyembunyikan kontrol tulis hanya ketika peran Tamu aktif. Layout responsif dan loading abu-abu tetap. |
 
 Pertahankan `transactions.gs`, `transaction-edits.gs`, `score-client.html`, `setup.gs`, dan `appsscript.json` versi terbaru yang sudah dipasang. Jangan menyalin tests/tools atau panduan ke editor Apps Script.
 
