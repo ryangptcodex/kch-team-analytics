@@ -68,10 +68,10 @@
     if (hour >= 18) greeting = 'Good Evening';
 
     var shortName = (appState.user && appState.user.shortName) ? appState.user.shortName : 'Ryan';
-    var fullName = (appState.user && appState.user.fullName) ? appState.user.fullName : 'Ryan Pratama';
+    var fullName = (appState.user && appState.user.fullName) ? appState.user.fullName : '';
 
     var greetingEl = document.getElementById('headerGreetingText');
-    if (greetingEl) greetingEl.innerHTML = greeting + ', ' + escapeHtml(shortName) + ' <span class="wave-emoji">👋</span>';
+    if (greetingEl) greetingEl.innerHTML = greeting + ', ' + escapeHtml(fullName || shortName) + ' <span class="wave-emoji">👋</span>';
 
     var subtitleEl = document.getElementById('headerSubtitleText');
     if (subtitleEl && appState.currentView === 'dashboard') {
