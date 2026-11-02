@@ -283,7 +283,7 @@ function kchApi(token, method, args) {
     getScoreReport: function(month, salesId) { return getScoreReport_(month, salesId); },
     saveScoreBranding: function(input) { return saveScoreBranding_(input); },
     saveScoreAA: function(input) { return saveScoreAA_(input); },
-    saveSalesCashDeposit: saveSalesCashDeposit_, getSalesCashDepositEvidence: getSalesCashDepositEvidence_,
+    saveSalesCashDeposit: saveSalesCashDeposit_, getSalesCashDepositEvidence: getSalesCashDepositEvidence_, getSalesPhotoEvidence: getSalesPhotoEvidence_,
     getStockPickupData: getStockPickupData_, saveStockPickup: saveStockPickup_, getStockPickupEvidence: getStockPickupEvidence_,
     getAuthProfile: function() { return { success: true, user: getCurrentUserInfo_() }; },
     saveMyProfile: saveMyProfile_,
@@ -307,7 +307,7 @@ function kchApi(token, method, args) {
   try {
     KCH_REQUEST_USER_ = typeof token === 'string' && token.indexOf('KCHG_') === 0 ? resolveGuestSession_(token) : resolveAccessUser_(verifyFirebaseIdentity_(token));
     var user = getCurrentUserInfo_();
-    var guestReads = ['getMonthlyArchives','getMonthlyArchiveTable','getSalesCashDepositEvidence', 'getStockPickupData', 'getStockPickupEvidence', 'getAuthProfile', 'getInitialAppMetadata', 'getDashboardMetrics',
+    var guestReads = ['getSalesPhotoEvidence','getMonthlyArchives','getMonthlyArchiveTable','getSalesCashDepositEvidence', 'getStockPickupData', 'getStockPickupEvidence', 'getAuthProfile', 'getInitialAppMetadata', 'getDashboardMetrics',
       'getAttendanceByDate', 'getVisitPhotosByDate', 'getTodayPlans', 'getWeeklyMeetings', 'getKchNews',
       'getTransactionsPaginated', 'getTransactionDetail', 'getAllTransactionsForExport', 'getMonthlyTeamReport',
       'getScoreSetup', 'getScoreReport', 'getScoreTeamSummary', 'getIncentiveSetup', 'getIncentiveReport'];

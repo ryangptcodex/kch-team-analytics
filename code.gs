@@ -556,7 +556,7 @@ function getInitialAppMetadata_() {
         salesName: photo.sales_name || '',
         teamName: photo.team_name || '',
         area: photo.area || '',
-        photoUrl: formatDrivePhotoUrl_(photo.photo_url || ''),
+        photoUrl: '', photoRef: photoEvidenceRef_('visit',photo),
         notes: photo.notes || ''
       };
     });
@@ -968,7 +968,7 @@ function getDashboardMetrics_(filters) {
           salesName: sName,
           teamName: sTeam,
           time: formatVisitPhotoTime_(aRow.time) || '-',
-          photoUrl: formatDrivePhotoUrl_(aRow.photo_url),
+          photoUrl: '', photoRef: photoEvidenceRef_('attendance',aRow),
           status: aRow.status || 'Hadir Tepat Waktu',
           location: aRow.location || 'Cabang Lhokseumawe',
           notes: aRow.notes || 'Dokumentasi Absensi Lapangan'
@@ -1069,7 +1069,7 @@ function getAttendanceByDate_(dateStr) {
           salesName: sName,
           teamName: sTeam,
           time: formatVisitPhotoTime_(aRow.time) || '-',
-          photoUrl: formatDrivePhotoUrl_(aRow.photo_url),
+          photoUrl: '', photoRef: photoEvidenceRef_('attendance',aRow),
           status: aRow.status || 'Hadir Tepat Waktu',
           location: aRow.location || 'Cabang Lhokseumawe',
           notes: aRow.notes || 'Dokumentasi Absensi Lapangan'
@@ -1089,7 +1089,7 @@ function getVisitPhotosByDate_(dateStr) {
     var targetDate = normalizeDateString_(dateStr);
     if (!targetDate) targetDate = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
 
-    var rows = getSheetData_('VISIT_PHOTOS').rows;
+    var rows = photoEvidenceRows_('visit');
     var visitPhotos = rows.filter(function(photo) {
       var photoDate = normalizeDateString_(photo.visit_date || '');
       var status = String(photo.status || 'ACTIVE').toUpperCase();
@@ -1103,7 +1103,7 @@ function getVisitPhotosByDate_(dateStr) {
         salesName: photo.sales_name || '',
         teamName: photo.team_name || '',
         area: photo.area || '',
-        photoUrl: formatDrivePhotoUrl_(photo.photo_url || ''),
+        photoUrl: '', photoRef: photoEvidenceRef_('visit',photo),
         notes: photo.notes || ''
       };
     });
@@ -1554,10 +1554,10 @@ function getPhotoUploadFolder_() {
   var props = PropertiesService.getScriptProperties();
   var savedId = props.getProperty('PHOTO_UPLOAD_FOLDER_ID');
   if (savedId) {
-    try { return DriveApp.getFolderById(savedId); } catch (e) {}
+    try { return DriveApp.getFolderById(savedId); } catch (e) { if (isKchProduction_()) throw new Error('Folder foto Production tidak dapat diakses; hubungi Admin.'); }
   }
 
-  var folderName = 'KCH Sales Monitoring Photos';
+  var folderName = isKchProduction_() ? 'KCH Production Photos - ' + KCH_PRODUCTION_SPREADSHEET_ID_.slice(-8) : 'KCH Sales Monitoring Photos';
   var folders = DriveApp.getFoldersByName(folderName);
   var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
   props.setProperty('PHOTO_UPLOAD_FOLDER_ID', folder.getId());
@@ -1579,9 +1579,81 @@ function createUploadedPhotoFile_(payload, kind, salesId, dateStr) {
   var safeSalesId = String(salesId).replace(/[^a-zA-Z0-9_-]/g, '_');
   var fileName = kind + '_' + safeSalesId + '_' + dateStr + '_' + Utilities.getUuid().slice(0, 8) + '.' + extension;
   var blob = Utilities.newBlob(bytes, mimeType, fileName);
-  var file = getPhotoUploadFolder_().createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  var folder = getPhotoUploadFolder_();
+  photoAssertPrivateParents_(folder);
+  var file = folder.createFile(blob);
+  file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.VIEW);
   return file;
+}
+
+// Evidence is resolved from an authorized business row, never an arbitrary file ID.
+function photoEvidenceFileId_(url) {
+  var value=String(url || '').trim();
+  if (!/^https:\/\/(?:drive\.google\.com|lh3\.googleusercontent\.com)\//i.test(value) && !/^[A-Za-z0-9_-]{25,50}$/.test(value)) return '';
+  return extractDriveFileId_(value);
+}
+function photoEvidenceRef_(kind,row) {
+  if (!photoEvidenceFileId_(row.photo_url)) return '';
+  return txHash_(JSON.stringify([kind,String(row.sales_id || ''),normalizeDateString_(row.date || row.attendance_date || row.visit_date || ''),String(row.visit_id || ''),String(row.photo_url)]));
+}
+function photoEvidenceRows_(kind) {
+  var name=kind==='attendance'?'ATTENDANCE':'VISIT_PHOTOS';
+  return typeof archiveEnabled_==='function' && archiveEnabled_() ? archiveHistoryObjects_(name).rows : getSheetData_(name).rows;
+}
+function getSalesPhotoEvidence_(kind,ref) {
+  getCurrentUserInfo_();
+  if (['attendance','visit'].indexOf(kind)<0 || typeof ref!=='string' || !/^[a-f0-9]{64}$/.test(ref)) throw new Error('Bukti foto tidak ditemukan.');
+  var row=photoEvidenceRows_(kind).filter(function(r){return photoEvidenceRef_(kind,r)===ref && (kind!=='visit' || normalizeKey_(r.status || 'ACTIVE')!=='INACTIVE');})[0];
+  if (!row) throw new Error('Bukti foto tidak ditemukan.');
+  assertOwnSales_(row.sales_id);
+  var blob=DriveApp.getFileById(photoEvidenceFileId_(row.photo_url)).getBlob(),mime=blob.getContentType(),bytes=blob.getBytes();
+  if (!/^image\/(?:jpeg|png|webp|gif)$/.test(mime) || !bytes.length || bytes.length>5*1024*1024) throw new Error('Format atau ukuran bukti foto tidak valid.');
+  return {success:true,dataUrl:'data:'+mime+';base64,'+Utilities.base64Encode(bytes)};
+}
+// Refuse shared/inherited folders instead of assuming PRIVATE on the file revokes inheritance.
+function photoAssertPrivateParents_(folder) {
+  var queue=[folder],seen={},count=0;
+  while(queue.length){
+    var item=queue.pop(),id=item.getId();if(seen[id])continue;seen[id]=true;
+    if(++count>30 || item.getSharingAccess()!==DriveApp.Access.PRIVATE || !item.getOwner() || String(item.getOwner().getEmail()).toLowerCase()!==KCH_BOOTSTRAP_ADMIN_EMAIL_) throw new Error('Folder foto harus privat dan dimiliki Gmail Admin. Periksa izin Drive.');
+    if(item.getEditors().concat(item.getViewers()).some(function(u){return String(u.getEmail()).toLowerCase()!==KCH_BOOTSTRAP_ADMIN_EMAIL_;})) throw new Error('Folder foto dibagikan ke akun lain. Jadikan folder privat sebelum mengunggah.');
+    var parents=item.getParents();while(parents.hasNext())queue.push(parents.next());
+  }
+}
+// Editor-only repair for recorded app photos. Never traverses or changes unrelated files.
+function amankanFotoLama() {
+  var ss=SpreadsheetApp.getActiveSpreadsheet();
+  if(String(Session.getActiveUser().getEmail() || '').toLowerCase()!==KCH_BOOTSTRAP_ADMIN_EMAIL_ || !ss || ss.getId()!==getKchSpreadsheetId_())throw new Error('ACCESS_DENIED: Jalankan dari spreadsheet yang dikonfigurasi, memakai Gmail Admin.');
+  var lock=LockService.getScriptLock();lock.waitLock(30000);
+  try {
+    var ids={},unsupported=0;
+    var recorded=[];
+    ['ATTENDANCE','VISIT_PHOTOS'].forEach(function(name){recorded=recorded.concat(getActiveSheetData_(name).rows);});
+    if(typeof archiveAllRows_==='function')archiveAllRows_().forEach(function(entry){
+      if(['ATTENDANCE','VISIT_PHOTOS'].indexOf(entry.sheet_name)<0)return;
+      var headers=JSON.parse(entry.headers_json),values=JSON.parse(entry.values_json),row={};headers.forEach(function(h,i){row[h]=values[i];});recorded.push(row);
+    });
+    recorded.forEach(function(r){if(!r.photo_url)return;var id=photoEvidenceFileId_(r.photo_url);if(id)ids[id]=true;else unsupported++;});
+    var list=Object.keys(ids).sort(),props=PropertiesService.getScriptProperties(),key='KCH_PHOTO_PRIVACY_CURSOR_'+ss.getId(),fingerprint=txHash_(JSON.stringify(list)),cursor={};
+    try{cursor=JSON.parse(props.getProperty(key)||'{}');}catch(err){}
+    var start=cursor.fingerprint===fingerprint?Number(cursor.index)||0:0,end=Math.min(start+30,list.length),secured=0,failed=[],priorFailed=cursor.fingerprint===fingerprint?Number(cursor.failedCount)||0:0;
+    for(var i=start;i<end;i++){
+      try{
+        var file=DriveApp.getFileById(list[i]);
+        if(!/^image\/(?:jpeg|png|webp|gif)$/.test(file.getMimeType()) || !file.getOwner() || String(file.getOwner().getEmail()).toLowerCase()!==KCH_BOOTSTRAP_ADMIN_EMAIL_)throw new Error('File bukan gambar milik Admin.');
+        var parents=file.getParents(),hasParent=false;while(parents.hasNext()){hasParent=true;photoAssertPrivateParents_(parents.next());}
+        if(!hasParent)throw new Error('Folder asal foto tidak dapat diverifikasi.');
+        file.setSharing(DriveApp.Access.PRIVATE,DriveApp.Permission.VIEW);
+        file.getEditors().forEach(function(u){if(String(u.getEmail()).toLowerCase()!==KCH_BOOTSTRAP_ADMIN_EMAIL_)file.removeEditor(u);});
+        file.getViewers().forEach(function(u){if(String(u.getEmail()).toLowerCase()!==KCH_BOOTSTRAP_ADMIN_EMAIL_)file.removeViewer(u);});
+        if(file.getSharingAccess()!==DriveApp.Access.PRIVATE || file.getEditors().concat(file.getViewers()).some(function(u){return String(u.getEmail()).toLowerCase()!==KCH_BOOTSTRAP_ADMIN_EMAIL_;}))throw new Error('Izin file belum privat.');
+        secured++;
+      }catch(err){failed.push({fileId:list[i],message:err.message});}
+    }
+    if(end<list.length)props.setProperty(key,JSON.stringify({fingerprint:fingerprint,index:end,failedCount:priorFailed+failed.length}));else props.deleteProperty(key);
+    var report={success:priorFailed+failed.length===0 && unsupported===0,complete:end>=list.length,checked:end,total:list.length,secured:secured,unsupported:unsupported,failedCount:priorFailed+failed.length,failed:failed,message:end<list.length?'Jalankan amankanFotoLama lagi untuk melanjutkan.':'Pemeriksaan selesai. Periksa failed/unsupported sebelum menyatakan seluruh foto privat.'};
+    console.log(JSON.stringify(report));return report;
+  }finally{lock.releaseLock();}
 }
 
 // Validate new uploads strictly; legacy date normalization elsewhere remains unchanged.
@@ -1637,7 +1709,7 @@ function photoUploadPlan_(ctx, meta, payload, user, id, requestId) {
   requests.push(txAppend_(meta.ACTIVITY_LOGS.sheetId,[['AUD-'+Utilities.getUuid(),stamp,user.email,'UPLOAD_'+type.toUpperCase(),id,JSON.stringify({salesId:sales.sales_id,date:date,actorRole:user.role,assisted:user.role==='ADMIN'})]]));
   return {requests:requests,cleanupFileId:fileId,plan:{operation:'PHOTO',type:type,date:date,salesId:sales.sales_id,photoFileId:fileId},result:{
     success:true,terminal:true,state:'COMMITTED',operation:'PHOTO',transactionId:id,requestId:requestId,type:type,date:date,
-    photoUrl:formatDrivePhotoUrl_(url),message:type==='attendance'?'Foto absensi berhasil disimpan.':'Foto kunjungan berhasil disimpan.'
+    photoUrl:'',photoRef:photoEvidenceRef_(type,values),message:type==='attendance'?'Foto absensi berhasil disimpan.':'Foto kunjungan berhasil disimpan.'
   }};
 }
 

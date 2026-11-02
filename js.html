@@ -1074,8 +1074,7 @@
       else if (statusNorm.indexOf('SAKIT') > -1) statusClass = 'att-status-sakit';
       else if (statusNorm.indexOf('TIDAK') > -1 || statusNorm.indexOf('ALPHA') > -1) statusClass = 'att-status-tidak-hadir';
 
-      var photo = att.photoUrl || '';
-      var imgHtml = photo ? '<img src="' + escapeHtml(photo) + '" class="att-img" alt="Foto Absensi" onerror="this.style.display=\'none\';">' : '';
+      var imgHtml = privatePhotoImage(att,'attendance','Foto Absensi');
       var cardData = encodeURIComponent(JSON.stringify(att));
 
       return '<div class="att-card" onclick="openAttendancePhotoByEncoded(\'' + cardData + '\')">' +
@@ -1100,7 +1099,47 @@
         '</div>' +
       '</div>';
     }).join('');
-    containers.forEach(function(container) { container.innerHTML = cardsHtml; });
+    containers.forEach(function(container) { container.innerHTML = cardsHtml; loadPrivatePhotoImages(container); });
+  }
+
+  function privatePhotoImage(photo,kind,label) {
+    if (!photo.photoRef) return '';
+    return '<img data-kch-photo-ref="'+escapeHtml(photo.photoRef)+'" data-kch-photo-kind="'+escapeHtml(kind)+'" class="att-img" alt="'+escapeHtml(label)+'">';
+  }
+
+  function loadPrivatePhotoImages(container) {
+    if (!container || !appState.user) return;
+    var state=appState.privatePhotos || (appState.privatePhotos={cache:{},pending:{},queue:[],active:0});
+    var generation=kchAuthGeneration;
+    function live(){return appState.privatePhotos===state && generation===kchAuthGeneration;}
+    function finish(key,result,error){
+      if(!live())return;
+      var images=state.pending[key] || [];delete state.pending[key];state.active--;
+      var data=result && result.success && /^data:image\/(?:jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(result.dataUrl || '') ? result.dataUrl : '';
+      if(data){state.cache[key]=data;var keys=Object.keys(state.cache);if(keys.length>16)delete state.cache[keys[0]];}
+      images.forEach(function(img){
+        if(!img.isConnected)return;
+        if(data){img.src=data;img.setAttribute('data-kch-photo-state','loaded');}
+        else {img.setAttribute('data-kch-photo-state','error');img.title=error && error.message || 'Bukti foto belum dapat dimuat. Coba muat ulang halaman.';}
+      });
+      pump();
+    }
+    function pump(){
+      if(!live())return;
+      while(state.active<4 && state.queue.length){
+        var request=state.queue.shift();state.active++;
+        (function(r){kchRun().withSuccessHandler(function(result){finish(r.key,result);}).withFailureHandler(function(err){finish(r.key,null,err);}).getSalesPhotoEvidence(r.kind,r.ref);})(request);
+      }
+    }
+    container.querySelectorAll('img[data-kch-photo-ref]').forEach(function(img){
+      if(img.getAttribute('data-kch-photo-state'))return;
+      var ref=img.getAttribute('data-kch-photo-ref'),kind=img.getAttribute('data-kch-photo-kind'),key=kind+':'+ref;
+      if(state.cache[key]){img.src=state.cache[key];img.setAttribute('data-kch-photo-state','loaded');return;}
+      img.setAttribute('data-kch-photo-state','pending');
+      if(state.pending[key])state.pending[key].push(img);
+      else {state.pending[key]=[img];state.queue.push({key:key,kind:kind,ref:ref});}
+    });
+    pump();
   }
 
   function renderVisitPhotos() {
@@ -1128,9 +1167,7 @@
       return;
     }
     container.innerHTML = visitPhotos.map(function(visit) {
-      var imgHtml = visit.photoUrl
-        ? '<img src="' + escapeHtml(visit.photoUrl) + '" class="att-img" alt="Foto Kunjungan" onerror="this.style.display=\'none\';">'
-        : '';
+      var imgHtml = privatePhotoImage(visit,'visit','Foto Kunjungan');
       return '<div class="att-card">' +
         '<div class="att-img-wrap">' + imgHtml +
           '<div class="att-badge-time"><i class="fa-regular fa-clock"></i> ' + escapeHtml(visit.time || '-') + '</div>' +
@@ -1145,6 +1182,7 @@
         '</div>' +
       '</div>';
     }).join('');
+    loadPrivatePhotoImages(container);
   }
 
   function populateTodayPlanSales() {
@@ -1945,13 +1983,12 @@
 
     var img = document.getElementById('modalAttImg');
     if (img) {
-      if (att.photoUrl) {
-        img.src = att.photoUrl;
-        img.style.display = 'block';
-      } else {
-        img.removeAttribute('src');
-        img.style.display = 'none';
-      }
+      img.removeAttribute('src');
+      img.removeAttribute('data-kch-photo-state');
+      if (att.photoRef) {
+        img.setAttribute('data-kch-photo-ref',att.photoRef); img.setAttribute('data-kch-photo-kind','attendance');
+        img.style.display='block'; loadPrivatePhotoImages(img.parentElement);
+      } else { img.removeAttribute('data-kch-photo-ref'); img.style.display='none'; }
     }
 
     setStyle('modalAttendancePhoto', 'display', 'flex');

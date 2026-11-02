@@ -10,6 +10,8 @@ Pengguna mengonfirmasi **seluruh isi spreadsheet saat ini masih data uji**. Meny
 
 **Perbaikan kedua, 2 November:** simpan foto kini memakai receipt dan batch atomik untuk baris/audit/status, menjaga file pada hasil ambigu, serta recovery ID yang sama di browser. 385 tes dan pemeriksaan browser foto/stok/Tamu lulus. [Paket lima file](PANDUAN-PERBAIKAN-FOTO.md). ACL foto, aturan jam tepat waktu, rate-limit dan error export masih terbuka; belum ada konfirmasi pemasangan Google nyata untuk tahap ini.
 
+**Perbaikan ketiga, 2 November:** foto baru PRIVATE, penayangan lewat RPC login yang terikat catatan, serta fungsi Admin amankanFotoLama untuk ACL file lama. 394 tes dan browser foto/stok/Tamu/arsip lulus. [Paket tiga file dan langkah migrasi izin](PANDUAN-PRIVASI-FOTO.md). Izin file Google lama belum berubah sampai pengguna menjalankan migrasi dan memeriksa hasil; aturan jam hadir, rate-limit serta error export tetap terbuka.
+
 ## Cakupan dan bukti
 
 - Source ditinjau pada commit `8f5e12b553a4d237dd825672acbe333795a0753e`, aplikasi terakhir berubah pada a96ae2d. Branch `uji-login`.

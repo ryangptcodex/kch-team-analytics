@@ -8,7 +8,7 @@ function photoFixture(){
  const ctx={id:'test-book',token:'TEST_ONLY_OAUTH'},meta=c.txMetadata_(ctx),requests=[];
  c.txAddSheet_(meta,requests,'ATTENDANCE',c.TABLE_SCHEMAS.ATTENDANCE,false);c.txBatch_(ctx,requests);
  let trashed=false,sharing='';
- c.DriveApp={Access:{ANYONE_WITH_LINK:'ANYONE_WITH_LINK'},Permission:{VIEW:'VIEW'}};
+ c.DriveApp={Access:{PRIVATE:'PRIVATE'},Permission:{VIEW:'VIEW'}};c.photoAssertPrivateParents_=()=>{};
  c.getPhotoUploadFolder_=()=>({createFile:()=>({getId:()=> 'REVIEW_ONLY_IMAGE_ID',getUrl:()=> 'https://drive.google.com/file/d/REVIEW_ONLY_IMAGE_ID/view',setSharing(access){sharing=access;},setTrashed(){trashed=true;}})});
  c.Utilities.base64Decode=value=>Array.from(Buffer.from(value,'base64'));c.Utilities.newBlob=()=>({});
  return {...e,c,trashed:()=>trashed,sharing:()=>sharing,upload:date=>c.kchApi('MOCK','saveSalesPhotoUpload',[{requestId:'REQ-REVIEW-PHOTO-0001',salesId:'S1',date,notes:'Review only',imageDataUrl:'data:image/jpeg;base64,AQI='},'attendance'])};
