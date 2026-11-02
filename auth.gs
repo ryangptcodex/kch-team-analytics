@@ -153,52 +153,48 @@ function saveMyProfile_(payload) {
   } finally { lock.releaseLock(); }
 }
 
+// Inspect current sheet permissions on every RPC, without writing or caching access.
+function readAdminAccess_(sheet,identity) {
+  var rows=accessRows_(sheet),matches=[];
+  rows.forEach(function(row,i){if(String(row[0]).trim().toLowerCase()===identity.email)matches.push({row:row,number:i+2});});
+  if(matches.length>1)throw new Error('ACCESS_DENIED: Email terdaftar ganda. Hubungi admin.');
+  if(!matches.length)return null;
+  var entry=matches[0],role=normalizeKey_(entry.row[3]);
+  if(normalizeKey_(entry.row[4])!=='ACTIVE')throw new Error('ACCESS_DENIED: Akses akun tidak aktif. Hubungi admin.');
+  if(role!=='ADMIN')throw new Error('ACCESS_DENIED: Role akun tidak valid. Hubungi admin.');
+  if(entry.row[1] && entry.row[1]!==identity.uid)throw new Error('ACCESS_DENIED: Identitas akun berubah. Hubungi admin.');
+  var column=accessDisplayNameColumn_(sheet,false);
+  var name=column?String(sheet.getRange(entry.number,column).getDisplayValues()[0][0] || '').trim():'';
+  name=name || identity.name || identity.email;
+  return {entry:entry,user:{email:identity.email,username:identity.email,uid:identity.uid,role:role,
+    salesId:String(entry.row[2] || '').trim(),teamName:'',fullName:name,shortName:String(name).split(/\s+/)[0]}};
+}
 function resolveAccessUser_(identity) {
-  var lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  var email=String(identity.email || '').trim().toLowerCase();
+  if(email!==KCH_BOOTSTRAP_ADMIN_EMAIL_)throw new Error('ACCESS_DENIED: Login Google hanya tersedia untuk akun Admin yang ditentukan.');
+  identity.email=email;
+  var sheet=getAccessSheet_(false),access=readAdminAccess_(sheet,identity);
+  // Established Admin sessions only read ACCESS_USERS. They do not acquire the
+  // shared stock/write lock or flush a spreadsheet with no pending writes.
+  if(access && access.entry.row[1])return access.user;
+  var lock=LockService.getScriptLock();
+  try{lock.waitLock(10000);}catch(err){throw new Error('AUTH_UNAVAILABLE: Penyiapan akun sedang menunggu proses lain. Coba muat ulang sebentar lagi.');}
   try {
-    var email = String(identity.email || '').trim().toLowerCase();
-    var isBootstrap = email === KCH_BOOTSTRAP_ADMIN_EMAIL_;
-    if (!isBootstrap) throw new Error('ACCESS_DENIED: Login Google hanya tersedia untuk akun Admin yang ditentukan.');
-    identity.email = email;
-    var sheet = getAccessSheet_(isBootstrap);
-    var rows = accessRows_(sheet);
-    var matches = [];
-    rows.forEach(function(row, i) {
-      if (String(row[0]).trim().toLowerCase() === identity.email) matches.push({ row: row, number: i + 2 });
-    });
-    if (matches.length > 1) throw new Error('ACCESS_DENIED: Email terdaftar ganda. Hubungi admin.');
-    if (!matches.length && isBootstrap) {
-      // Bootstrap once. An existing inactive admin is never automatically re-enabled.
-      var now = new Date();
-      var row = [identity.email, identity.uid, '', 'ADMIN', 'ACTIVE', now, now];
-      sheet.appendRow(row);
-      matches.push({ row: row, number: sheet.getLastRow() });
+    // Bootstrap/UID binding is a mutation. Reread under lock so a concurrent
+    // first login cannot duplicate, re-enable, or overwrite another binding.
+    sheet=getAccessSheet_(true);access=readAdminAccess_(sheet,identity);
+    if(!access){
+      var now=new Date();sheet.appendRow([identity.email,identity.uid,'','ADMIN','ACTIVE',now,now]);
+      SpreadsheetApp.flush();
+    }else if(!access.entry.row[1]){
+      sheet.getRange(access.entry.number,2).setValue(identity.uid);
+      sheet.getRange(access.entry.number,7).setValue(new Date());
+      SpreadsheetApp.flush();
     }
-    if (!matches.length) throw new Error('ACCESS_DENIED: Akun belum terdaftar. Hubungi admin.');
-    var entry = matches[0];
-    var role = normalizeKey_(entry.row[3]);
-    if (normalizeKey_(entry.row[4]) !== 'ACTIVE') {
-      throw new Error('ACCESS_DENIED: Akses akun tidak aktif. Hubungi admin.');
-    }
-    if (role !== 'ADMIN') {
-      throw new Error('ACCESS_DENIED: Role akun tidak valid. Hubungi admin.');
-    }
-    if (entry.row[1] && entry.row[1] !== identity.uid) throw new Error('ACCESS_DENIED: Identitas akun berubah. Hubungi admin.');
-    var salesId = String(entry.row[2] || '').trim();
-    var sales = null;
-    if (!entry.row[1]) {
-      sheet.getRange(entry.number, 2).setValue(identity.uid);
-      sheet.getRange(entry.number, 7).setValue(new Date());
-    }
-    SpreadsheetApp.flush();
-    var displayColumn = accessDisplayNameColumn_(sheet, false);
-    var customName = displayColumn ? String(sheet.getRange(entry.number, displayColumn).getDisplayValues()[0][0] || '').trim() : '';
-    var fullName = customName || (sales ? (sales.full_name || identity.name) : identity.name);
-    return { email: identity.email, username: identity.email, uid: identity.uid, role: role,
-      salesId: salesId, teamName: sales ? sales.team_name : '', fullName: fullName,
-      shortName: String(fullName).split(/\s+/)[0] };
-  } finally { lock.releaseLock(); }
+    access=readAdminAccess_(sheet,identity);
+    if(!access || access.entry.row[1]!==identity.uid)throw new Error('AUTH_UNAVAILABLE: Identitas akun belum terkonfirmasi tersimpan. Coba masuk kembali.');
+    return access.user;
+  }finally{lock.releaseLock();}
 }
 
 // Server-side response minimization: hidden buttons are not an access boundary.
