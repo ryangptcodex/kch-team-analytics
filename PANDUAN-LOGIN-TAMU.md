@@ -54,7 +54,7 @@ Sesuai revisi 29 Oktober 2026, password asli ditulis ke kolom `password` di shee
 - Sesi Tamu berlaku maksimal **8 jam**, disimpan di memori tab browser, bukan localStorage/sessionStorage. Refresh/menutup tab memerlukan login ulang.
 - Server menyimpan hash token sesi dan masa berlaku pada Script Properties, terpisah dari kredensial ACCESS_USERS. Setiap RPC memeriksa kembali akun/status/hash/versi dari sheet.
 - Mengganti username/password/status atau menyimpan ulang akun mencabut sesi sebelumnya pada permintaan berikutnya. Logout menghapus sesi server; UI dan data sesi lama segera dibersihkan. Bila jaringan putus saat logout, UI tetap dibersihkan dan sesi server tersisa akan kedaluwarsa.
-- Maksimal **20 percobaan login Tamu per 10 menit** untuk webapp ini, termasuk percobaan username lain. Jika batas tercapai, tunggu jendela berikutnya. Tidak menggunakan kunci per username acak yang dapat memenuhi penyimpanan.
+- Maksimal **20 percobaan gagal atau masih berjalan per jendela 10 menit** untuk webapp ini, termasuk username lain. Login yang berhasil mengembalikan jatahnya sendiri dan tidak menghapus hitungan percobaan gagal lainnya. Jika batas tercapai, tunggu jendela berikutnya. Tidak menggunakan kunci per username acak yang dapat memenuhi penyimpanan.
 - Mendukung beberapa pembaca Tamu bersamaan, maksimal 50 sesi aktif; bila penuh sesi tertua dicabut. Salt/verifier/versi kredensial tidak dikirim ke browser.
 - PBKDF2 dikerjakan saat menyimpan password baru dan saat login; proses ini dapat memerlukan beberapa detik. API pembacaan data selanjutnya tidak menghitung ulang PBKDF2.
 
@@ -87,3 +87,13 @@ Cukup ganti seluruh isi **[auth-client.html](https://github.com/ryangptcodex/kch
 **Tamu tidak ikut persisten:** token Tamu tetap hanya di memori tab dan refresh tetap kembali ke login. Login Tamu yang bertepatan dengan pemulihan identitas Google akan membersihkan identitas Google tersebut terlebih dahulu agar refresh Tamu tidak berubah menjadi admin. Identitas Google nonadmin yang ditolak juga dibersihkan; gangguan jaringan sementara tidak mengeluarkan admin secara otomatis.
 
 **264 tes Node lulus**, termasuk pemulihan admin tanpa popup setelah refresh, pemeriksaan ulang akses, logout menghentikan pemulihan, penolakan akun Google vs gangguan jaringan, dan isolasi login Tamu. Browser uji memakai Firebase mock dengan penyimpanan browser nyata, bukan koneksi Firebase produksi; belum diverifikasi pada deployment Google pengguna.
+
+## Perbaikan batas login Production — 2 November 2026
+
+Cukup ganti seluruh isi **[guest-auth.gs](https://github.com/ryangptcodex/kch-team-analytics/blob/uji-login/guest-auth.gs)** pada Apps Script **Production**, Simpan, lalu refresh `/dev`. Untuk `/exec`, terapkan Versi baru pada deployment Production. Tidak perlu mengisi ulang username/password, memperbarui struktur sheet, menerapkan saldo awal atau reset database.
+
+Sebelumnya semua percobaan dihitung, sehingga20 login benar bisa memblokir login benar berikutnya. Sekarang server memesan satu jatah sebelum pemeriksaan password; setelah identitas dan sesi terverifikasi, hanya jatah tersebut yang dikembalikan. Ini mempertahankan perlindungan sebelum hashing password yang mahal, tanpa menghabiskan batas akibat login berhasil. Pemeriksaan yang belum selesai atau gagal tetap dihitung.
+
+Percobaan gagal masih dibatasi secara bersama untuk satu akun Tamu. Setelah20 kegagalan dalam jendela berjalan, login ditahan sampai jendela berikutnya, termasuk jika kemudian mengisi password benar. Login berhasil tidak menghapus kegagalan milik percobaan lain. Penanda jendela memastikan pemeriksaan lama yang selesai terlambat tidak mengurangi hitungan jendela baru. Data batas versi lama dimigrasikan sekali saat login berikutnya; password, peran hanya-baca, sesi yang masih sah dan data bisnis dipertahankan. Batas50 sesi aktif serta masa berlaku8jam tidak diubah.
+
+400 tes Node lulus, termasuk25 login benar berturut-turut, kegagalan tetap terhitung setelah sukses, jatah saat hashing, pergantian jendela di tengah proses, migrasi batas lama dan penolakan status batas yang rusak. Pemeriksaan browser login Tamu dan stok/pengambilan/setoran juga lulus. Pengujian menggunakan layanan Google tiruan; login Production nyata perlu dicoba pengguna setelah pemasangan.

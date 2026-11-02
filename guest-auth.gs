@@ -54,19 +54,40 @@ function guestEqual_(a, b) {
 function guestRevision_(c) { return KCH_GUEST_SHA256_([c.username, c.password_hash, c.password_salt, c.password_iterations, c.status, c.role, c.auth_type, c.updatedAt, c.session_version].join('|')); }
 function guestIdentity_(username) { return { uid: 'kch-guest-password', email: '', username: username, role: 'GUEST', salesId: '', teamName: '', fullName: 'Tamu', shortName: 'Tamu' }; }
 
+// Slots count failed and currently-running logins. Verified success returns its
+// own slot, preserving failures and reserving capacity before expensive hashing.
+function guestRateState_(props,now) {
+  var rate;
+  try { rate=JSON.parse(props.getProperty('KCH_GUEST_RATE') || 'null'); }
+  catch(err){throw new Error('Pembatas login Tamu perlu diperiksa Admin.');}
+  if(rate && rate.version===2){
+    if(!Number.isSafeInteger(rate.count) || rate.count<0 || rate.count>20 || typeof rate.until!=='number' || !Number.isFinite(rate.until) || typeof rate.window!=='string' || !/^[a-f0-9]{32}$/.test(rate.window))throw new Error('Pembatas login Tamu perlu diperiksa Admin.');
+    if(now<rate.until)return rate;
+  }
+  // The old version counted successes too. Start the corrected budget once,
+  // without touching passwords, account status or existing Guest sessions.
+  return {version:2,count:0,until:now+10*60*1000,window:Utilities.getUuid().replace(/-/g,'')};
+}
 function guestRateSlot_() {
   var lock = LockService.getScriptLock(); lock.waitLock(10000);
   try {
-    var props = PropertiesService.getScriptProperties(), now = Date.now(), rate = JSON.parse(props.getProperty('KCH_GUEST_RATE') || 'null');
-    if (!rate || now >= rate.until) rate = { count: 0, until: now + 10 * 60 * 1000 };
-    if (rate.count >= 20) throw new Error('Terlalu banyak percobaan login Tamu. Coba lagi dalam 10 menit.');
-    rate.count++; props.setProperty('KCH_GUEST_RATE', JSON.stringify(rate));
+    var props=PropertiesService.getScriptProperties(),rate=guestRateState_(props,Date.now());
+    if(rate.count>=20)throw new Error('Terlalu banyak percobaan login Tamu. Coba lagi dalam 10 menit.');
+    rate.count++;props.setProperty('KCH_GUEST_RATE',JSON.stringify(rate));
+    return rate.window;
   } finally { lock.releaseLock(); }
+}
+// Called only after credential recheck/session creation, with the shared lock held.
+function guestRateSuccess_(window,props) {
+  var rate=guestRateState_(props,Date.now());
+  if(rate.window!==window)return;
+  if(rate.count>0)rate.count--;
+  props.setProperty('KCH_GUEST_RATE',JSON.stringify(rate));
 }
 
 // Deliberate public unauthenticated entry point. Never returns account hashes/salts.
 function kchGuestLogin(username, password) {
-  guestRateSlot_();
+  var rateWindow=guestRateSlot_();
   if (typeof username !== 'string' || typeof password !== 'string' || username.length > 80 || password.length < 12 || password.length > 128) throw new Error('Username atau password Tamu salah, atau akun belum diaktifkan.');
   username = username.trim().toLowerCase();
   var c = guestCredential_();
@@ -90,6 +111,7 @@ function kchGuestLogin(username, password) {
     while (sessions.length >= 50) props.deleteProperty(sessions.shift().key);
     var token = 'KCHG_' + Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
     props.setProperty('KCH_GUEST_SESSION_' + KCH_GUEST_SHA256_(token), JSON.stringify({ expires: now + KCH_GUEST_SESSION_MS_, revision: guestRevision_(c), username: username }));
+    guestRateSuccess_(rateWindow,props);
     return { success: true, token: token, user: guestIdentity_(username) };
   } finally { lock.releaseLock(); }
 }

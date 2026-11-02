@@ -12,6 +12,8 @@ Pengguna mengonfirmasi **seluruh isi spreadsheet saat ini masih data uji**. Meny
 
 **Perbaikan ketiga, 2 November:** foto baru PRIVATE, penayangan lewat RPC login yang terikat catatan, serta fungsi Admin amankanFotoLama untuk ACL file lama. 394 tes dan browser foto/stok/Tamu/arsip lulus. [Paket tiga file dan langkah migrasi izin](PANDUAN-PRIVASI-FOTO.md). Izin file Google lama belum berubah sampai pengguna menjalankan migrasi dan memeriksa hasil; aturan jam hadir, rate-limit serta error export tetap terbuka.
 
+**Perbaikan keempat, 2 November:** login Tamu yang berhasil mengembalikan jatah percobaannya sendiri; kegagalan dan pemeriksaan yang sedang berjalan tetap dibatasi. 400 tes serta browser Tamu/stok lulus. [Revisi satu file guest-auth.gs](PANDUAN-LOGIN-TAMU.md). Screenshot migrasi foto Production menunjukkan success/complete:true dengan total0; belum ada foto lama tercatat yang perlu diamankan. Error export dan aturan jam status absensi masih terbuka.
+
 ## Cakupan dan bukti
 
 - Source ditinjau pada commit `8f5e12b553a4d237dd825672acbe333795a0753e`, aplikasi terakhir berubah pada a96ae2d. Branch `uji-login`.

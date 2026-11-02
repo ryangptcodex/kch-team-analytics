@@ -73,3 +73,31 @@ test('a missing password write fails readback verification rather than reporting
  sheet.getRange=(...args)=>{const r=original(...args);r.setRichTextValue=()=>r;return r;};
  assert.throws(()=>e.call('saveGuestCredentials',[{username:'tamu',password:'different-password',status:'ACTIVE'}]),/belum terkonfirmasi/);assert.equal(sheet.rows[2][4],'INACTIVE');
 });
+
+test('successful Guest logins do not consume failure budget or block the 21st correct login',()=>{
+ const e=configured();let first;
+ for(let i=0;i<25;i++){const r=login(e);if(!first)first=r;assert.equal(r.user.role,'GUEST');assert.equal(JSON.parse(e.properties.KCH_GUEST_RATE).count,0);}
+ assert.equal(e.context.kchApi(first.token,'getAuthProfile',[]).user.role,'GUEST');assert.equal(Object.keys(e.properties).filter(k=>k==='KCH_GUEST_RATE').length,1);
+});
+test('success releases only its own slot and never erases failures from other attempts',()=>{
+ const e=configured();for(let i=0;i<19;i++)assert.throws(()=>e.context.kchGuestLogin('unknown'+i,'wrong-password-value'),/salah/);
+ const window=JSON.parse(e.properties.KCH_GUEST_RATE).window;
+ for(let i=0;i<3;i++){assert.equal(login(e).success,true);const rate=JSON.parse(e.properties.KCH_GUEST_RATE);assert.equal(rate.count,19);assert.equal(rate.window,window);}
+ assert.throws(()=>e.context.kchGuestLogin('tamu','wrong-password-value'),/salah/);assert.throws(()=>login(e),/Terlalu banyak/);
+});
+test('expensive password hashing is still protected by a reserved slot during verification',()=>{
+ const e=configured();for(let i=0;i<19;i++)assert.throws(()=>e.context.kchGuestLogin('unknown'+i,'wrong-password-value'),/salah/);
+ const hash=e.context.guestPasswordHash_;e.context.guestPasswordHash_=(...args)=>{assert.equal(JSON.parse(e.properties.KCH_GUEST_RATE).count,20);assert.throws(()=>e.context.kchGuestLogin('another','wrong-password-value'),/Terlalu banyak/);return hash(...args);};assert.equal(login(e).success,true);assert.equal(JSON.parse(e.properties.KCH_GUEST_RATE).count,19);
+});
+test('late successful verification cannot subtract a failure recorded in a newer ten-minute window',()=>{
+ const e=configured(),BaseDate=Date;let now=Date.now();e.context.Date=class extends BaseDate{static now(){return now;}};
+ const hash=e.context.guestPasswordHash_;e.context.guestPasswordHash_=(...args)=>{const result=hash(...args);now+=10*60*1000+1;assert.throws(()=>e.context.kchGuestLogin('unknown','wrong-password-value'),/salah/);return result;};
+ assert.equal(login(e).success,true);assert.equal(JSON.parse(e.properties.KCH_GUEST_RATE).count,1);
+});
+test('legacy successful-attempt throttling is migrated once without changing credentials or revoking sessions',()=>{
+ const e=configured(),first=login(e),before=JSON.stringify(e.sheets.get('ACCESS_USERS').rows);e.properties.KCH_GUEST_RATE=JSON.stringify({count:20,until:Date.now()+10*60*1000});
+ assert.equal(login(e).success,true);assert.equal(JSON.parse(e.properties.KCH_GUEST_RATE).version,2);assert.equal(JSON.parse(e.properties.KCH_GUEST_RATE).count,0);assert.equal(JSON.stringify(e.sheets.get('ACCESS_USERS').rows),before);assert.equal(e.context.kchApi(first.token,'getAuthProfile',[]).user.role,'GUEST');
+});
+test('corrupt throttle state fails closed instead of disabling password-guess protection',()=>{
+ for(const value of ['{broken',JSON.stringify({version:2,count:-1,until:Date.now()+1000,window:'a'.repeat(32)}),JSON.stringify({version:2,count:0,until:'later',window:'a'.repeat(32)})]){const e=configured();e.properties.KCH_GUEST_RATE=value;assert.throws(()=>login(e),/perlu diperiksa Admin/);assert.equal(Object.keys(e.properties).filter(k=>k.startsWith('KCH_GUEST_SESSION_')).length,0);}
+});

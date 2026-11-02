@@ -21,10 +21,10 @@ e=photoFixture();e.c.SpreadsheetApp.flush=()=>{throw Error('SIMULATED_RESPONSE_F
 console.log(JSON.stringify({case:'photo write now commits atomically and retains proof despite native flush failure',observedSuccess:result.success,persistedAttendanceRows:e.rows('ATTENDANCE').length-1,referencedPhotoTrashed:e.trashed()}));
 const guest=environment({identity:{email:'admin@gmail.com',localId:'admin-uid'}});guest.context.KCH_GUEST_PASSWORD_ITERATIONS_=1000;
 guest.call('saveGuestCredentials',[{username:'tamu',password:'review-only-password-123',status:'ACTIVE'}]);
-let successful=0;for(let i=0;i<20;i++)if(guest.context.kchGuestLogin('tamu','review-only-password-123').success)successful++;
+let successful=0;for(let i=0;i<25;i++)if(guest.context.kchGuestLogin('tamu','review-only-password-123').success)successful++;
 let blocked=false;try{guest.context.kchGuestLogin('tamu','review-only-password-123');}catch(err){blocked=/Terlalu banyak/.test(err.message);}
-assert.equal(successful,20);assert.equal(blocked,true);
-console.log(JSON.stringify({case:'successful guest logins exhaust shared ten-minute limiter',successfulLogins:successful,nextCorrectLoginBlocked:blocked}));
+assert.equal(successful,25);assert.equal(blocked,false);
+console.log(JSON.stringify({case:'successful guest logins no longer exhaust the shared ten-minute limiter',successfulLogins:successful,nextCorrectLoginBlocked:blocked}));
 const exported=system(),c=exported.context;c.getTransactionsPaginated_=()=>({success:false,message:'SIMULATED_READ_FAILURE'});result=c.getAllTransactionsForExport_('','ALL','ALL','');assert.equal(result.success,true);
 console.log(JSON.stringify({case:'export wrapper masks source read error',observedSuccess:result.success,returnedRows:result.data.length}));
 const callbacks=[],menu={addItem(label,fn){callbacks.push(fn);return menu;},addToUi(){}};
