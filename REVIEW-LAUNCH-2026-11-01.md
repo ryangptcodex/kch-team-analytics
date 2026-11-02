@@ -14,6 +14,8 @@ Pengguna mengonfirmasi **seluruh isi spreadsheet saat ini masih data uji**. Meny
 
 **Perbaikan keempat, 2 November:** login Tamu yang berhasil mengembalikan jatah percobaannya sendiri; kegagalan dan pemeriksaan yang sedang berjalan tetap dibatasi. 400 tes serta browser Tamu/stok lulus. [Revisi satu file guest-auth.gs](PANDUAN-LOGIN-TAMU.md). Screenshot migrasi foto Production menunjukkan success/complete:true dengan total0; belum ada foto lama tercatat yang perlu diamankan. Error export dan aturan jam status absensi masih terbuka.
 
+**Perbaikan kelima, 2 November:** export kini meneruskan kegagalan sumber dan menolak hasil tidak lengkap; tidak lagi membuat laporan nol palsu saat read gagal. 406 tes lulus, termasuk handler CSV/cetak tanpa unduhan saat error. [Paket satu file code.gs](PANDUAN-EXPORT-TRANSAKSI.md). Perbaikan utama audit sudah tersedia di kode; aturan jam status absensi, saldo fisik dan uji Google Production/Tamu/foto/deployment tetap perlu diselesaikan.
+
 ## Cakupan dan bukti
 
 - Source ditinjau pada commit `8f5e12b553a4d237dd825672acbe333795a0753e`, aplikasi terakhir berubah pada a96ae2d. Branch `uji-login`.

@@ -1829,12 +1829,17 @@ function getAllTransactionsForExport_(searchKeyword, teamFilter, distFilter, dat
   try {
     SpreadsheetApp.flush();
     var res = getTransactionsPaginated_(1, 999999, searchKeyword, teamFilter, distFilter, dateFilter);
+    if (!res || res.success !== true) throw new Error(res && res.message ? res.message : 'Data transaksi gagal dibaca. Coba export kembali.');
+    if (!Array.isArray(res.data) || !Number.isSafeInteger(res.totalRows) || res.totalRows !== res.data.length || !res.summary ||
+        ['totalSales','totalCost','totalShj'].some(function(key) { return typeof res.summary[key] !== 'number' || !Number.isFinite(res.summary[key]); })) {
+      throw new Error('Data export belum lengkap. File tidak dibuat; coba kembali setelah data berhasil dimuat.');
+    }
     return {
       success: true,
-      data: res.data || [],
-      totalSales: res.summary ? res.summary.totalSales : 0,
-      totalCost: res.summary ? res.summary.totalCost : 0,
-      totalShj: res.summary ? res.summary.totalShj : 0,
+      data: res.data,
+      totalSales: res.summary.totalSales,
+      totalCost: res.summary.totalCost,
+      totalShj: res.summary.totalShj,
       branch: 'Cabang Lhokseumawe',
       exportedAt: Utilities.formatDate(new Date(), TIMEZONE, DATE_FORMAT)
     };

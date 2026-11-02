@@ -25,8 +25,8 @@ let successful=0;for(let i=0;i<25;i++)if(guest.context.kchGuestLogin('tamu','rev
 let blocked=false;try{guest.context.kchGuestLogin('tamu','review-only-password-123');}catch(err){blocked=/Terlalu banyak/.test(err.message);}
 assert.equal(successful,25);assert.equal(blocked,false);
 console.log(JSON.stringify({case:'successful guest logins no longer exhaust the shared ten-minute limiter',successfulLogins:successful,nextCorrectLoginBlocked:blocked}));
-const exported=system(),c=exported.context;c.getTransactionsPaginated_=()=>({success:false,message:'SIMULATED_READ_FAILURE'});result=c.getAllTransactionsForExport_('','ALL','ALL','');assert.equal(result.success,true);
-console.log(JSON.stringify({case:'export wrapper masks source read error',observedSuccess:result.success,returnedRows:result.data.length}));
+const exported=system(),c=exported.context;c.getTransactionsPaginated_=()=>({success:false,message:'SIMULATED_READ_FAILURE'});result=c.getAllTransactionsForExport_('','ALL','ALL','');assert.equal(result.success,false);assert.equal('data' in result,false);
+console.log(JSON.stringify({case:'export wrapper now propagates source read error',observedSuccess:result.success,message:result.message}));
 const callbacks=[],menu={addItem(label,fn){callbacks.push(fn);return menu;},addToUi(){}};
 c.SpreadsheetApp.getUi=()=>({createMenu:()=>menu});c.onOpen();
 console.log(JSON.stringify({case:'legacy database mutators still exposed in Sheet menu',callbacks:callbacks.filter(fn=>['setupSalesTransactionsUnifiedSheet_','setupInventorySheetStructure_','syncProductsToInventory_','purgeObsoleteColumnsAndSheets_'].includes(fn))}));
