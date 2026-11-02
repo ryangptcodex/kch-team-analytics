@@ -1584,6 +1584,20 @@ function createUploadedPhotoFile_(payload, kind, salesId, dateStr) {
   return file;
 }
 
+// Validate new uploads strictly; legacy date normalization elsewhere remains unchanged.
+function validatePhotoUploadDate_(value, now) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || value.slice(0,4) === '0000') {
+    throw new Error('Tanggal tidak valid. Gunakan format YYYY-MM-DD.');
+  }
+  var parsed = new Date(value + 'T00:00:00Z');
+  if (isNaN(parsed.getTime()) || parsed.toISOString().slice(0,10) !== value) {
+    throw new Error('Tanggal tidak valid. Pilih tanggal yang benar pada kalender.');
+  }
+  var today = Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd');
+  if (value > today) throw new Error('Tanggal absensi atau kunjungan tidak boleh melebihi hari ini (WIB).');
+  return value;
+}
+
 function saveSalesPhotoUpload_(payload, photoType) {
   var lock = LockService.getScriptLock();
   try {
@@ -1600,12 +1614,12 @@ function saveSalesPhotoUpload_(payload, photoType) {
     if (type !== 'attendance' && type !== 'visit') throw new Error('Jenis foto tidak dikenali.');
 
     var salesId = String(payload.salesId || '').trim();
-    var dateStr = normalizeDateString_(payload.date || '');
+    var now = new Date();
+    var dateStr = validatePhotoUploadDate_(payload.date, now);
     var notes = String(payload.notes || '').trim();
     if (!salesId || !dateStr || !notes || !payload.imageDataUrl) {
       throw new Error('Sales ID, tanggal, keterangan, dan foto wajib diisi.');
     }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) throw new Error('Tanggal tidak valid.');
 
     var salesRows = getSheetData_('SALES').rows;
     var selectedSales = null;
@@ -1622,10 +1636,11 @@ function saveSalesPhotoUpload_(payload, photoType) {
     if (!sheet) throw new Error('Sheet ' + sheetName + ' tidak ditemukan. Jalankan setup sheet terlebih dahulu.');
     var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
     var valuesByHeader = {};
-    var now = new Date();
     if (typeof archiveAssertOpenDate_ === 'function') archiveAssertOpenDate_(dateStr);
     var dateParts = dateStr.split('-');
-    var dateValue = new Date(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2]));
+    var dateValue = new Date(0);
+    dateValue.setFullYear(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2]));
+    dateValue.setHours(0, 0, 0, 0);
     var timeValue = Utilities.formatDate(now, TIMEZONE, 'HH:mm:ss');
     var area = String(selectedSales.area || '').trim();
 

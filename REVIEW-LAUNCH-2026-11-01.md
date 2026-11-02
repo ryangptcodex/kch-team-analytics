@@ -6,6 +6,8 @@ Pengguna mengonfirmasi **seluruh isi spreadsheet saat ini masih data uji**. Meny
 
 **Pembaruan setelah review:** paket pemisahan Production dan pengamanan menu legacy sudah diimplementasikan serta diuji lokal. Lihat [panduan Production](PANDUAN-PRODUKSI-TERPISAH.md). Pemasangan/persiapan Google nyata belum dijalankan agen. Temuan lain di bawah tetap terbuka; bagian bukti berikut merekam keadaan saat audit awal.
 
+**Perbaikan pertama, 2 November:** code.gs kini menolak tanggal absensi/foto kunjungan yang tidak valid dan tanggal masa depan berdasarkan hari WIB, sebelum upload/append. 374 tes Node lulus, termasuk kalender/tahun kabisat/batas tengah malam WIB dan periode tertutup. Status tepat waktu, ketahanan penyimpanan foto, ACL foto, rate-limit dan error export masih terbuka; belum ada pemasangan Google nyata yang dikonfirmasi untuk revisi ini.
+
 ## Cakupan dan bukti
 
 - Source ditinjau pada commit `8f5e12b553a4d237dd825672acbe333795a0753e`, aplikasi terakhir berubah pada a96ae2d. Branch `uji-login`.
