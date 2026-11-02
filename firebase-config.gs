@@ -8,10 +8,20 @@ var KCH_FIREBASE_WEB_CONFIG_ = {
   "appId": "1:86670203247:web:d58261cecfc0b538ee309a",
   "measurementId": "G-TTVTERWKHC"
 };
+// Production uses its own Firebase Authentication project; UJI keeps the config above.
+var KCH_PRODUCTION_FIREBASE_WEB_CONFIG_ = {
+  "apiKey": "AIzaSyBL7E-of_kIIngfaXbu_y-2ZifEZVvwJQA",
+  "authDomain": "kch-team-analytics-production.firebaseapp.com",
+  "projectId": "kch-team-analytics-production",
+  "storageBucket": "kch-team-analytics-production.firebasestorage.app",
+  "messagingSenderId": "413474724851",
+  "appId": "1:413474724851:web:171b7037aaf47eae145086",
+  "measurementId": "G-7Y6EY9Y07B"
+};
 var KCH_BOOTSTRAP_ADMIN_EMAIL_ = 'mhmdryyan7@gmail.com';
 // Only these two verified Google accounts may use the web app.
 var KCH_GUEST_EMAIL_ = 'juniortlkchlse@gmail.com';
-function getFirebaseWebConfig_() { return KCH_FIREBASE_WEB_CONFIG_; }
+function getFirebaseWebConfig_() { return isKchProduction_() ? KCH_PRODUCTION_FIREBASE_WEB_CONFIG_ : KCH_FIREBASE_WEB_CONFIG_; }
 
 // Each bound project has an explicit database target. Renaming a file is not routing.
 var KCH_TEST_SPREADSHEET_ID_ = '1zExCrUfi2umx1-AG4kmGS11ZEVFrqGA2PEjClle0z4A';

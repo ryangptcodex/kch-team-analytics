@@ -14,7 +14,7 @@ function checkKchGoogleConnection() {
 // Run manually in the Apps Script editor. Uses a deliberately invalid token;
 // never reads a user's token, spreadsheet data, or changes access permissions.
 function checkKchGoogleConnection_() {
-  var apiKey = KCH_FIREBASE_WEB_CONFIG_.apiKey;
+  var apiKey = getFirebaseWebConfig_().apiKey;
   var report;
   try {
     var response = UrlFetchApp.fetch(
@@ -47,7 +47,7 @@ function verifyFirebaseIdentity_(token) {
   try {
     claims = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(token.split('.')[1])).getDataAsString());
   } catch (err) { throw new Error('AUTH_REQUIRED: Token tidak valid.'); }
-  var project = KCH_FIREBASE_WEB_CONFIG_.projectId;
+  var project = getFirebaseWebConfig_().projectId;
   var now = Math.floor(Date.now() / 1000);
   if (claims.aud !== project || claims.iss !== 'https://securetoken.google.com/' + project ||
       typeof claims.sub !== 'string' || !claims.sub || claims.sub.length > 128 ||
@@ -61,7 +61,7 @@ function verifyFirebaseIdentity_(token) {
   var response;
   try {
     response = UrlFetchApp.fetch('https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=' +
-      encodeURIComponent(KCH_FIREBASE_WEB_CONFIG_.apiKey), {
+      encodeURIComponent(getFirebaseWebConfig_().apiKey), {
         method: 'post', contentType: 'application/json',
         payload: JSON.stringify({ idToken: token }), muteHttpExceptions: true
       });

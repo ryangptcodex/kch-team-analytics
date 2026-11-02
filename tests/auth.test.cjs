@@ -221,3 +221,16 @@ test('designated real emails are the only production account configuration',()=>
   const c={};vm.createContext(c);vm.runInContext(fs.readFileSync(path.join(root,'firebase-config.gs'),'utf8'),c);
   assert.equal(c.KCH_BOOTSTRAP_ADMIN_EMAIL_,'mhmdryyan7@gmail.com');assert.equal(c.KCH_GUEST_EMAIL_,'juniortlkchlse@gmail.com');
 });
+
+test('Production uses its Firebase project for browser config, token validation and lookup; UJI tokens cannot cross over', () => {
+  const project='kch-team-analytics-production';
+  const e=environment({claims:{aud:project,iss:'https://securetoken.google.com/'+project}});
+  const c=e.context,oldProject=c.getFirebaseWebConfig_().projectId;
+  c.ScriptApp.getScriptId=()=>c.KCH_PRODUCTION_SCRIPT_ID_;
+  assert.equal(c.getFirebaseWebConfig_().projectId,project);
+  assert.equal(c.getFirebaseWebConfig_().authDomain,project+'.firebaseapp.com');
+  const fetch=c.UrlFetchApp.fetch;c.UrlFetchApp.fetch=(url,options)=>{assert.equal(new URL(url).searchParams.get('key'),c.KCH_PRODUCTION_FIREBASE_WEB_CONFIG_.apiKey);return fetch(url,options);};
+  assert.equal(c.verifyFirebaseIdentity_(e.googleToken).uid,e.identity.localId);
+  const before=e.lookupCalls(),old=environment();assert.throws(()=>c.verifyFirebaseIdentity_(old.googleToken),/AUTH_REQUIRED/);assert.equal(e.lookupCalls(),before);
+  c.ScriptApp.getScriptId=()=> 'original-uji-project';assert.equal(c.getFirebaseWebConfig_().projectId,oldProject);assert.throws(()=>c.verifyFirebaseIdentity_(e.googleToken),/AUTH_REQUIRED/);
+});

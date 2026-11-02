@@ -37,7 +37,7 @@ Menu spreadsheet lama yang membangun ulang data diganti dengan jalur pembaruan a
 
 Fungsi membuat cadangan dahulu, lalu membersihkan aktivitas percobaan pada Production: transaksi, arsip, absensi/foto, AA/branding, pengambilan/setoran, mutasi, receipt, histori edit, dokumen/berita percobaan dan data nonmaster lainnya. Master produk, harga, sales, distributor, libur dan SETTINGS dipertahankan. Saldo percobaan dibuang; INVENTORY sementara nol. File Drive lama tidak dihapus.
 
-Production memperoleh folder foto baru. Akun Admin disiapkan; akun Tamu baru **nonaktif**, tanpa username/password/sesi percobaan. Sesi/penanda arsip yang tersalin tidak digunakan. Firebase yang sama masih dapat dipakai untuk login Google Admin; database bisnis sudah terpisah.
+Production memperoleh folder foto baru. Akun Admin disiapkan; akun Tamu baru **nonaktif**, tanpa username/password/sesi percobaan. Sesi/penanda arsip yang tersalin tidak digunakan. Production sekarang memakai Firebase Authentication tersendiri (`kch-team-analytics-production`); UJI COBA tetap memakai Firebase lama. Browser dan server memilih konfigurasi sesuai ID proyek Apps Script.
 
 Menjalankan fungsi persiapan lagi hanya membaca penanda yang sudah tersimpan, **tidak mengosongkan ulang**. Bila muncul hasil belum pasti, berhenti dan kirim pesan error; jangan menghapus penanda atau memaksa reset.
 
@@ -62,3 +62,11 @@ Status internal `READY` hanya berarti saldo awal sudah diterapkan, **bukan serti
 ## Verifikasi paket
 
 368 tes Node lulus, termasuk simulasi tujuan salah, backup gagal, batch ditolak, respons hilang/terlambat, persiapan berulang dan saldo awal yang hanya diterapkan sekali. Pemeriksaan browser arsip, stok, Tamu, Skor, Insentif dan responsivitas dijalankan terpisah. Tidak ada eksekusi pembersihan terhadap file Google oleh agen.
+
+## Pembaruan Firebase khusus Production — 2 November 2026
+
+Pengguna membuat Firebase baru dan memberikan konfigurasi web. Untuk memakai Firebase baru pada Production yang sudah disiapkan, ganti seluruh isi **firebase-config.gs** dan **auth.gs** dari tautan tabel di atas, lalu simpan. Browser dan verifikasi server harus memakai proyek yang sama; jangan mengganti konfigurasi browser saja. Kode import npm yang ditampilkan Firebase tidak perlu ditempel ke Apps Script.
+
+Pada Firebase **kch-team-analytics-production**, aktifkan Authentication → Sign-in method → Google, tentukan email dukungan, lalu tambahkan hostname persis dari pesan error Production ke Settings → Authorized domains. Refresh `/dev` dan login Google Admin. Untuk `/exec`, terapkan Versi baru pada deployment Production. Ini mengganti layanan login; tidak perlu menjalankan persiapan database maupun saldo awal lagi. Jangan mengosongkan stok/akun atau menghapus penanda. Jika UID Admin sebelumnya sudah terikat dari Firebase lama dan muncul penolakan akses, periksa pesan error untuk migrasi identitas yang terarah.
+
+369 tes Node lulus setelah pemisahan Firebase, termasuk token proyek UJI ditolak Production dan token Production ditolak UJI, serta API key lookup sesuai lingkungan. Login Google nyata masih perlu dicoba pengguna.
