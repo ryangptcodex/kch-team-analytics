@@ -78,7 +78,7 @@ function system(options = {}) {
       const requests = JSON.parse(request.payload).requests;
       const isArchive = requests.some(r=>r.appendCells && byId(store,r.appendCells.sheetId)?.title==='_KCH_ARCHIVE_ROWS');
       const isProduction = requests.some(r=>r.updateCells?.start?.rowIndex===1 && (byId(store,r.updateCells.start.sheetId)?.title==='_KCH_PRODUCTION_STATE'||requests.some(a=>a.addSheet?.properties.sheetId===r.updateCells.start.sheetId&&a.addSheet.properties.title==='_KCH_PRODUCTION_STATE')));
-      const isFinancial = isProduction || isArchive || requests.some(r => { const edit=r.appendCells||r.updateCells; if(!edit || (r.updateCells && r.updateCells.start?.rowIndex===0))return false; const id=edit.sheetId??edit.start?.sheetId??edit.range?.sheetId; return ['SALES_TRANSACTIONS','STOCK_PICKUPS','SALES_CASH_DEPOSITS'].includes(byId(store,id)?.title || requests.find(a=>a.addSheet?.properties.sheetId===id)?.addSheet.properties.title); });
+      const isFinancial = isProduction || isArchive || requests.some(r => { const edit=r.appendCells||r.updateCells; if(!edit || (r.updateCells && r.updateCells.start?.rowIndex===0))return false; const id=edit.sheetId??edit.start?.sheetId??edit.range?.sheetId; return ['SALES_TRANSACTIONS','STOCK_PICKUPS','SALES_CASH_DEPOSITS','ATTENDANCE','VISIT_PHOTOS'].includes(byId(store,id)?.title || requests.find(a=>a.addSheet?.properties.sheetId===id)?.addSheet.properties.title); });
       if(isFinancial) {
         financialAttempts++;
         if(options.financialFault==='reject400') return response(400,{error:{status:'INVALID_ARGUMENT'}});

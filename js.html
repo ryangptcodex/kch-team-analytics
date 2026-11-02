@@ -1836,6 +1836,8 @@
     var submitButton = document.getElementById('btnSubmitPhotoUpload');
     if (submitButton) submitButton.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Simpan';
     setStyle('modalPhotoUpload', 'display', 'flex');
+    txClientLock(!!appState.pendingTransaction || !!appState.isSubmittingTransaction);
+    if (appState.pendingTransaction) txClientStatus('Ada kiriman yang perlu diperiksa sebelum menyimpan foto baru.', false);
   }
 
   function handlePhotoUploadSalesChange(salesId) {
@@ -1890,62 +1892,37 @@
 
   function submitPhotoUploadForm(event) {
     if (event) event.preventDefault();
-    var type = appState.photoUploadType;
-    var salesId = getValue('photoUploadSalesId');
-    var date = getValue('photoUploadDate');
-    var notes = String(getValue('photoUploadNotes') || '').trim();
-    var fileInput = document.getElementById('photoUploadFile');
-    var file = fileInput && fileInput.files ? fileInput.files[0] : null;
-    if (!type || !salesId || !date || !notes || !file) {
-      showToast('Lengkapi Sales ID, keterangan, tanggal, dan foto.', 'error');
-      return;
-    }
+    if (appState.user && appState.user.role === 'GUEST') { showToast('Akun Tamu hanya boleh melihat data.', 'error'); return; }
+    if (appState.isSubmittingTransaction) return;
+    var previous = appState.pendingTransaction;
+    if (previous && previous.payload) { checkPendingSalesTransaction(); return; }
+    var type = appState.photoUploadType, salesId = getValue('photoUploadSalesId');
+    var date = getValue('photoUploadDate'), notes = String(getValue('photoUploadNotes') || '').trim();
+    var fileInput = document.getElementById('photoUploadFile'), file = fileInput && fileInput.files ? fileInput.files[0] : null;
+    if (!type || !salesId || !date || !notes || !file) { showToast('Lengkapi Sales ID, keterangan, tanggal, dan foto.', 'error'); return; }
     var submitButton = document.getElementById('btnSubmitPhotoUpload');
-    if (submitButton) {
-      submitButton.disabled = true;
-      submitButton.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Mengompres...';
-    }
-
+    appState.isSubmittingTransaction = true;
+    txClientLock(true);
+    if (submitButton) submitButton.textContent = 'Mengompres…';
     var uploadGeneration = kchAuthGeneration;
     compressPhotoFile(file, function(imageDataUrl, errorMessage) {
       if (uploadGeneration !== kchAuthGeneration) return;
       if (errorMessage) {
-        if (submitButton) {
-          submitButton.disabled = false;
-          submitButton.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Simpan';
-        }
-        showToast(errorMessage, 'error');
-        return;
+        appState.isSubmittingTransaction = false; txClientLock(false);
+        if (submitButton) submitButton.textContent = 'Simpan';
+        showToast(errorMessage, 'error'); return;
       }
-      if (submitButton) submitButton.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...';
-      kchRun()
-        .withSuccessHandler(function(res) {
-          if (submitButton) {
-            submitButton.disabled = false;
-            submitButton.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Simpan';
-          }
-          if (!res || !res.success) {
-            showToast(res && res.message ? res.message : 'Gagal menyimpan foto.', 'error');
-            return;
-          }
-          closePhotoUploadForm();
-          showToast(res.message || 'Foto berhasil disimpan.', 'success');
-          if (type === 'attendance') {
-            handleAttendanceDateChange(date);
-            loadMetadata();
-          } else {
-            handleVisitPhotosDateChange(date);
-            reloadVisitPhotosOnly();
-          }
-        })
-        .withFailureHandler(function(err) {
-          if (submitButton) {
-            submitButton.disabled = false;
-            submitButton.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Simpan';
-          }
-          showToast('Gagal menyimpan foto: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
-        })
-        .saveSalesPhotoUpload({ salesId: salesId, date: date, notes: notes, imageDataUrl: imageDataUrl }, type);
+      var payload = {operation:'PHOTO',photoType:type,salesId:salesId,date:date,notes:notes,imageDataUrl:imageDataUrl};
+      try {
+        payload.requestId = previous ? previous.requestId : txClientNewId();
+        appState.pendingTransaction = {requestId:payload.requestId,payload:payload};
+        txClientStore(appState.pendingTransaction);
+      } catch (err) {
+        appState.pendingTransaction = previous || null; appState.isSubmittingTransaction = false; txClientLock(!!previous);
+        if (submitButton) submitButton.textContent = 'Simpan';
+        showToast('Foto belum dikirim. Izinkan penyimpanan sesi browser agar hasil dapat diperiksa.', 'error'); return;
+      }
+      txClientSend(payload);
     });
   }
 
@@ -2356,13 +2333,17 @@
     if (pickupFields) pickupFields.disabled = !!locked;
     var depositFields = document.getElementById('cashDepositFormFields');
     if (depositFields) depositFields.disabled = !!locked;
+    ['photoUploadSalesId','photoUploadDate','photoUploadNotes','photoUploadFile','btnSubmitPhotoUpload'].forEach(function(id) {
+      var field = document.getElementById(id); if (field) field.disabled = !!locked;
+    });
   }
 
   function txClientStatus(message, showRetry) {
     [['txRequestStatus', 'txRequestStatusText', 'txRequestCode', 'btnRetryTxRequest', 'btnCheckTxRequest'],
       ['editTxRequestStatus', 'editTxRequestStatusText', 'editTxRequestCode', 'btnRetryTxEditRequest', 'btnCheckTxEditRequest'],
       ['pickupRequestStatus', 'pickupRequestStatusText', 'pickupRequestCode', 'btnRetryPickupRequest', 'btnCheckPickupRequest'],
-      ['depositRequestStatus', 'depositRequestStatusText', 'depositRequestCode', 'btnRetryDepositRequest', 'btnCheckDepositRequest']].forEach(function(ids) {
+      ['depositRequestStatus', 'depositRequestStatusText', 'depositRequestCode', 'btnRetryDepositRequest', 'btnCheckDepositRequest'],
+      ['photoRequestStatus', 'photoRequestStatusText', 'photoRequestCode', 'btnRetryPhotoRequest', 'btnCheckPhotoRequest']].forEach(function(ids) {
       var box = document.getElementById(ids[0]), text = document.getElementById(ids[1]), code = document.getElementById(ids[2]);
       var retry = document.getElementById(ids[3]), check = document.getElementById(ids[4]);
       if (box) box.style.display = message ? 'block' : 'none';
@@ -2404,9 +2385,17 @@
     if (pickupBtn) { pickupBtn.disabled = false; pickupBtn.textContent = 'Simpan pengambilan'; }
     var depositBtn = document.getElementById('btnSubmitDeposit');
     if (depositBtn) { depositBtn.disabled = false; depositBtn.textContent = 'Simpan setoran'; }
+    var photoBtn = document.getElementById('btnSubmitPhotoUpload');
+    if (photoBtn) photoBtn.textContent = 'Simpan';
     if (result && result.success && result.state === 'COMMITTED') {
       try { txClientClear(); }
       catch (err) { txClientStatus('Transaksi ' + result.transactionId + ' sudah tersimpan, tetapi browser belum dapat membersihkan status kiriman. Periksa hasil lagi sebelum transaksi baru.', false); return; }
+      if (result.operation === 'PHOTO') {
+        closePhotoUploadForm(); showToast(result.message || 'Foto berhasil disimpan.', 'success');
+        if (result.type === 'attendance') { handleAttendanceDateChange(result.date); loadMetadata(); }
+        else { handleVisitPhotosDateChange(result.date); reloadVisitPhotosOnly(); }
+        return;
+      }
       showToast(result.message + ' ' + result.transactionId + (result.operation === 'PICKUP' ? '' : ' — ' + formatRupiah(result.operation === 'DEPOSIT' ? result.amount : result.totalSales)), 'success');
       if (result.operation === 'DEPOSIT') { resetCashDepositForm(); loadStockPickupData(); return; }
       if (result.operation === 'PICKUP') resetPickupForm();
@@ -2445,7 +2434,10 @@
     if (pickupBtn && payload.operation === 'PICKUP') { pickupBtn.disabled = true; pickupBtn.textContent = 'Menyimpan…'; }
     var depositBtn = document.getElementById('btnSubmitDeposit');
     if (depositBtn && payload.operation === 'DEPOSIT') { depositBtn.disabled = true; depositBtn.textContent = 'Menyimpan…'; }
-    if (payload.operation === 'DEPOSIT') runner.saveSalesCashDeposit(payload);
+    var photoBtn = document.getElementById('btnSubmitPhotoUpload');
+    if (photoBtn && payload.operation === 'PHOTO') photoBtn.textContent = 'Menyimpan…';
+    if (payload.operation === 'PHOTO') runner.saveSalesPhotoUpload(payload, payload.photoType);
+    else if (payload.operation === 'DEPOSIT') runner.saveSalesCashDeposit(payload);
     else if (payload.operation === 'PICKUP') runner.saveStockPickup(payload);
     else if (payload.transactionId) runner.editSalesTransaction(payload);
     else runner.saveSalesTransaction(payload);

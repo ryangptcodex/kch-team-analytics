@@ -124,7 +124,7 @@ function txReceiptResult_(row, replayed) {
   result.replayed = !!replayed;
   result.terminal = true;
   result.state = 'COMMITTED';
-  if (replayed) result.message = 'Kiriman ini sudah tersimpan. Saldo stok tidak diubah lagi.';
+  if (replayed) result.message = result.operation === 'PHOTO' ? 'Foto ini sudah tersimpan. Data tidak ditambahkan ulang.' : 'Kiriman ini sudah tersimpan. Saldo stok tidak diubah lagi.';
   return result;
 }
 
@@ -299,9 +299,9 @@ function txExecuteRequest_(payload, editing) {
   try {
     var ctx = { id: getKchSpreadsheet_().getId(), token: ScriptApp.getOAuthToken() };
     var meta = txMetadata_(ctx), rows = txReceipts_(ctx, meta), key = txHash_(user.uid + ':' + id);
-    var pickup = editing === 'PICKUP', deposit = editing === 'DEPOSIT';
+    var pickup = editing === 'PICKUP', deposit = editing === 'DEPOSIT', photoUpload = editing === 'PHOTO';
     var photoFingerprint = payload.photo ? txHash_(typeof payload.photo === 'string' ? payload.photo.slice(0,3000001) : 'INVALID') : '';
-    var fingerprint = deposit ? txHash_(JSON.stringify(['DEPOSIT', txFingerprint_(payload), String(payload.amount), photoFingerprint])) : pickup ? txHash_(JSON.stringify(['PICKUP', txFingerprint_(payload), photoFingerprint])) : editing ? txHash_(JSON.stringify(['EDIT', payload.transactionId, payload.expectedRevision, payload.reason, txFingerprint_(payload)])) : txFingerprint_(payload);
+    var fingerprint = photoUpload ? txHash_(JSON.stringify(['PHOTO',payload.photoType,txFingerprint_(payload),txHash_(payload.imageDataUrl)])) : deposit ? txHash_(JSON.stringify(['DEPOSIT', txFingerprint_(payload), String(payload.amount), photoFingerprint])) : pickup ? txHash_(JSON.stringify(['PICKUP', txFingerprint_(payload), photoFingerprint])) : editing ? txHash_(JSON.stringify(['EDIT', payload.transactionId, payload.expectedRevision, payload.reason, txFingerprint_(payload)])) : txFingerprint_(payload);
     var committed = txCommitted_(rows, key);
     if (committed) {
       if (committed.fingerprint !== fingerprint) return txFailure_('REQUEST_CONFLICT', 'Kode kiriman ini sudah digunakan. Periksa hasil kiriman sebelumnya.', 'CONFLICT');
@@ -313,7 +313,7 @@ function txExecuteRequest_(payload, editing) {
     if (txHasPending_(rows)) return txPendingResult_(id, 'Ada kiriman yang hasilnya belum pasti. Penyimpanan baru ditahan agar stok tetap konsisten. Admin dapat memeriksa kiriman tertunda.');
     var attempt = Utilities.getUuid();
     var stamp = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd HH:mm:ss');
-    var transactionId = editing && !pickup && !deposit ? String(payload.transactionId || '') : (deposit ? 'CASH-' : pickup ? 'PICK-' : 'TRX-') + Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMdd') + '-' + attempt.replace(/-/g, '').slice(0, 16);
+    var transactionId = editing && !pickup && !deposit && !photoUpload ? String(payload.transactionId || '') : (photoUpload ? 'PHOTO-' : deposit ? 'CASH-' : pickup ? 'PICK-' : 'TRX-') + Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMdd') + '-' + attempt.replace(/-/g, '').slice(0, 16);
     var receipt = { request_key: key, request_id: id, actor_uid: user.uid, actor_email: user.email, fingerprint: fingerprint,
       attempt_id: attempt, transaction_id: transactionId, state: 'PENDING', result_json: '', plan_json: '', created_at: stamp, updated_at: stamp };
     var reserve = [];
@@ -324,7 +324,7 @@ function txExecuteRequest_(payload, editing) {
     rows = txReceipts_(ctx, meta);
     receipt = txUnique_(rows, function(row) { return row.request_key === key && row.attempt_id === attempt; }, 'Catatan kiriman');
     var plan;
-    try { plan = deposit ? stockCashDepositPlan_(ctx, meta, payload, user, transactionId, id) : pickup ? stockPickupPlan_(ctx, meta, payload, user, transactionId, id) : editing ? txEditPlan_(ctx, meta, payload, user, transactionId, id) : txPlan_(ctx, meta, payload, user, transactionId, id); }
+    try { plan = photoUpload ? photoUploadPlan_(ctx, meta, payload, user, transactionId, id) : deposit ? stockCashDepositPlan_(ctx, meta, payload, user, transactionId, id) : pickup ? stockPickupPlan_(ctx, meta, payload, user, transactionId, id) : editing ? txEditPlan_(ctx, meta, payload, user, transactionId, id) : txPlan_(ctx, meta, payload, user, transactionId, id); }
     catch (validation) { return txMarkFailed_(ctx, meta, receipt, 'VALIDATION_FAILED', validation.message); }
     receipt.state = 'COMMITTED'; receipt.result_json = JSON.stringify(plan.result); receipt.plan_json = JSON.stringify(plan.plan);
     receipt.updated_at = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd HH:mm:ss');

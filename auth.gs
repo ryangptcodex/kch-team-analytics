@@ -331,7 +331,7 @@ function kchApi(token, method, args) {
     if (/^(save|edit|archive)/.test(method) && ['saveGuestCredentials','saveAccessUser','saveMyProfile'].indexOf(method)<0 && typeof productionRequireReady_==='function') productionRequireReady_();
     if (/^(save|edit|archive)/.test(method) && typeof archivePendingGuard_ === 'function') archivePendingGuard_();
     var result = handlers[method].apply(null, args);
-    if (method === 'saveSalesPhotoUpload' && result.success) {
+    if (method === 'saveSalesPhotoUpload' && result.success && result.operation !== 'PHOTO') {
       logActivity_(user.email, 'UPLOAD_' + String(args[1]).toUpperCase(), args[0].salesId,
         JSON.stringify({ salesId: args[0].salesId, date: args[0].date, actorRole: user.role, assisted: user.role === 'ADMIN' }));
     }

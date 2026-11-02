@@ -1599,101 +1599,46 @@ function validatePhotoUploadDate_(value, now) {
 }
 
 function saveSalesPhotoUpload_(payload, photoType) {
-  var lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(10000);
-  } catch (e) {
-    return { success: false, message: 'Sistem sedang sibuk. Silakan coba sesaat lagi.' };
+  if (!payload || typeof payload.imageDataUrl !== 'string' || payload.imageDataUrl.length > 7 * 1024 * 1024) {
+    return {success:false,terminal:true,state:'FAILED',message:'Foto tidak valid atau terlalu besar.'};
   }
+  var request = Object.assign({}, payload, {photoType:String(photoType || '').toLowerCase()});
+  return txExecuteRequest_(request, 'PHOTO');
+}
 
-  var uploadedFile = null;
-  try {
-    if (typeof archivePendingGuard_ === 'function') archivePendingGuard_();
-    payload = payload || {};
-    var type = String(photoType || '').toLowerCase();
-    if (type !== 'attendance' && type !== 'visit') throw new Error('Jenis foto tidak dikenali.');
-
-    var salesId = String(payload.salesId || '').trim();
-    var now = new Date();
-    var dateStr = validatePhotoUploadDate_(payload.date, now);
-    var notes = String(payload.notes || '').trim();
-    if (!salesId || !dateStr || !notes || !payload.imageDataUrl) {
-      throw new Error('Sales ID, tanggal, keterangan, dan foto wajib diisi.');
-    }
-
-    var salesRows = getSheetData_('SALES').rows;
-    var selectedSales = null;
-    for (var i = 0; i < salesRows.length; i++) {
-      if (normalizeKey_(salesRows[i].sales_id) === normalizeKey_(salesId)) {
-        selectedSales = salesRows[i];
-        break;
-      }
-    }
-    if (!selectedSales) throw new Error('Sales ID tidak ditemukan di sheet SALES.');
-    var ss = getKchSpreadsheet_();
-    var sheetName = type === 'attendance' ? 'ATTENDANCE' : 'VISIT_PHOTOS';
-    var sheet = ss.getSheetByName(sheetName);
-    if (!sheet) throw new Error('Sheet ' + sheetName + ' tidak ditemukan. Jalankan setup sheet terlebih dahulu.');
-    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
-    var valuesByHeader = {};
-    if (typeof archiveAssertOpenDate_ === 'function') archiveAssertOpenDate_(dateStr);
-    var dateParts = dateStr.split('-');
-    var dateValue = new Date(0);
-    dateValue.setFullYear(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2]));
-    dateValue.setHours(0, 0, 0, 0);
-    var timeValue = Utilities.formatDate(now, TIMEZONE, 'HH:mm:ss');
-    var area = String(selectedSales.area || '').trim();
-
-    uploadedFile = createUploadedPhotoFile_(payload, type, salesId, dateStr);
-    if (type === 'attendance') {
-      valuesByHeader = {
-        sales_id: salesId,
-        sales_name: selectedSales.full_name || '',
-        team_name: selectedSales.team_name || '',
-        date: dateValue,
-        time: timeValue,
-        photo_url: uploadedFile.getUrl(),
-        status: 'Hadir Tepat Waktu',
-        location: area,
-        notes: notes
-      };
-    } else {
-      valuesByHeader = {
-        visit_id: 'VIS-' + Utilities.getUuid().slice(0, 8).toUpperCase(),
-        visit_date: dateValue,
-        visit_time: timeValue,
-        sales_id: salesId,
-        sales_name: selectedSales.full_name || '',
-        team_name: selectedSales.team_name || '',
-        area: area,
-        photo_url: uploadedFile.getUrl(),
-        notes: notes,
-        status: 'ACTIVE'
-      };
-    }
-
-    var row = headers.map(function(header) {
-      var key = String(header || '').trim().toLowerCase();
-      return Object.prototype.hasOwnProperty.call(valuesByHeader, key) ? valuesByHeader[key] : '';
-    });
-    sheet.appendRow(row);
-    SpreadsheetApp.flush();
-
-    return {
-      success: true,
-      type: type,
-      date: dateStr,
-      photoUrl: formatDrivePhotoUrl_(uploadedFile.getUrl()),
-      message: type === 'attendance' ? 'Foto absensi berhasil disimpan.' : 'Foto kunjungan berhasil disimpan.'
-    };
-  } catch (err) {
-    if (uploadedFile) {
-      try { uploadedFile.setTrashed(true); } catch (cleanupError) {}
-    }
-    return { success: false, message: err.message || 'Gagal menyimpan foto.' };
-  } finally {
-    lock.releaseLock();
-  }
+// The photo row, audit entry and COMMITTED receipt share one atomic Sheets batch.
+// A Drive file is only discarded after a definite batch rejection, never on timeout.
+function photoUploadPlan_(ctx, meta, payload, user, id, requestId) {
+  var type = payload.photoType;
+  if (type !== 'attendance' && type !== 'visit') throw new Error('Jenis foto tidak dikenali.');
+  var now = new Date(), date = validatePhotoUploadDate_(payload.date, now);
+  if (typeof archiveAssertOpenDate_ === 'function') archiveAssertOpenDate_(date);
+  var salesId = String(payload.salesId || '').trim(), notes = String(payload.notes || '').trim();
+  if (!salesId || !notes || !payload.imageDataUrl) throw new Error('Sales ID, tanggal, keterangan, dan foto wajib diisi.');
+  if (notes.length > 2000) throw new Error('Keterangan maksimal 2000 karakter.');
+  var name = type === 'attendance' ? 'ATTENDANCE' : 'VISIT_PHOTOS';
+  if (!meta[name]) throw new Error('Sheet ' + name + ' tidak ditemukan. Jalankan Perbarui Seluruh Sheet.');
+  var raw = txRead_(ctx, ['SALES',name].concat(meta.ACTIVITY_LOGS ? ['ACTIVITY_LOGS'] : []));
+  var sales = txUnique_(txTable_('SALES',raw.SALES,['sales_id','full_name','team_name','status'],false).rows,function(row){return normalizeKey_(row.sales_id)===normalizeKey_(salesId);},'Sales');
+  if (!txActive_(sales)) throw new Error('Profil sales tidak aktif.');
+  var table = txTable_(name,raw[name],TABLE_SCHEMAS[name],true), requests = [];
+  if (meta.ACTIVITY_LOGS) txTable_('ACTIVITY_LOGS',raw.ACTIVITY_LOGS,TABLE_SCHEMAS.ACTIVITY_LOGS,true);
+  else txAddSheet_(meta,requests,'ACTIVITY_LOGS',TABLE_SCHEMAS.ACTIVITY_LOGS,false);
+  var time = Utilities.formatDate(now,TIMEZONE,'HH:mm:ss'), stamp = Utilities.formatDate(now,TIMEZONE,'yyyy-MM-dd HH:mm:ss');
+  var file = createUploadedPhotoFile_(payload,type,sales.sales_id,date), url = file.getUrl(), fileId = file.getId();
+  var values = type === 'attendance' ? {
+    sales_id:sales.sales_id,sales_name:sales.full_name,team_name:sales.team_name,date:date,time:time,
+    photo_url:url,status:'Hadir Tepat Waktu',location:sales.area || '',notes:notes
+  } : {
+    visit_id:id,visit_date:date,visit_time:time,sales_id:sales.sales_id,sales_name:sales.full_name,
+    team_name:sales.team_name,area:sales.area || '',photo_url:url,notes:notes,status:'ACTIVE'
+  };
+  requests.push(txAppend_(meta[name].sheetId,[table.headers.map(function(h){return Object.prototype.hasOwnProperty.call(values,h)?values[h]:'';})]));
+  requests.push(txAppend_(meta.ACTIVITY_LOGS.sheetId,[['AUD-'+Utilities.getUuid(),stamp,user.email,'UPLOAD_'+type.toUpperCase(),id,JSON.stringify({salesId:sales.sales_id,date:date,actorRole:user.role,assisted:user.role==='ADMIN'})]]));
+  return {requests:requests,cleanupFileId:fileId,plan:{operation:'PHOTO',type:type,date:date,salesId:sales.sales_id,photoFileId:fileId},result:{
+    success:true,terminal:true,state:'COMMITTED',operation:'PHOTO',transactionId:id,requestId:requestId,type:type,date:date,
+    photoUrl:formatDrivePhotoUrl_(url),message:type==='attendance'?'Foto absensi berhasil disimpan.':'Foto kunjungan berhasil disimpan.'
+  }};
 }
 
 function saveSalesTransaction_(payload) {

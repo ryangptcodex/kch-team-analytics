@@ -8,6 +8,8 @@ Pengguna mengonfirmasi **seluruh isi spreadsheet saat ini masih data uji**. Meny
 
 **Perbaikan pertama, 2 November:** code.gs kini menolak tanggal absensi/foto kunjungan yang tidak valid dan tanggal masa depan berdasarkan hari WIB, sebelum upload/append. 374 tes Node lulus, termasuk kalender/tahun kabisat/batas tengah malam WIB dan periode tertutup. Status tepat waktu, ketahanan penyimpanan foto, ACL foto, rate-limit dan error export masih terbuka; belum ada pemasangan Google nyata yang dikonfirmasi untuk revisi ini.
 
+**Perbaikan kedua, 2 November:** simpan foto kini memakai receipt dan batch atomik untuk baris/audit/status, menjaga file pada hasil ambigu, serta recovery ID yang sama di browser. 385 tes dan pemeriksaan browser foto/stok/Tamu lulus. [Paket lima file](PANDUAN-PERBAIKAN-FOTO.md). ACL foto, aturan jam tepat waktu, rate-limit dan error export masih terbuka; belum ada konfirmasi pemasangan Google nyata untuk tahap ini.
+
 ## Cakupan dan bukti
 
 - Source ditinjau pada commit `8f5e12b553a4d237dd825672acbe333795a0753e`, aplikasi terakhir berubah pada a96ae2d. Branch `uji-login`.

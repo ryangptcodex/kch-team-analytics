@@ -143,12 +143,13 @@ test('a successful attendance upload requests fresh profile metadata for its HK 
   const input = { files: [{}] }; const get = e.document.getElementById;
   e.document.getElementById = id => id === 'photoUploadFile' ? input : get(id);
   c.getValue = id => ({ photoUploadSalesId: 'S1', photoUploadDate: '2026-10-25', photoUploadNotes: 'Check-in' })[id];
+  c.appState.user={uid:'admin-uid',role:'ADMIN'};c.txClientNewId=()=> 'REQ-PHOTO-LOGOUT-TEST';c.txClientStore=()=>{};
   c.appState.photoUploadType = 'attendance';
   c.compressPhotoFile = (file, callback) => callback('data:image/jpeg;base64,ABC', null);
   c.loadMetadata = () => { refreshed++; }; c.handleAttendanceDateChange = date => { dateReloaded = date; };
   c.closePhotoUploadForm = () => {}; c.showToast = () => {};
   c.kchRun = () => { const r = { withSuccessHandler(fn) { r.ok = fn; return r; }, withFailureHandler() { return r; },
-    saveSalesPhotoUpload(payload, type) { assert.equal(payload.salesId, 'S1'); assert.equal(type, 'attendance'); r.ok({ success: true }); } }; return r; };
+    saveSalesPhotoUpload(payload, type) { assert.equal(payload.salesId, 'S1'); assert.equal(type, 'attendance'); r.ok({success:true,state:'COMMITTED',operation:'PHOTO',type:type,date:payload.date,message:'Tersimpan'}); } }; return r; };
   c.submitPhotoUploadForm({ preventDefault() {} });
   assert.equal(refreshed, 1); assert.equal(dateReloaded, '2026-10-25');
 });

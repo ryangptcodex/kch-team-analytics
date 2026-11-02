@@ -4,7 +4,7 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const crypto=require('node:crypto');
 function browser(storage=new Map()) {
- const ids=['txFormFields','txRequestStatus','txRequestStatusText','txRequestCode','btnRetryTxRequest','btnCheckTxRequest','btnSubmitTx','transactionItemsTbody','txEditFormFields','btnSubmitTxEdit','editTxRequestStatus','editTxRequestStatusText','editTxRequestCode','btnRetryTxEditRequest','btnCheckTxEditRequest','pickupFormFields','btnSubmitPickup','pickupRequestStatus','pickupRequestStatusText','pickupRequestCode','btnRetryPickupRequest','btnCheckPickupRequest','cashDepositFormFields','btnSubmitDeposit','depositRequestStatus','depositRequestStatusText','depositRequestCode','btnRetryDepositRequest','btnCheckDepositRequest'];
+ const ids=['photoUploadSalesId','photoUploadDate','photoUploadNotes','photoUploadFile','btnSubmitPhotoUpload','photoRequestStatus','photoRequestStatusText','photoRequestCode','btnRetryPhotoRequest','btnCheckPhotoRequest','txFormFields','txRequestStatus','txRequestStatusText','txRequestCode','btnRetryTxRequest','btnCheckTxRequest','btnSubmitTx','transactionItemsTbody','txEditFormFields','btnSubmitTxEdit','editTxRequestStatus','editTxRequestStatusText','editTxRequestCode','btnRetryTxEditRequest','btnCheckTxEditRequest','pickupFormFields','btnSubmitPickup','pickupRequestStatus','pickupRequestStatusText','pickupRequestCode','btnRetryPickupRequest','btnCheckPickupRequest','cashDepositFormFields','btnSubmitDeposit','depositRequestStatus','depositRequestStatusText','depositRequestCode','btnRetryDepositRequest','btnCheckDepositRequest'];
  const els=Object.fromEntries(ids.map(id=>[id,{style:{},disabled:false,textContent:''}]));
  const values={inputTxTeam:'Motoris',inputTxSales:'S1',inputTxDistributor:'D1',inputTxDate:'2026-10-25',inputTxNotes:'private note'};
  els.transactionItemsTbody.querySelectorAll=()=>[{querySelector:s=>({value:s==='.item-product-select'?'P1':'2'})}];
@@ -14,7 +14,7 @@ function browser(storage=new Map()) {
  vm.createContext(c);vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'../js.html'),'utf8').replace(/^<script>/,'').replace(/<\/script>\s*$/,''),c);
  c.appState.user={uid:'user-1'};c.appState.inventory=[{product_id:'P1',D1:10}];c.getValue=id=>values[id]||'';c.findPriceProduct=()=>({cost_price:60,selling_price:100});
  c.showToast=(...args)=>toasts.push(args);let refreshes=0,resets=0;c.loadMetadata=()=>refreshes++;c.resetSalesTransactionForm=()=>resets++;
- c.kchRun=()=>{let ok,fail;const p={withSuccessHandler:f=>(ok=f,p),withFailureHandler:f=>(fail=f,p),saveSalesCashDeposit:payload=>calls.push({method:'deposit',payload,ok,fail}),saveStockPickup:payload=>calls.push({method:'pickup',payload,ok,fail}),saveSalesTransaction:payload=>calls.push({method:'save',payload,ok,fail}),editSalesTransaction:payload=>calls.push({method:'edit',payload,ok,fail}),getSalesTransactionRequestStatus:id=>calls.push({method:'status',id,ok,fail})};return p};
+ c.kchRun=()=>{let ok,fail;const p={withSuccessHandler:f=>(ok=f,p),withFailureHandler:f=>(fail=f,p),saveSalesPhotoUpload:(payload,type)=>calls.push({method:'photo',payload,type,ok,fail}),saveSalesCashDeposit:payload=>calls.push({method:'deposit',payload,ok,fail}),saveStockPickup:payload=>calls.push({method:'pickup',payload,ok,fail}),saveSalesTransaction:payload=>calls.push({method:'save',payload,ok,fail}),editSalesTransaction:payload=>calls.push({method:'edit',payload,ok,fail}),getSalesTransactionRequestStatus:id=>calls.push({method:'status',id,ok,fail})};return p};
  return {c,els,calls,storage,toasts,refreshes:()=>refreshes,resets:()=>resets,values};
 }
 test('double submit is ignored and only opaque ID is retained for recovery',()=>{
@@ -96,4 +96,28 @@ test('Production pending-request storage is separate from UJI for the same brows
  const storage=new Map(),uji=browser(storage);uji.c.submitSalesTransaction();const originalKey=uji.c.txClientStorageKey();assert.ok(storage.has(originalKey));
  const prod=browser(storage);prod.c.window.KCH_ENVIRONMENT_KEY='production-project';assert.notEqual(prod.c.txClientStorageKey(),originalKey);prod.c.restorePendingSalesTransaction();assert.equal(prod.c.appState.pendingTransaction,null);
  prod.c.submitSalesTransaction();assert.equal(storage.size,2);assert.ok(storage.has(originalKey));
+});
+
+function photoDraft(e){
+ e.c.kchAuthGeneration=0;
+ Object.assign(e.values,{photoUploadSalesId:'S1',photoUploadDate:'2026-10-25',photoUploadNotes:'Private photo notes'});
+ e.els.photoUploadFile.files=[{}];e.c.appState.photoUploadType='attendance';
+ e.c.compressPhotoFile=(file,done)=>done('data:image/jpeg;base64,AQI=',null);
+ e.c.closePhotoUploadForm=()=>{};e.c.handleAttendanceDateChange=()=>{};
+}
+test('photo upload stores only recovery ID, suppresses duplicate submit and refreshes metadata on receipt success',()=>{
+ const e=browser();photoDraft(e);e.c.submitPhotoUploadForm();e.c.submitPhotoUploadForm();assert.equal(e.calls.length,1);assert.equal(e.calls[0].method,'photo');assert.equal(e.els.photoUploadFile.disabled,true);assert.equal(e.els.btnSubmitPhotoUpload.textContent,'Menyimpan…');assert.deepEqual(Object.keys(JSON.parse([...e.storage.values()][0])),['requestId']);assert.ok(![...e.storage.values()][0].includes('data:image'));
+ e.calls[0].ok({success:true,state:'COMMITTED',operation:'PHOTO',transactionId:'PHOTO-1',type:'attendance',date:'2026-10-25',message:'Tersimpan'});assert.equal(e.refreshes(),1);assert.equal(e.resets(),0);assert.equal(e.storage.size,0);assert.equal(e.els.photoUploadFile.disabled,false);assert.ok(!e.toasts[0][0].includes('Rp'));
+});
+test('photo response loss locks the form and recovery reads the same ID without reuploading evidence',()=>{
+ const e=browser();photoDraft(e);e.c.submitPhotoUploadForm();const id=e.calls[0].payload.requestId;e.calls[0].fail(Error('offline'));assert.equal(e.els.photoUploadFile.disabled,true);assert.equal(e.els.photoRequestStatus.style.display,'block');e.c.submitPhotoUploadForm();assert.equal(e.calls[1].method,'status');assert.equal(e.calls[1].id,id);e.calls[1].ok({state:'PENDING',message:'Belum pasti'});assert.equal(e.els.btnRetryPhotoRequest.style.display,'none');assert.equal(e.calls.filter(c=>c.method==='photo').length,1);
+ e.c.checkPendingSalesTransaction();e.calls[2].ok({success:true,state:'COMMITTED',operation:'PHOTO',type:'attendance',date:'2026-10-25',message:'Tersimpan'});assert.equal(e.storage.size,0);assert.equal(e.refreshes(),1);
+});
+test('photo retry after NOT_FOUND retains the original exact draft and ID; refresh can resolve a saved receipt',()=>{
+ const e=browser();photoDraft(e);e.c.submitPhotoUploadForm();const payload=e.calls[0].payload;e.calls[0].fail(Error('offline'));e.c.checkPendingSalesTransaction();e.calls[1].ok({state:'NOT_FOUND',blocked:false});assert.equal(e.els.btnRetryPhotoRequest.style.display,'inline-flex');e.c.retryPendingSalesTransaction();assert.equal(e.calls[2].payload,payload);
+ const refreshed=browser(e.storage);photoDraft(refreshed);refreshed.c.restorePendingSalesTransaction();assert.equal(refreshed.calls[0].method,'status');assert.equal(refreshed.c.appState.pendingTransaction.payload,null);refreshed.calls[0].ok({success:true,state:'COMMITTED',operation:'PHOTO',type:'attendance',date:'2026-10-25',message:'Tersimpan'});assert.equal(refreshed.refreshes(),1);assert.equal(e.storage.size,0);
+});
+test('photo upload fails before RPC when session recovery storage is unavailable, and compression double-click never starts two requests',()=>{
+ const e=browser();photoDraft(e);e.c.window.sessionStorage.setItem=()=>{throw Error('blocked');};e.c.submitPhotoUploadForm();assert.equal(e.calls.length,0);assert.equal(e.c.appState.pendingTransaction,null);assert.equal(e.els.photoUploadFile.disabled,false);
+ const second=browser();photoDraft(second);let done;second.c.compressPhotoFile=(f,cb)=>{done=cb;};second.c.submitPhotoUploadForm();second.c.submitPhotoUploadForm();assert.equal(second.calls.length,0);done('data:image/jpeg;base64,AQI=',null);assert.equal(second.calls.length,1);
 });

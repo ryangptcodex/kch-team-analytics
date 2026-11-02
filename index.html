@@ -1545,6 +1545,14 @@
             <input type="file" class="form-control" id="photoUploadFile" accept="image/*" required>
             <small class="text-muted" style="display:block;margin-top:5px;">Foto akan dikompres sebelum diunggah.</small>
           </div>
+          <div id="photoRequestStatus" role="status" style="display:none;margin-top:12px;overflow-wrap:anywhere;">
+            <p id="photoRequestStatusText"></p>
+            <small id="photoRequestCode" class="text-muted"></small>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+              <button type="button" class="btn btn-outline btn-sm" id="btnCheckPhotoRequest" onclick="checkPendingSalesTransaction()">Periksa hasil</button>
+              <button type="button" class="btn btn-outline btn-sm" id="btnRetryPhotoRequest" style="display:none;" onclick="retryPendingSalesTransaction()">Coba simpan lagi</button>
+            </div>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary btn-sm" onclick="closePhotoUploadForm()">Batal</button>
