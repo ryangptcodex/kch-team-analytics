@@ -25,7 +25,7 @@ function system(options = {}) {
     LockService: { getScriptLock: () => ({ waitLock() { if(options.busy) throw Error('busy'); }, releaseLock() {} }) },
     Utilities: { DigestAlgorithm: { SHA_256: 'sha256' }, Charset: { UTF_8: 'utf8' },
       computeDigest: (algorithm, text) => [...crypto.createHash(algorithm).update(text).digest()], getUuid: () => crypto.randomUUID(),
-      formatDate: (date, zone, format) => format === 'yyyyMMdd' ? '20261025' : format === 'yyyy-MM-dd' ? '2026-10-25' : format === 'yyyy-MM' ? '2026-10' : '2026-10-25 12:00:00' }
+      formatDate: (date, zone, format) => format === 'HH:mm:ss' ? '12:00:00' : format === 'yyyyMMdd' ? '20261025' : format === 'yyyy-MM-dd' ? '2026-10-25' : format === 'yyyy-MM' ? '2026-10' : '2026-10-25 12:00:00' }
   };
   function byId(book, id) { return Object.values(book).find(s => s.sheetId === id); }
   function apply(requests) {

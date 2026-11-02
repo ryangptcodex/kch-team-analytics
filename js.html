@@ -1070,6 +1070,7 @@
 
       var statusClass = 'att-status-hadir';
       if (statusNorm.indexOf('TEPAT') > -1) statusClass = 'att-status-tepat-waktu';
+      else if (statusNorm.indexOf('TERLAMBAT') > -1) statusClass = 'att-status-terlambat';
       else if (statusNorm.indexOf('IZIN') > -1) statusClass = 'att-status-izin';
       else if (statusNorm.indexOf('SAKIT') > -1) statusClass = 'att-status-sakit';
       else if (statusNorm.indexOf('TIDAK') > -1 || statusNorm.indexOf('ALPHA') > -1) statusClass = 'att-status-tidak-hadir';
@@ -1866,6 +1867,8 @@
     setValue('photoUploadArea', '');
     setValue('photoUploadNotes', '');
     setValue('photoUploadDate', getLocalDateInputValue());
+    setValue('photoUploadTime','');
+    setStyle('photoUploadTimeGroup','display',photoType==='attendance' && appState.user && appState.user.role==='ADMIN'?'block':'none');
     var fileInput = document.getElementById('photoUploadFile');
     if (fileInput) fileInput.value = '';
     appState.photoUploadType = photoType;
@@ -1936,6 +1939,7 @@
     if (previous && previous.payload) { checkPendingSalesTransaction(); return; }
     var type = appState.photoUploadType, salesId = getValue('photoUploadSalesId');
     var date = getValue('photoUploadDate'), notes = String(getValue('photoUploadNotes') || '').trim();
+    var attendanceTime=type==='attendance'?String(getValue('photoUploadTime') || '').trim():'';
     var fileInput = document.getElementById('photoUploadFile'), file = fileInput && fileInput.files ? fileInput.files[0] : null;
     if (!type || !salesId || !date || !notes || !file) { showToast('Lengkapi Sales ID, keterangan, tanggal, dan foto.', 'error'); return; }
     var submitButton = document.getElementById('btnSubmitPhotoUpload');
@@ -1951,6 +1955,7 @@
         showToast(errorMessage, 'error'); return;
       }
       var payload = {operation:'PHOTO',photoType:type,salesId:salesId,date:date,notes:notes,imageDataUrl:imageDataUrl};
+      if(type==='attendance')payload.attendanceTime=attendanceTime;
       try {
         payload.requestId = previous ? previous.requestId : txClientNewId();
         appState.pendingTransaction = {requestId:payload.requestId,payload:payload};
@@ -2370,7 +2375,7 @@
     if (pickupFields) pickupFields.disabled = !!locked;
     var depositFields = document.getElementById('cashDepositFormFields');
     if (depositFields) depositFields.disabled = !!locked;
-    ['photoUploadSalesId','photoUploadDate','photoUploadNotes','photoUploadFile','btnSubmitPhotoUpload'].forEach(function(id) {
+    ['photoUploadSalesId','photoUploadDate','photoUploadTime','photoUploadNotes','photoUploadFile','btnSubmitPhotoUpload'].forEach(function(id) {
       var field = document.getElementById(id); if (field) field.disabled = !!locked;
     });
   }

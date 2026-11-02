@@ -969,7 +969,7 @@ function getDashboardMetrics_(filters) {
           teamName: sTeam,
           time: formatVisitPhotoTime_(aRow.time) || '-',
           photoUrl: '', photoRef: photoEvidenceRef_('attendance',aRow),
-          status: aRow.status || 'Hadir Tepat Waktu',
+          status: aRow.status || 'Hadir',
           location: aRow.location || 'Cabang Lhokseumawe',
           notes: aRow.notes || 'Dokumentasi Absensi Lapangan'
         });
@@ -1070,7 +1070,7 @@ function getAttendanceByDate_(dateStr) {
           teamName: sTeam,
           time: formatVisitPhotoTime_(aRow.time) || '-',
           photoUrl: '', photoRef: photoEvidenceRef_('attendance',aRow),
-          status: aRow.status || 'Hadir Tepat Waktu',
+          status: aRow.status || 'Hadir',
           location: aRow.location || 'Cabang Lhokseumawe',
           notes: aRow.notes || 'Dokumentasi Absensi Lapangan'
         });
@@ -1678,6 +1678,21 @@ function saveSalesPhotoUpload_(payload, photoType) {
   return txExecuteRequest_(request, 'PHOTO');
 }
 
+// Office rule supplied by Admin: start 08:00 WIB, tolerance through 09:00:00 WIB.
+function attendanceClock_(date,payload,user,now) {
+  var today=Utilities.formatDate(now,TIMEZONE,'yyyy-MM-dd'),received=Utilities.formatDate(now,TIMEZONE,'HH:mm:ss');
+  var input=payload.attendanceTime;
+  if(input!==undefined && typeof input!=='string')throw new Error('Jam absensi tidak valid. Gunakan HH:mm atau HH:mm:ss (WIB).');
+  input=String(input || '').trim();
+  if(user.role!=='ADMIN' && (input || date!==today))throw new Error('Hanya Admin yang boleh mencatat jam manual atau absensi tanggal sebelumnya.');
+  if(date!==today && !input)throw new Error('Untuk tanggal sebelumnya, isi jam absensi sebenarnya (WIB).');
+  if(input && !/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(input))throw new Error('Jam absensi tidak valid. Gunakan HH:mm atau HH:mm:ss (WIB).');
+  var time=input?(input.length===5?input+':00':input):received;
+  if(!/^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/.test(time))throw new Error('Waktu server belum dapat diperiksa. Coba kembali.');
+  if(date===today && time>received)throw new Error('Jam absensi hari ini tidak boleh melebihi waktu server WIB.');
+  return {time:time,status:time<='09:00:00'?'Hadir Tepat Waktu':'Hadir Terlambat',timeSource:input?'ADMIN_INPUT':'SERVER',workStart:'08:00:00',toleranceUntil:'09:00:00'};
+}
+
 // The photo row, audit entry and COMMITTED receipt share one atomic Sheets batch.
 // A Drive file is only discarded after a definite batch rejection, never on timeout.
 function photoUploadPlan_(ctx, meta, payload, user, id, requestId) {
@@ -1697,16 +1712,18 @@ function photoUploadPlan_(ctx, meta, payload, user, id, requestId) {
   if (meta.ACTIVITY_LOGS) txTable_('ACTIVITY_LOGS',raw.ACTIVITY_LOGS,TABLE_SCHEMAS.ACTIVITY_LOGS,true);
   else txAddSheet_(meta,requests,'ACTIVITY_LOGS',TABLE_SCHEMAS.ACTIVITY_LOGS,false);
   var time = Utilities.formatDate(now,TIMEZONE,'HH:mm:ss'), stamp = Utilities.formatDate(now,TIMEZONE,'yyyy-MM-dd HH:mm:ss');
+  var clock=type==='attendance'?attendanceClock_(date,payload,user,now):null;
+  if(clock)time=clock.time;
   var file = createUploadedPhotoFile_(payload,type,sales.sales_id,date), url = file.getUrl(), fileId = file.getId();
   var values = type === 'attendance' ? {
     sales_id:sales.sales_id,sales_name:sales.full_name,team_name:sales.team_name,date:date,time:time,
-    photo_url:url,status:'Hadir Tepat Waktu',location:sales.area || '',notes:notes
+    photo_url:url,status:clock.status,location:sales.area || '',notes:notes
   } : {
     visit_id:id,visit_date:date,visit_time:time,sales_id:sales.sales_id,sales_name:sales.full_name,
     team_name:sales.team_name,area:sales.area || '',photo_url:url,notes:notes,status:'ACTIVE'
   };
   requests.push(txAppend_(meta[name].sheetId,[table.headers.map(function(h){return Object.prototype.hasOwnProperty.call(values,h)?values[h]:'';})]));
-  requests.push(txAppend_(meta.ACTIVITY_LOGS.sheetId,[['AUD-'+Utilities.getUuid(),stamp,user.email,'UPLOAD_'+type.toUpperCase(),id,JSON.stringify({salesId:sales.sales_id,date:date,actorRole:user.role,assisted:user.role==='ADMIN'})]]));
+  requests.push(txAppend_(meta.ACTIVITY_LOGS.sheetId,[['AUD-'+Utilities.getUuid(),stamp,user.email,'UPLOAD_'+type.toUpperCase(),id,JSON.stringify({salesId:sales.sales_id,date:date,actorRole:user.role,assisted:user.role==='ADMIN',attendanceClock:clock})]]));
   return {requests:requests,cleanupFileId:fileId,plan:{operation:'PHOTO',type:type,date:date,salesId:sales.sales_id,photoFileId:fileId},result:{
     success:true,terminal:true,state:'COMMITTED',operation:'PHOTO',transactionId:id,requestId:requestId,type:type,date:date,
     photoUrl:'',photoRef:photoEvidenceRef_(type,values),message:type==='attendance'?'Foto absensi berhasil disimpan.':'Foto kunjungan berhasil disimpan.'

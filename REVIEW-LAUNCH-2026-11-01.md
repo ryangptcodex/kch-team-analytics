@@ -16,6 +16,8 @@ Pengguna mengonfirmasi **seluruh isi spreadsheet saat ini masih data uji**. Meny
 
 **Perbaikan kelima, 2 November:** export kini meneruskan kegagalan sumber dan menolak hasil tidak lengkap; tidak lagi membuat laporan nol palsu saat read gagal. 406 tes lulus, termasuk handler CSV/cetak tanpa unduhan saat error. [Paket satu file code.gs](PANDUAN-EXPORT-TRANSAKSI.md). Perbaikan utama audit sudah tersedia di kode; aturan jam status absensi, saldo fisik dan uji Google Production/Tamu/foto/deployment tetap perlu diselesaikan.
 
+**Perbaikan keenam, 2 November:** aturan kantor08.00 WIB dengan toleransi sampai09.00 sudah diberikan dan diterapkan pada absensi baru. Admin dapat mencatat jam aktual; tanggal lampau wajib jam aktual, sedangkan jam server dipakai bila hari ini tanpa jam manual. 413 tes dan browser foto/Tamu/stok lulus. [Paket lima file jam absensi](PANDUAN-JAM-ABSENSI.md). Sisa verifikasi adalah pemasangan Google, saldo fisik dan uji Production/noneditor; jangan menganggap tes lokal sebagai bukti launch penuh.
+
 ## Cakupan dan bukti
 
 - Source ditinjau pada commit `8f5e12b553a4d237dd825672acbe333795a0753e`, aplikasi terakhir berubah pada a96ae2d. Branch `uji-login`.

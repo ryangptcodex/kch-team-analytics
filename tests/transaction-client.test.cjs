@@ -4,7 +4,7 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const crypto=require('node:crypto');
 function browser(storage=new Map()) {
- const ids=['photoUploadSalesId','photoUploadDate','photoUploadNotes','photoUploadFile','btnSubmitPhotoUpload','photoRequestStatus','photoRequestStatusText','photoRequestCode','btnRetryPhotoRequest','btnCheckPhotoRequest','txFormFields','txRequestStatus','txRequestStatusText','txRequestCode','btnRetryTxRequest','btnCheckTxRequest','btnSubmitTx','transactionItemsTbody','txEditFormFields','btnSubmitTxEdit','editTxRequestStatus','editTxRequestStatusText','editTxRequestCode','btnRetryTxEditRequest','btnCheckTxEditRequest','pickupFormFields','btnSubmitPickup','pickupRequestStatus','pickupRequestStatusText','pickupRequestCode','btnRetryPickupRequest','btnCheckPickupRequest','cashDepositFormFields','btnSubmitDeposit','depositRequestStatus','depositRequestStatusText','depositRequestCode','btnRetryDepositRequest','btnCheckDepositRequest'];
+ const ids=['photoUploadSalesId','photoUploadTime','photoUploadDate','photoUploadNotes','photoUploadFile','btnSubmitPhotoUpload','photoRequestStatus','photoRequestStatusText','photoRequestCode','btnRetryPhotoRequest','btnCheckPhotoRequest','txFormFields','txRequestStatus','txRequestStatusText','txRequestCode','btnRetryTxRequest','btnCheckTxRequest','btnSubmitTx','transactionItemsTbody','txEditFormFields','btnSubmitTxEdit','editTxRequestStatus','editTxRequestStatusText','editTxRequestCode','btnRetryTxEditRequest','btnCheckTxEditRequest','pickupFormFields','btnSubmitPickup','pickupRequestStatus','pickupRequestStatusText','pickupRequestCode','btnRetryPickupRequest','btnCheckPickupRequest','cashDepositFormFields','btnSubmitDeposit','depositRequestStatus','depositRequestStatusText','depositRequestCode','btnRetryDepositRequest','btnCheckDepositRequest'];
  const els=Object.fromEntries(ids.map(id=>[id,{style:{},disabled:false,textContent:''}]));
  const values={inputTxTeam:'Motoris',inputTxSales:'S1',inputTxDistributor:'D1',inputTxDate:'2026-10-25',inputTxNotes:'private note'};
  els.transactionItemsTbody.querySelectorAll=()=>[{querySelector:s=>({value:s==='.item-product-select'?'P1':'2'})}];
@@ -120,4 +120,8 @@ test('photo retry after NOT_FOUND retains the original exact draft and ID; refre
 test('photo upload fails before RPC when session recovery storage is unavailable, and compression double-click never starts two requests',()=>{
  const e=browser();photoDraft(e);e.c.window.sessionStorage.setItem=()=>{throw Error('blocked');};e.c.submitPhotoUploadForm();assert.equal(e.calls.length,0);assert.equal(e.c.appState.pendingTransaction,null);assert.equal(e.els.photoUploadFile.disabled,false);
  const second=browser();photoDraft(second);let done;second.c.compressPhotoFile=(f,cb)=>{done=cb;};second.c.submitPhotoUploadForm();second.c.submitPhotoUploadForm();assert.equal(second.calls.length,0);done('data:image/jpeg;base64,AQI=',null);assert.equal(second.calls.length,1);
+});
+
+test('manual attendance time is captured before compression and locked with the same replay draft',()=>{
+ const e=browser();photoDraft(e);e.values.photoUploadTime='08:45';let done;e.c.compressPhotoFile=(file,callback)=>{done=callback;};e.c.submitPhotoUploadForm();assert.equal(e.els.photoUploadTime.disabled,true);e.values.photoUploadTime='09:30';done('data:image/jpeg;base64,AQI=',null);assert.equal(e.calls[0].payload.attendanceTime,'08:45');assert.equal(e.calls[0].payload.operation,'PHOTO');
 });
