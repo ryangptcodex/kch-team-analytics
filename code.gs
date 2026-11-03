@@ -971,7 +971,7 @@ function getDashboardMetrics_(filters) {
           photoUrl: '', photoRef: photoEvidenceRef_('attendance',aRow),
           status: attendanceCategory_(aRow.status,aRow.time),
           location: aRow.location || 'Cabang Lhokseumawe',
-          notes: aRow.notes || 'Dokumentasi Absensi Lapangan'
+          notes: aRow.notes || ''
         });
       }
     }
@@ -1072,7 +1072,7 @@ function getAttendanceByDate_(dateStr) {
           photoUrl: '', photoRef: photoEvidenceRef_('attendance',aRow),
           status: attendanceCategory_(aRow.status,aRow.time),
           location: aRow.location || 'Cabang Lhokseumawe',
-          notes: aRow.notes || 'Dokumentasi Absensi Lapangan'
+          notes: aRow.notes || ''
         });
       }
     }
@@ -1728,7 +1728,7 @@ function photoUploadPlan_(ctx, meta, payload, user, id, requestId) {
   var now = new Date(), date = validatePhotoUploadDate_(payload.date, now);
   if (typeof archiveAssertOpenDate_ === 'function') archiveAssertOpenDate_(date);
   var salesId = String(payload.salesId || '').trim(), notes = String(payload.notes || '').trim();
-  if (!salesId || !notes || !payload.imageDataUrl) throw new Error('Sales ID, tanggal, keterangan, dan foto wajib diisi.');
+  if (!salesId || !payload.imageDataUrl) throw new Error('Sales ID, tanggal, dan foto wajib diisi.');
   if (notes.length > 2000) throw new Error('Keterangan maksimal 2000 karakter.');
   var name = type === 'attendance' ? 'ATTENDANCE' : 'VISIT_PHOTOS';
   if (!meta[name]) throw new Error('Sheet ' + name + ' tidak ditemukan. Jalankan Perbarui Seluruh Sheet.');

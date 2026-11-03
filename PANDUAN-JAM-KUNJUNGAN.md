@@ -30,3 +30,11 @@ Nilai di foto diisi sendiri oleh Admin. Foto yang telah tersimpan sebelumnya tet
 ## Verifikasi
 
 428 tes Node lulus. Tujuh regresi baru mencakup jam15:40 dibanding upload21:30, audit/kartu, jam historis dan detik, penolakan input invalid/future/nonadmin, replay/fingerprint lama, batas hari WIB dan perlindungan draft selama kompresi. Browser formulir foto asli juga lulus: label jam kunjungan, penyimpanan15:40, penayangan pada kartu, kategori absensi yang tetap benar, privasi gambar, recovery, pembatasan Tamu dan layar1440/390/320. Layanan Google pada pengujian adalah tiruan; pemasangan dan verifikasi Production dilakukan pengguna.
+
+## Keterangan opsional — 3 November 2026
+
+Keterangan pada **Input Foto Absensi** dan **Input Foto Kunjungan** boleh dikosongkan. Kolom tetap tersedia dengan label **Keterangan (opsional)**. Jika diisi, isinya tetap tersimpan; batas2000 karakter tidak berubah. Keterangan kosong pada daftar/modal tetap kosong atau ditampilkan sebagai tanda “—”, tanpa teks keterangan buatan.
+
+Bila paket jam sudah terpasang, revisi keterangan ini hanya membutuhkan penggantian **code.gs**, **index.html** dan **js.html** dari cabang production, lalu Simpan dan terapkan Versi baru pada deployment `/exec` yang sama. Tidak perlu mengganti transactions.gs/CSS/auth, menjalankan setup atau reset data. Validasi foto, tanggal dan jam yang sudah ada tetap berlaku.
+
+428 tes Node serta pemeriksaan browser formulir asli lulus. Browser mengirim absensi dan kunjungan dengan textarea kosong melalui klik tombol biasa, memastikan HTML tidak lagi mewajibkan keterangan dan server menyimpan notes kosong. Alur jam, kategori absensi, foto privat dan recovery tetap diperiksa.

@@ -1944,7 +1944,7 @@
     var date = getValue('photoUploadDate'), notes = String(getValue('photoUploadNotes') || '').trim();
     var photoTime=String(getValue('photoUploadTime') || '').trim();
     var fileInput = document.getElementById('photoUploadFile'), file = fileInput && fileInput.files ? fileInput.files[0] : null;
-    if (!type || !salesId || !date || !notes || !file) { showToast('Lengkapi Sales ID, keterangan, tanggal, dan foto.', 'error'); return; }
+    if (!type || !salesId || !date || !file) { showToast('Lengkapi Sales ID, tanggal, dan foto.', 'error'); return; }
     var submitButton = document.getElementById('btnSubmitPhotoUpload');
     appState.isSubmittingTransaction = true;
     txClientLock(true);
