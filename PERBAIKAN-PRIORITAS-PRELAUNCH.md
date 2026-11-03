@@ -47,7 +47,7 @@ Tambahan pemasangan: kegagalan include HTML menyebut nama file yang perlu diperi
 
 Snapshot lama yang kosong dan tidak mencatat bukti kalender bisa berubah menjadi **belum terverifikasi**. Ini bukan data transaksi hilang. A3 memperbarui bulan berjalan; bulan tutup yang sudah valid tidak ditimpa otomatis.
 
-Untuk melengkapi snapshot lama yang belum dapat disahkan, gunakan **Kelola Master → Verifikasi Master Bulan Lama**. Pilih arsip/cadangan terdaftar, periksa master dan kalender bulan yang dimaksud, isi alasan serta konfirmasi ketik. Sumber tanpa kalender atau versi aturan yang tidak didukung ditolak. Periode yang valid dan sudah disahkan tetap tidak dapat ditimpa. Salinan formula/rules sumber dipertahankan saat tersedia; fallback legacy hanya memakai implementasi V1 yang diketahui, bukan konstanta baru secara diam-diam.
+Untuk melengkapi snapshot lama yang belum dapat disahkan, gunakan **Kelola Master → Pengaturan tambahan: laporan bulan lama**. Pilih arsip/cadangan terdaftar, periksa master dan kalender bulan yang dimaksud, isi alasan serta konfirmasi ketik. Sumber tanpa kalender atau versi aturan yang tidak didukung ditolak. Periode yang valid dan sudah disahkan tetap tidak dapat ditimpa. Salinan formula/rules sumber dipertahankan saat tersedia; fallback legacy hanya memakai implementasi V1 yang diketahui, bukan konstanta baru secara diam-diam.
 
 Label `SELESAI` pada hasil arsip legacy tidak menjadi bukti bahwa sumber kalender lengkap. Monitor memperingatkan periode yang sumbernya belum dapat disahkan. Angka final arsip lama tidak ditulis ulang otomatis; bandingkan sumber sebelum digunakan untuk pembayaran. Kebijakan bisnis periode tutup dan transaksi asli tetap dipertahankan.
 

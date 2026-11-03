@@ -783,3 +783,10 @@ Branch kerja **production** beserta tautan file sudah tersedia. `uji-login` dipe
 - User meminta kolomSHJ langsung mengikuti harga jual dikurangi modal/setoran saat mengetik. `operations-client.html` memperbarui SHJ pada input kedua harga dan ketika memilih catatan; SHJ tetap readonly, kosong jika salah satu harga kosong/tidak valid. Perhitungan pratinjau memakai sen agar pecahan seperti0.3−0.1ditampilkan0.2. Label modal menjadi “Modal / setoran (Rp)”.
 - Backend `period-masters.gs` sudah menghitung SHJ sendiri saat simpan dan tidak perlu diubah. Hanya file HTML `operations-client.html` yang perlu diganti pengguna, lalu Simpan dan Versi baru deployment yang sama; tidak perlu A3/reset untuk perubahan UI ini.
 - Browser audit lulus dengan perubahan kedua kolom, angka330/500/−500, kosong, pecahan dan simpan330ke backend simulasi. Tidak ada harga atau data Google nyata yang diubah agen.
+
+
+### Ringkas pengaturan laporan bulan lama — 3 November 2026
+
+- User bingung panel Verifikasi Master Bulan Lama dan meminta dihapus jika tidak penting. Jelaskan fungsi hanya untuk mengesahkan sumber laporan lama belum terverifikasi; penting untuk angka historis, bukan input harian.
+- UI disederhanakan: seluruh panel menjadi details tertutup default berjudul “Pengaturan tambahan: laporan bulan lama”, disertai penjelasan singkat. Kontrol hanya terlihat setelah judul diklik. Endpoint, proteksi dan data historis tetap tersedia. Tidak menambah alur konfirmasi baru.
+- Pengguna cukup mengganti seluruh `operations-ui.html`, Simpan dan Versi baru deployment sama; tidak perlu A3/reset. Browser memeriksa tertutup default, buka/tutup, serta alur master/operasional lain. Tidak mengubah Google secara langsung.
