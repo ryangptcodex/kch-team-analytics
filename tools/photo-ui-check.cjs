@@ -48,6 +48,47 @@ for(const [status,salesId,cls,color] of statuses){
 }
 assert.equal(await p.locator('#attendancePageGridContainer .att-status-panel').count(),4);assert.match(await p.locator('#attendancePageCountBadge').textContent(),/1 Hadir/);
 const profiles=c.kchApi('MOCK','getInitialAppMetadata',[]).sales;for(const row of profiles)assert.equal(row.attendance_hk,row.sales_id==='S4'?1:0);
+// Exercise actual image decoding, a larger roster cache, failed RPCs and stale modal responses.
+await p.evaluate(async()=>{
+ const oldRun=kchRun,oldPhotos=appState.privatePhotos,oldTimeout=window.setTimeout;
+ const host=document.createElement('div');host.style.cssText='position:fixed;top:0;left:0;width:240px;height:240px;z-index:99999';document.body.appendChild(host);
+ const canvas=document.createElement('canvas');canvas.width=canvas.height=2;const data=canvas.toDataURL('image/png');
+ const calls=[];let active=0,maxActive=0;
+ const check=(condition,message)=>{if(!condition)throw Error(message);};
+ const until=async(fn)=>{for(let n=0;n<150;n++){if(fn())return;await new Promise(r=>oldTimeout(r,5));}throw Error('Image check timed out');};
+ function markup(ref){return privatePhotoImage({photoRef:ref},'attendance','Foto Absensi');}
+ function render(refs){host.innerHTML=refs.map(ref=>'<div class="att-img-wrap">'+markup(ref)+'</div>').join('');loadPrivatePhotoImages(host);}
+ function reply(call,result,error){active--;if(error)call.fail(error);else call.ok(result || {success:true,dataUrl:data});}
+ try{
+  delete appState.privatePhotos;
+  kchRun=function(){let ok,fail;const r={withSuccessHandler(fn){ok=fn;return r;},withFailureHandler(fn){fail=fn;return r;},getSalesPhotoEvidence(kind,ref){active++;maxActive=Math.max(maxActive,active);calls.push({ok,fail,kind,ref});}};return r;};
+  const refs=Array.from({length:21},(_,i)=>String(i+1).padStart(64,'0'));
+  render(refs);await until(()=>calls.length===4);check(maxActive===4,'Photo concurrency exceeded four');
+  check(host.querySelector('.private-photo-feedback').textContent.includes('Memuat foto'),'No loading message');
+  check(getComputedStyle(host.querySelector('img')).opacity==='0','Broken image should be hidden while loading');
+  let answered=0;while(answered<21){await until(()=>calls.length>answered);reply(calls[answered++]);}
+  await until(()=>[...host.querySelectorAll('img')].every(img=>img.getAttribute('data-kch-photo-state')==='loaded'));
+  const beforeCache=calls.length;render(refs.slice().reverse());await until(()=>[...host.querySelectorAll('img')].every(img=>img.getAttribute('data-kch-photo-state')==='loaded'));check(calls.length===beforeCache,'Twenty-one cached photos fetched again');
+  // A transient failure retries once; a persistent failure exposes a usable retry button.
+  render(['f'.repeat(64)]);await until(()=>calls.length===22);reply(calls[21],null,Error('offline'));await until(()=>calls.length===23);reply(calls[22],null,Error('offline'));await until(()=>!!host.querySelector('.private-photo-retry'));
+  check(calls.length===23,'Photo failure retried without a bound');host.querySelector('.private-photo-retry').click();await until(()=>calls.length===24);reply(calls[23]);await until(()=>host.querySelector('img').getAttribute('data-kch-photo-state')==='loaded');
+  // A successful RPC may contain invalid image bytes: actual browser decoding must detect it.
+  render(['e'.repeat(64)]);await until(()=>calls.length===25);reply(calls[24],{success:true,dataUrl:'data:image/jpeg;base64,AQI='});await until(()=>!!host.querySelector('.private-photo-retry'));check(!appState.privatePhotos.cache['attendance:'+ 'e'.repeat(64)],'Invalid decoded photo retained in cache');host.querySelector('.private-photo-retry').click();await until(()=>calls.length===26);reply(calls[25]);await until(()=>host.querySelector('img').getAttribute('data-kch-photo-state')==='loaded');
+  // Reusing a modal image for a different record must not let an old response replace it.
+  render(['d'.repeat(64)]);await until(()=>calls.length===27);const img=host.querySelector('img');img.setAttribute('data-kch-photo-ref','c'.repeat(64));img.removeAttribute('data-kch-photo-state');loadPrivatePhotoImages(host);await until(()=>calls.length===28);reply(calls[26]);check(!img.hasAttribute('src'),'Stale record response replaced current photo');reply(calls[27]);await until(()=>img.getAttribute('data-kch-photo-state')==='loaded');
+  // A hung request releases its slot, retries once, and ignores the late first response.
+  window.setTimeout=function(fn,ms){return oldTimeout(fn,ms===20000?70:ms);};render(['b'.repeat(64)]);await until(()=>calls.length===29);await until(()=>calls.length===30);reply(calls[29]);await until(()=>host.querySelector('img').getAttribute('data-kch-photo-state')==='loaded');reply(calls[28],{success:false});check(host.querySelector('img').getAttribute('data-kch-photo-state')==='loaded','Late timed-out callback changed loaded photo');check(appState.privatePhotos.active===0,'Photo queue slot leaked');
+  // Switching from a photo modal to a non-photo status clears the old feedback.
+  openAttendancePhoto({photoRef:'a'.repeat(64),date:'2026-10-25',status:'HADIR'});await until(()=>calls.length===31);openAttendancePhoto({date:'2026-10-25',status:'SAKIT'});check(!document.querySelector('#modalAttImg').parentElement.querySelector('.private-photo-feedback'),'Photo loading panel covered SAKIT status');reply(calls[30]);closeAttendancePhotoModal();
+  // Hidden dashboard copies must not occupy the first four slots ahead of visible cards.
+  window.setTimeout=oldTimeout;
+  const priorityStart=calls.length,priorityRefs=['7','8','9','1','2','3'].map(x=>x.repeat(64));
+  host.innerHTML=priorityRefs.map((ref,i)=>'<div class="att-img-wrap"'+(i<2?' style="display:none"':'')+'>'+markup(ref)+'</div>').join('');loadPrivatePhotoImages(host);
+  await until(()=>calls.length===priorityStart+4);check(calls.slice(priorityStart).every(call=>priorityRefs.slice(2).includes(call.ref)),'Hidden photos loaded ahead of visible cards');
+  for(let i=priorityStart;i<priorityStart+4;i++)reply(calls[i]);await until(()=>calls.length===priorityStart+6);for(let i=priorityStart+4;i<priorityStart+6;i++)reply(calls[i]);await until(()=>appState.privatePhotos.active===0);
+ }finally{window.setTimeout=oldTimeout;kchRun=oldRun;appState.privatePhotos=oldPhotos;host.remove();}
+});
+console.log('PASS: loading/decode indicators, 21-photo cache without repeat RPCs, concurrency cap, bounded automatic retry, manual retry, invalid image detection, stale modal isolation and timeout recovery.');
 e.actor({role:'GUEST'});const guestStatuses=c.kchApi('MOCK','getAttendanceByDate',['2026-10-25']);assert.equal(guestStatuses.attendance.length,4);e.actor({role:'ADMIN'});
 for(const width of [390,320]){await p.setViewportSize({width,height:850});for(const panel of await p.locator('#attendancePageGridContainer .att-status-panel').all())assert.equal(await panel.evaluate(el=>el.scrollWidth>el.clientWidth+2),false);await p.evaluate(()=>{openPhotoUploadForm('visit');txClientStatus('Hasil kiriman belum pasti. Periksa hasil sebelum mengirim lagi.',false);});assert.equal(await p.locator('#photoAttendanceStatusGroup').isVisible(),false);assert.equal(await p.locator('#photoUploadFile').getAttribute('required'),'');assert.equal(await p.locator('#photoUploadTimeGroup').isVisible(),true);assert.equal(await p.locator('#btnCheckPhotoRequest').isVisible(),true);const overflow=await p.locator('#modalPhotoUpload .modal-dialog').evaluate(el=>el.scrollWidth>el.clientWidth+2);assert.equal(overflow,false);}
 await p.evaluate(()=>{closePhotoUploadForm();appState.user={role:'GUEST'};openPhotoUploadForm('attendance');});assert.equal(await p.locator('#modalPhotoUpload').isVisible(),false);assert.deepEqual(errors,[]);

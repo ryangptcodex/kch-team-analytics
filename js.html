@@ -1125,39 +1125,88 @@
     return '<img data-kch-photo-ref="'+escapeHtml(photo.photoRef)+'" data-kch-photo-kind="'+escapeHtml(kind)+'" class="att-img" alt="'+escapeHtml(label)+'">';
   }
 
+  function privatePhotoUi(img,status,message) {
+    var panel=img._kchPhotoUi;
+    if(panel)panel.remove();
+    img._kchPhotoUi=null;
+    img.setAttribute('data-kch-photo-state',status);
+    if(status==='loaded')return;
+    panel=document.createElement('div');panel.className='private-photo-feedback';
+    panel.setAttribute('role','status');panel.setAttribute('aria-live','polite');
+    var text=document.createElement('span');text.textContent=message || 'Memuat foto…';panel.appendChild(text);
+    if(status==='error'){
+      var retry=document.createElement('button');retry.type='button';retry.className='private-photo-retry';retry.textContent='Coba lagi';
+      retry.onclick=function(event){event.stopPropagation();if(!appState.user)return;img.removeAttribute('data-kch-photo-state');loadPrivatePhotoImages(img.parentElement);};
+      panel.appendChild(retry);
+    }else {var spinner=document.createElement('span');spinner.className='private-photo-spinner';spinner.setAttribute('aria-hidden','true');panel.insertBefore(spinner,text);}
+    panel.onclick=function(event){event.stopPropagation();};
+    img._kchPhotoUi=panel;img.parentElement.appendChild(panel);
+  }
+
   function loadPrivatePhotoImages(container) {
     if (!container || !appState.user) return;
     var state=appState.privatePhotos || (appState.privatePhotos={cache:{},pending:{},queue:[],active:0});
     var generation=kchAuthGeneration;
     function live(){return appState.privatePhotos===state && generation===kchAuthGeneration;}
-    function finish(key,result,error){
+    function matches(img,key){return img.isConnected && img.getAttribute('data-kch-photo-kind')+':'+img.getAttribute('data-kch-photo-ref')===key;}
+    function remember(key,data){
+      delete state.cache[key];state.cache[key]=data;
+      var keys=Object.keys(state.cache),size=keys.reduce(function(total,k){return total+state.cache[k].length*2;},0);
+      while(keys.length>48 || size>12*1024*1024){var oldest=keys.shift();size-=state.cache[oldest].length*2;delete state.cache[oldest];}
+    }
+    function display(img,key,data){
+      if(!live() || !matches(img,key))return;
+      privatePhotoUi(img,'decoding','Menyiapkan foto…');
+      img.onload=function(){if(live() && matches(img,key) && img.getAttribute('src')===data)privatePhotoUi(img,'loaded');};
+      img.onerror=function(){if(!live() || !matches(img,key) || img.getAttribute('src')!==data)return;delete state.cache[key];privatePhotoUi(img,'error','Foto gagal dibuka. Coba muat lagi.');};
+      img.decoding='async';img.src=data;
+      if(img.complete && img.naturalWidth>0)img.onload();
+    }
+    function finish(request,result,error){
       if(!live())return;
-      var images=state.pending[key] || [];delete state.pending[key];state.active--;
+      state.active--;
       var data=result && result.success && /^data:image\/(?:jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(result.dataUrl || '') ? result.dataUrl : '';
-      if(data){state.cache[key]=data;var keys=Object.keys(state.cache);if(keys.length>16)delete state.cache[keys[0]];}
-      images.forEach(function(img){
-        if(!img.isConnected)return;
-        if(data){img.src=data;img.setAttribute('data-kch-photo-state','loaded');}
-        else {img.setAttribute('data-kch-photo-state','error');img.title=error && error.message || 'Bukti foto belum dapat dimuat. Coba muat ulang halaman.';}
-      });
-      pump();
+      var images=(state.pending[request.key] || []).filter(function(img){return matches(img,request.key);});
+      var message=error && error.message || result && result.message || '';
+      if(!data && request.attempt===0 && images.length && !/AUTH_REQUIRED|ACCESS_DENIED|tidak ditemukan|not found|permission|format|ukuran/i.test(message)){
+        request.attempt=1;state.pending[request.key]=images;state.queue.push(request);
+      }else {
+        delete state.pending[request.key];
+        if(data)remember(request.key,data);
+        images.forEach(function(img){if(data)display(img,request.key,data);else privatePhotoUi(img,'error',/tidak ditemukan|not found|permission|access denied/i.test(message)?'Foto belum dapat diakses.':'Foto gagal dimuat. Coba lagi.');});
+      }
+      schedule();
+    }
+    function visible(request){return (state.pending[request.key] || []).some(function(img){if(!matches(img,request.key))return false;var box=img.getBoundingClientRect();return box.width>0 && box.height>0 && box.bottom>0 && box.top<window.innerHeight;});}
+    function schedule(){
+      if(!live() || state.scheduled)return;
+      state.scheduled=true;setTimeout(function(){state.scheduled=false;pump();},0);
     }
     function pump(){
       if(!live())return;
+      state.queue.sort(function(a,b){return Number(visible(b))-Number(visible(a));});
       while(state.active<4 && state.queue.length){
-        var request=state.queue.shift();state.active++;
-        (function(r){kchRun().withSuccessHandler(function(result){finish(r.key,result);}).withFailureHandler(function(err){finish(r.key,null,err);}).getSalesPhotoEvidence(r.kind,r.ref);})(request);
+        var request=state.queue.shift();
+        if(!(state.pending[request.key] || []).some(function(img){return matches(img,request.key);})){delete state.pending[request.key];continue;}
+        state.active++;
+        (function(r){
+          var settled=false;
+          function complete(result,error){if(settled)return;settled=true;clearTimeout(timer);finish(r,result,error);}
+          var timer=setTimeout(function(){complete(null,new Error('Waktu pemuatan foto habis.'));},20000);
+          try{kchRun().withSuccessHandler(function(result){complete(result);}).withFailureHandler(function(err){complete(null,err);}).getSalesPhotoEvidence(r.kind,r.ref);}
+          catch(err){complete(null,err);}
+        })(request);
       }
     }
     container.querySelectorAll('img[data-kch-photo-ref]').forEach(function(img){
       if(img.getAttribute('data-kch-photo-state'))return;
       var ref=img.getAttribute('data-kch-photo-ref'),kind=img.getAttribute('data-kch-photo-kind'),key=kind+':'+ref;
-      if(state.cache[key]){img.src=state.cache[key];img.setAttribute('data-kch-photo-state','loaded');return;}
-      img.setAttribute('data-kch-photo-state','pending');
-      if(state.pending[key])state.pending[key].push(img);
-      else {state.pending[key]=[img];state.queue.push({key:key,kind:kind,ref:ref});}
+      if(state.cache[key]){var cached=state.cache[key];remember(key,cached);display(img,key,cached);return;}
+      privatePhotoUi(img,'pending');
+      if(state.pending[key]){if(state.pending[key].indexOf(img)<0)state.pending[key].push(img);}
+      else {state.pending[key]=[img];state.queue.push({key:key,kind:kind,ref:ref,attempt:0});}
     });
-    pump();
+    schedule();
   }
 
   function renderVisitPhotos() {
@@ -2027,6 +2076,8 @@
 
     var img = document.getElementById('modalAttImg');
     if (img) {
+      if(img._kchPhotoUi){img._kchPhotoUi.remove();img._kchPhotoUi=null;}
+      img.onload=null;img.onerror=null;
       img.removeAttribute('src');
       img.removeAttribute('data-kch-photo-state');
       if (att.photoRef) {

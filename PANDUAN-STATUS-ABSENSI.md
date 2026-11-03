@@ -44,3 +44,13 @@ Status, audit dan receipt disimpan satu batch atomik. Jika respons terputus, gun
 ## Verifikasi
 
 438 tes Node lulus: status tanpa foto/jam, HK1/0, pembatasan Admin/Tamu, foto normal tetap wajib, replay/konflik, perubahan status dengan riwayat tetap utuh, timeout/penolakan batch, periode tertutup dan arsip. Browser foto menyimpan empat status melalui formulir asli, memeriksa warna kartu/modal dan HK serta ukuran1440/390/320. Browser login Tamu, stok dan arsip juga lulus. Layanan Google pada tes adalah tiruan; pemasangan Production nyata dilakukan pengguna.
+
+## Pembaruan pemuatan foto — 3 November 2026
+
+Untuk perbaikan pemuatan foto, cukup ganti seluruh js.html dan css.html dari link Production di atas, simpan lalu deploy Versi baru pada deployment yang sama. CSS ini juga mencakup BELUM ABSEN abu-abu. Kode Google yang sedang berjalan belum diperiksa langsung oleh agen.
+
+Foto privat kini menampilkan indikator Memuat foto dan Menyiapkan foto sampai gambar benar-benar dapat dibuka browser. Kegagalan jaringan dicoba ulang otomatis satu kali; setelah gagal tersedia tombol Coba lagi pada kartu/detail tanpa refresh seluruh halaman. Gambar yang tidak dapat didekode juga ditandai gagal, tidak disimpan dalam cache. Respons yang melewati batas20detik diabaikan dan slot antreannya dilepas, sehingga satu permintaan macet tidak menahan antrean selamanya.
+
+Maksimum empat permintaan logis berjalan bersamaan, dengan foto terlihat didahulukan dari salinan dashboard tersembunyi. Antrean untuk elemen yang sudah dibuang dilewati. Cache memori sesi memakai LRU maksimum48foto dan12MiB (perkiraan dua byte per karakter data URL); tidak ditulis ke localStorage/sessionStorage. Penggantian sesi tetap membuang cache. Respons detail lama tidak dapat menimpa foto catatan yang baru dibuka.
+
+438 tes Node tetap lulus. Browser foto menguji21foto tanpa RPC ulang saat daftar dirender kembali, prioritas foto terlihat, indikator loading/decode, retry otomatis/manual, byte gambar rusak, timeout dan respons terlambat, pergantian modal serta aturan status/HK. Browser login Tamu juga lulus. Ini simulasi; penyebab spesifik foto Amul Husni di Production (akses file, isi file, atau kegagalan sementara) belum terkonfirmasi dan waktu Google nyata belum diukur. Perbaikan tidak mengubah foto Drive, data kehadiran, atau hak akses.
