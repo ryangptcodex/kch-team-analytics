@@ -722,3 +722,8 @@ Branch kerja **production** beserta tautan file sudah tersedia. `uji-login` dipe
 - Pengguna meminta “bro save ya nanti kita lanjut”. Implementasi status sudah dipush ke production, commit ab51c63; 438 tes Node dan empat uji browser lulus. Tidak ada perubahan aplikasi tambahan pada checkpoint ini.
 - Pemasangan lima file (code.gs, transactions.gs, index.html, js.html, css.html) dan Versi baru deployment Production sudah dijelaskan, tetapi belum dikonfirmasi pengguna. Jangan mengklaim revisi sudah terpasang di Google. Titik lanjut: konfirmasi pemasangan, lalu cek pilihan status pada Admin dan kartu warna/HK pada data yang memang perlu dicatat; jangan menambah catatan fiktif atau reset data operasional.
 - Keputusan tetap: IZIN biru HK0; TIDAK HADIR merah HK0; SAKIT oranye HK0; HADIR TAPI TIDAK ABSEN ungu HK1. Empat status tanpa foto/jam, keterangan opsional. Hadir normal memakai foto serta tiga kategori jam WIB. Riwayat lama dipertahankan dan status terakhir harian menentukan kartu/HK. Rujukan pemasangan: PANDUAN-STATUS-ABSENSI.md.
+
+### Warna BELUM ABSEN dibedakan — 3 November 2026
+
+- Pengguna sudah mengonfirmasi lima file status absensi terpasang/deploy (jawaban “sudah”). Kemudian melaporkan BELUM ABSEN dan TIDAK HADIR sama-sama merah. css.html mengubah hanya .att-img-wrap-absent menjadi abu-abu #64748b; TIDAK HADIR tetap merah #dc2626. Aturan HK/status dan data tetap sama. Browser foto/form/status lulus pada1440/390/320.
+- Paket pembaruan ini cukup css.html, simpan lalu Versi baru deployment Production /exec dan refresh. Pemasangan perubahan warna belum dikonfirmasi. Panduan status diperbarui.

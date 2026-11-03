@@ -31,7 +31,7 @@ Simpan kelimanya. Untuk /exec: Terapkan → Kelola deployment → pensil → Ver
 3. HADIR dengan foto tetap memakai foto/jam menurut aturan sebelumnya.
 4. Empat pilihan lain menyembunyikan foto dan jam; cukup simpan status. Keterangan tetap opsional.
 
-Kartu muncul menggantikan BELUM ABSEN. Klik kartu untuk melihat status, tanggal, tim, area dan keterangan. Tamu hanya dapat melihat. BELUM ABSEN tetap berarti belum ada catatan, sedangkan TIDAK HADIR berarti sudah ditetapkan Admin. Badge jumlah hadir menghitung orang hadir unik, termasuk HADIR TAPI TIDAK ABSEN, serta mengecualikan izin/sakit/tidak hadir.
+Kartu muncul menggantikan BELUM ABSEN. Klik kartu untuk melihat status, tanggal, tim, area dan keterangan. Tamu hanya dapat melihat. BELUM ABSEN berwarna abu-abu (#64748b) dan berarti belum ada catatan, sedangkan TIDAK HADIR berwarna merah dan berarti sudah ditetapkan Admin. Badge jumlah hadir menghitung orang hadir unik, termasuk HADIR TAPI TIDAK ABSEN, serta mengecualikan izin/sakit/tidak hadir.
 
 ## Perubahan status dan riwayat
 
