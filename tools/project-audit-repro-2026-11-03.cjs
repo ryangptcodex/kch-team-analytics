@@ -1,4 +1,9 @@
-// Audit observations against current source, using in-memory Google services only.
+// Historical observations against baseline552bff3, using in-memory Google services only.
+// Fixed-release regressions live in tests/audit-regressions.test.cjs and related suites.
+if (!process.argv.includes("--historical-baseline")) {
+  console.log("Historical reproducer: use baseline552bff3 with --historical-baseline. For this release run node --test tests/*.test.cjs.");
+  process.exit(0);
+}
 // These assertions document reproducible gaps; they are not desired-behavior tests.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const {system}=require('../tests/helpers/transaction-system.cjs');

@@ -40,13 +40,14 @@ function scoreContext_(withTransactions, withPrices) {
   var ctx = { id: getKchSpreadsheet_().getId(), token: ScriptApp.getOAuthToken() };
   var meta = txMetadata_(ctx);
   var names = ['SALES', 'PRODUCTS', KCH_SCORE_EVENTS_, 'HOLIDAYS', 'HARI_LIBUR', 'LIBUR'];
-  if (withTransactions) names.push('SALES_TRANSACTIONS');
+  if (withTransactions) {names.push('SALES_TRANSACTIONS');if(typeof KCH_OPERATIONS_!=='undefined'&&meta[KCH_OPERATIONS_])names.push(KCH_OPERATIONS_);}
   if (withPrices) names.push('PRICE_MASTER');
   if (typeof archiveEnabled_ === 'function' && archiveEnabled_() && meta[KCH_ARCHIVE_ROWS_]) names.push(KCH_ARCHIVE_ROWS_);
   var raw = txRead_(ctx, names.filter(function(n) { return !!meta[n]; }));
   if (typeof archiveMergeTable_ === 'function') {
     [KCH_SCORE_EVENTS_,'SALES_TRANSACTIONS'].forEach(function(name){if(raw[name])raw[name]=archiveMergeTable_(name,raw[name],raw[KCH_ARCHIVE_ROWS_]||[KCH_ARCHIVE_SCHEMAS_[KCH_ARCHIVE_ROWS_]]);});
   }
+  if(withTransactions&&raw.SALES_TRANSACTIONS&&typeof opsAugmentTable_==='function')raw.SALES_TRANSACTIONS=opsAugmentTable_(raw.SALES_TRANSACTIONS,opsEntries_(ctx,meta,raw));
   function table(name, headers) {
     if (!meta[name]) throw new Error('Sheet ' + name + ' tidak tersedia.');
     return txTable_(name, raw[name], headers, false).rows;
@@ -145,7 +146,7 @@ function saveScoreDailyCount_(input, metric) {
   var label = metric === 'BRANDING' ? 'Branding' : 'AA';
   var user = scoreAdmin_(), lock = LockService.getScriptLock(); lock.waitLock(10000);
   try {
-    if (typeof archivePendingGuard_ === 'function') archivePendingGuard_();
+    if(typeof businessContentGuard_==='function')businessContentGuard_();else if (typeof archivePendingGuard_ === 'function') archivePendingGuard_();
     if (!input || typeof input.count !== 'number' || !Number.isSafeInteger(input.count) || input.count < 0) throw new Error(label + ' harus bilangan bulat minimal 0.');
     var date = scoreDate_(input.date);
     if (date !== input.date || date > scoreToday_()) throw new Error('Tanggal ' + label + ' tidak boleh di masa depan dan harus berformat yyyy-MM-dd.');
@@ -168,7 +169,7 @@ function scoreParameters_(actuals, teamName) {
   if (branding) rules.push(['Branding', 300, 0.05, 5]);
   return rules.map(function(r, i) {
     var achievement = actuals[i] / r[1], points = r[2] * achievement * 100;
-    return { name: r[0], actual: actuals[i], target: r[1], weight: r[2], max: r[3], achievement: achievement, points: points, score: Math.min(points, r[3]) };
+    return { name: r[0], actual: actuals[i], target: r[1], weight: r[2], max: r[3], achievement: achievement, points: points, score: Math.max(0,Math.min(points, r[3])) };
   });
 }
 function scoreCategory_(total) { return total < 40 ? 'EVALUASI' : total < 60 ? 'DISPENSASI LANJUT' : 'LANJUT BULAN BERIKUTNYA'; }
@@ -177,10 +178,12 @@ function getScoreReport_(month, salesId) {
   return scoreBuildReport_(scoreContext_(true), month, salesId);
 }
 function scoreBuildReport_(data, month, salesId, prepared) {
+  if(typeof periodContext_==='function'){var originalData=data;data=periodContext_(data,month);if(data!==originalData&&prepared)prepared={ledger:prepared.ledger,mapping:scoreMapping_(data),transactionsBySales:prepared.transactionsBySales};}
   var sales = scoreSales_(data, salesId), ledger = prepared ? prepared.ledger : scoreLedger_(data.events), mapping = prepared ? prepared.mapping : scoreMapping_(data);
   var today = scoreToday_(), start = month + '-01', end = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).toISOString().slice(0, 10);
   var holidayName = ['HOLIDAYS', 'HARI_LIBUR', 'LIBUR'].filter(function(n) { return !!data.meta[n]; })[0], holidays = Object.create(null);
-  if (holidayName) {
+  if (data.periodHolidays) {data.periodHolidays.forEach(function(row){holidays[scoreDate_(row.date)]=true;});holidayName='Snapshot periode';}
+  else if (holidayName) {
     var h = txTable_(holidayName, data.raw[holidayName], [], false);
     var dateHeader = ['date', 'holiday_date', 'tanggal', 'tgl'].filter(function(n) { return h.headers.indexOf(n) >= 0; })[0];
     if (!dateHeader) throw new Error('Kolom tanggal libur tidak ditemukan pada ' + holidayName + '.');
@@ -213,8 +216,8 @@ function scoreBuildReport_(data, month, salesId, prepared) {
       var p = products[scoreCanonicalProductId_(row.product_id)];
       if (!p) throw new Error('Kode produk transaksi ' + row.product_id + ' tidak ada di master PRODUCTS; periksa master sebelum menilai.');
       var qty = txNumber_(row.quantity, 'Jumlah transaksi');
-      if (!Number.isSafeInteger(qty) || qty <= 0) throw new Error('Jumlah transaksi tidak valid; periksa faktur ' + (row.transaction_id || '') + '.');
-      var amount = row.subtotal_sales !== undefined && row.subtotal_sales !== '' ? txMoney_(row.subtotal_sales, 'Subtotal transaksi') : txMoney_(row.selling_price, 'Harga transaksi') * qty;
+      if (!Number.isSafeInteger(qty) || qty===0 || (row._kch_adjustment===true?qty>0:qty<0)) throw new Error('Jumlah transaksi tidak valid; periksa faktur ' + (row.transaction_id || '') + '.');
+      var amount = row.subtotal_sales !== undefined && row.subtotal_sales !== '' ? (row._kch_adjustment===true?reportMoney_:txMoney_)(row.subtotal_sales, 'Subtotal transaksi') : txMoney_(row.selling_price, 'Harga transaksi') * qty;
       if (!Number.isSafeInteger(amount)) throw new Error('Nilai transaksi terlalu besar.');
       if (p.group === 'FOCUS_A') totals[0] += amount;
       if (p.group === 'FOCUS_B') totals[1] += amount;
@@ -224,16 +227,17 @@ function scoreBuildReport_(data, month, salesId, prepared) {
   for (var i = 0; i < 3; i++) { if (!Number.isSafeInteger(totals[i])) throw new Error('Total transaksi terlalu besar.'); totals[i] /= 100; }
   if (brandingEnabled) totals.push(totalBranding);
   var parameters = mapping.ready ? scoreParameters_(totals, sales.team_name) : [], total = parameters.reduce(function(sum, p) { return sum + p.score; }, 0);
+  if(data.masterVerified===false){parameters.forEach(function(p){p.target=null;p.achievement=null;p.points=null;p.score=null;});total=null;}
   var months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
   var next = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 1));
-  return { success: true, mappingReady: mapping.ready, month: month, sales: { salesId: String(sales.sales_id), name: String(sales.full_name), team: String(sales.team_name) },
-    parameters: parameters, total: mapping.ready ? total : null, category: mapping.ready ? scoreCategory_(total) : null,
+  return { success: true, masterVerified:data.masterVerified!==false, mappingReady: mapping.ready, month: month, sales: { salesId: String(sales.sales_id), name: String(sales.full_name), team: String(sales.team_name) },
+    parameters: parameters, total: mapping.ready ? total : null, category: mapping.ready && total!==null ? scoreCategory_(total) : null,
     nextMonth: months[next.getUTCMonth()] + ' ' + next.getUTCFullYear(), holidaySource: holidayName || '', workDays: calendar.workDays,
     workDaysPassed: daily.filter(function(d) { return d.isWorkDay && d.date <= today; }).length,
     brandingEnabled: brandingEnabled, dailyBranding: dailyBranding, totalBranding: totalBranding,
     brandingEnteredDays: dailyBranding.filter(function(d) { return d.count !== null && d.date <= today; }).length,
     dailyAA: daily, totalAA: totalAA, enteredDays: daily.filter(function(d) { return d.count !== null && d.date <= today; }).length,
-    message: mapping.ready ? '' : 'Periksa master produk: ' + mapping.issues.join('; ') };
+    message: data.masterVerified===false?'Master periode belum diverifikasi; target/skor historis belum disahkan.':mapping.ready ? '' : 'Periksa master produk: ' + mapping.issues.join('; ') };
 }
 
 // Recap reads one shared spreadsheet snapshot, never one network request per sales.
@@ -284,7 +288,7 @@ function getScoreTeamSummary_(month) {
   var user = getCurrentUserInfo_();
   if (['ADMIN', 'GUEST'].indexOf(user.role) < 0) throw new Error('ACCESS_DENIED: Rekap seluruh tim hanya tersedia untuk Admin dan Tamu.');
   scoreMonth_(month);
-  var data = scoreContext_(true, true), prepared = { ledger: scoreLedger_(data.events), mapping: scoreMapping_(data), transactionsBySales: Object.create(null) };
+  var data = scoreContext_(true, true);if(typeof periodContext_==='function')data=periodContext_(data,month);var prepared = { ledger: scoreLedger_(data.events), mapping: scoreMapping_(data), transactionsBySales: Object.create(null) };
   if (data.meta.SALES_TRANSACTIONS) txTable_('SALES_TRANSACTIONS', data.raw.SALES_TRANSACTIONS, ['sales_id', 'transaction_date', 'product_id', 'quantity', 'selling_price'], false).rows.forEach(function(row) {
     var id = normalizeKey_(row.sales_id); if (!prepared.transactionsBySales[id]) prepared.transactionsBySales[id] = []; prepared.transactionsBySales[id].push(row);
   });
@@ -298,7 +302,7 @@ function getScoreTeamSummary_(month) {
     try {
       var report = scoreBuildReport_(data, month, sales.sales_id, prepared);
       row.parameters = report.parameters; row.total = report.total; row.category = report.category; row.message = report.message;
-      if (report.mappingReady) row.guidance = scoreGuidance_(data, prices, report, priceError);
+      if (report.mappingReady && report.masterVerified!==false) row.guidance = scoreGuidance_(data, prices, report, priceError);
     } catch (err) { row.message = err.message; }
     return row;
   });

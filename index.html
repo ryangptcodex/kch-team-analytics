@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kalbe Consumer Health - Cabang Lhokseumawe</title>
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,7 +11,7 @@
   
   <!-- FontAwesome 6 & Chart.js -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
 
   <?!= include_('css'); ?>
 </head>
@@ -88,6 +88,9 @@
           <i class="fa-solid fa-boxes-stacked nav-icon"></i>
           <span>Monitoring Stok</span>
         </a>
+        <a href="javascript:void(0)" class="nav-item" id="nav-operasional" onclick="switchView('operasional')"><i class="fa-solid fa-arrows-rotate nav-icon"></i><span>Stok Masuk &amp; Retur</span></a>
+        <a href="javascript:void(0)" class="nav-item kch-admin-only" id="nav-master-admin" onclick="switchView('master-admin')"><i class="fa-solid fa-pen-to-square nav-icon"></i><span>Kelola Master</span></a>
+        <a href="javascript:void(0)" class="nav-item kch-admin-only" id="nav-monitor-admin" onclick="switchView('monitor-admin')"><i class="fa-solid fa-heart-pulse nav-icon"></i><span>Monitor &amp; Pemulihan</span></a>
         <a href="javascript:void(0)" class="nav-item" id="nav-harga" onclick="switchView('harga')">
           <i class="fa-solid fa-tags nav-icon"></i>
           <span>Master Harga</span>
@@ -198,6 +201,7 @@
       <main class="main-content">
         
         <section class="content-view active" id="view-dashboard" aria-busy="true">
+          <p id="dashboardDataNotice" role="status" class="text-muted"></p>
           
           <div class="kpi-grid">
             <div class="kpi-card">
@@ -888,10 +892,10 @@
                 <div class="form-group" style="margin-top:12px"><label class="form-label" for="depositPhoto">Foto bukti setoran (opsional)</label><input class="form-control" type="file" id="depositPhoto" accept="image/jpeg,image/png,image/webp" onchange="preparePickupPhoto(this,'DEPOSIT')"><small class="text-muted" id="depositPhotoStatus">Foto opsional</small></div>
                 <div style="display:flex;justify-content:flex-end;margin:16px 0"><button type="submit" class="btn btn-primary" id="btnSubmitDeposit">Simpan setoran</button></div>
               </fieldset></form>
-              <div class="table-responsive"><table class="app-table"><thead><tr><th>Tanggal</th><th>Sales</th><th>Distributor</th><th class="text-right">Nominal</th><th>Catatan</th><th>Bukti</th></tr></thead><tbody id="cashDepositRows"><tr><td colspan="6" class="text-muted">Sedang memuat data</td></tr></tbody></table></div>
+              <div class="table-responsive"><table class="app-table"><thead><tr><th>Tanggal</th><th>Sales</th><th>Distributor</th><th class="text-right">Nominal</th><th>Catatan</th><th>Bukti</th></tr></thead><tbody id="cashDepositRows"><tr><td colspan="6" class="text-muted">Sedang memuat data</td></tr></tbody></table><div class="operations-pagination"><button type="button" class="btn btn-outline btn-sm" id="depositPrev" onclick="changeStockHistoryPage('deposit',-1)">Sebelumnya</button><span id="depositPaging"></span><button type="button" class="btn btn-outline btn-sm" id="depositNext" onclick="changeStockHistoryPage('deposit',1)">Berikutnya</button></div></div>
             </div>
           </div>
-          <div class="table-card"><div class="card-header-clean"><div class="card-title">Riwayat Pengambilan</div></div><div class="table-responsive"><table class="app-table"><thead><tr><th>ID</th><th>Tanggal</th><th>Sales</th><th>Distributor asal</th><th>Produk</th><th>Jumlah</th><th>Bukti</th></tr></thead><tbody id="pickupHistoryRows"></tbody></table></div></div>
+          <div class="table-card"><div class="card-header-clean"><div class="card-title">Riwayat Pengambilan</div></div><div class="table-responsive"><table class="app-table"><thead><tr><th>ID</th><th>Tanggal</th><th>Sales</th><th>Distributor asal</th><th>Produk</th><th>Jumlah</th><th>Bukti</th></tr></thead><tbody id="pickupHistoryRows"></tbody></table><div class="operations-pagination"><button type="button" class="btn btn-outline btn-sm" id="pickupPrev" onclick="changeStockHistoryPage('pickup',-1)">Sebelumnya</button><span id="pickupPaging"></span><button type="button" class="btn btn-outline btn-sm" id="pickupNext" onclick="changeStockHistoryPage('pickup',1)">Berikutnya</button></div></div></div>
         </section>
 
         <section class="content-view" data-kch-write id="view-input-tx">
@@ -1349,6 +1353,7 @@
           </div>
         </section>
 
+        <?!= include_('operations-ui'); ?>
         <section class="content-view" id="view-dokumen">
           <div class="page-title-box">
             <div>
@@ -1608,6 +1613,7 @@
   <?!= include_('archive-client'); ?>
   <?!= include_('score-client'); ?>
   <?!= include_('incentive-client'); ?>
+  <?!= include_('operations-client'); ?>
   <?!= include_('auth-client'); ?>
 
 </body>

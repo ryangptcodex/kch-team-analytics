@@ -13,7 +13,7 @@ function fixture(){
   if(!e.exists(name))return null;
   const rows=e.rows(name);return {getSheetId:()=>meta[name].sheetId,getLastColumn:()=>Math.max(0,...rows.map(r=>r.length)),getLastRow:()=>rows.length,getRange:(r=1,c=1,h=1,w=rows[0].length)=>({getDisplayValues:()=>Array.from({length:h},(_,y)=>Array.from({length:w},(_,x)=>String(rows[r-1+y]?.[c-1+x]??'')))})};
  },copy(){events.push('backup');return {getId:()=> 'backup',getUrl:()=> 'https://docs.google.com/spreadsheets/d/backup'};},toast(){}};
- c.kchIncentiveSyncPlan_=()=>({requests:[],changes:[]});
+ c.kchIncentiveSyncPlan_=()=>({requests:[],changes:[]});c.periodSyncPlan_=()=>({requests:[],changes:[]});c.healthEnsureTriggers_=()=>{};
  c.txMetadata_=()=>meta;c.assertNoPendingTransactions_=()=>events.push('pending-check');
  c.txBatch_=(ctx,requests)=>events.push('batch');
  return {...e,c,ss,meta,status,events,control};

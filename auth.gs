@@ -281,6 +281,13 @@ function kchApi(token, method, args) {
     saveScoreAA: function(input) { return saveScoreAA_(input); },
     saveSalesCashDeposit: saveSalesCashDeposit_, getSalesCashDepositEvidence: getSalesCashDepositEvidence_, getSalesPhotoEvidence: getSalesPhotoEvidence_,
     getStockPickupData: getStockPickupData_, saveStockPickup: saveStockPickup_, getStockPickupEvidence: getStockPickupEvidence_,
+    getSalesPhotoEvidenceBatch:function(requests){return getSalesPhotoEvidenceBatch_(requests);},
+    inspectOperationalRequest:function(id){return inspectOperationalRequest_(id);},
+    getOperationalHealth:function(){return getOperationalHealth_();},getSyncStatus:function(){return getSyncStatus_();},
+    createOperationalBackup:function(id){return createOperationalBackup_(id);},prepareBackupRestore:function(id,requestId){return prepareBackupRestore_(id,requestId);},saveBackupRestore:function(payload){return saveBackupRestore_(payload);},createRecoveryCopy:function(id){return createRecoveryCopy_(id);},recoverAbandonedReservation:function(id,reason){return recoverAbandonedReservation_(id,reason);},
+    getHistoricalMasterSources:function(month){return getHistoricalMasterSources_(month);},savePeriodVerification:function(payload){return savePeriodVerification_(payload);},
+    getMasterEditor:function(){return getMasterEditor_();},saveMasterRecord:function(payload){return saveMasterRecord_(payload);},
+    getOperationsSetup:function(page,keyword){return getOperationsSetup_(page,keyword);}, getOperationsReference:function(kind,id){return getOperationsReference_(kind,id);}, saveOperationalChange:function(payload){return saveOperationalChange_(payload);},
     getAuthProfile: function() { return { success: true, user: getCurrentUserInfo_() }; },
     saveMyProfile: saveMyProfile_,
     listAccessUsers: listAccessUsers_, saveAccessUser: saveAccessUser_,
@@ -301,14 +308,16 @@ function kchApi(token, method, args) {
     throw new Error('ACCESS_DENIED: Operasi tidak tersedia.');
   }
   try {
+    if(typeof KCH_PERIOD_CACHE_!=='undefined')KCH_PERIOD_CACHE_=null;
+    if(typeof KCH_OPERATION_CACHE_!=='undefined')KCH_OPERATION_CACHE_=null;
     KCH_REQUEST_USER_ = typeof token === 'string' && token.indexOf('KCHG_') === 0 ? resolveGuestSession_(token) : resolveAccessUser_(verifyFirebaseIdentity_(token));
     var user = getCurrentUserInfo_();
-    var guestReads = ['getSalesPhotoEvidence','getMonthlyArchives','getMonthlyArchiveTable','getSalesCashDepositEvidence', 'getStockPickupData', 'getStockPickupEvidence', 'getAuthProfile', 'getInitialAppMetadata', 'getDashboardMetrics',
+    var guestReads = ['getSyncStatus','getSalesPhotoEvidenceBatch','getOperationsSetup','getSalesPhotoEvidence','getMonthlyArchives','getMonthlyArchiveTable','getSalesCashDepositEvidence', 'getStockPickupData', 'getStockPickupEvidence', 'getAuthProfile', 'getInitialAppMetadata', 'getDashboardMetrics',
       'getAttendanceByDate', 'getVisitPhotosByDate', 'getTodayPlans', 'getWeeklyMeetings', 'getKchNews',
       'getTransactionsPaginated', 'getTransactionDetail', 'getAllTransactionsForExport', 'getMonthlyTeamReport',
       'getScoreSetup', 'getScoreReport', 'getScoreTeamSummary', 'getIncentiveSetup', 'getIncentiveReport'];
     if (user.role === 'GUEST' && guestReads.indexOf(method) < 0) throw new Error('ACCESS_DENIED: Akun Tamu hanya boleh melihat data.');
-    var adminOnly = ['saveSalesCashDeposit', 'saveStockPickup', 'saveScoreBranding', 'saveMyProfile', 'saveScoreAA', 'listAccessUsers', 'saveAccessUser', 'saveGuestCredentials', 'saveTodayPlan', 'archiveTodayPlan',
+    var adminOnly = ['inspectOperationalRequest','getOperationalHealth','createOperationalBackup','prepareBackupRestore','saveBackupRestore','createRecoveryCopy','recoverAbandonedReservation','getHistoricalMasterSources','savePeriodVerification','getMasterEditor','saveMasterRecord','saveOperationalChange','getOperationsReference','saveSalesCashDeposit', 'saveStockPickup', 'saveScoreBranding', 'saveMyProfile', 'saveScoreAA', 'listAccessUsers', 'saveAccessUser', 'saveGuestCredentials', 'saveTodayPlan', 'archiveTodayPlan',
       'saveWeeklyMeeting', 'archiveWeeklyMeeting', 'saveKchNewsArticle', 'archiveKchNewsArticle'];
     if (adminOnly.indexOf(method) >= 0 && user.role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin yang boleh melakukan operasi ini.');
     if (['saveSalesTransaction', 'saveSalesPhotoUpload'].indexOf(method) >= 0) {
@@ -332,5 +341,5 @@ function kchApi(token, method, args) {
         JSON.stringify({ salesId: args[0].salesId, date: args[0].date, actorRole: user.role, assisted: user.role === 'ADMIN' }));
     }
     return user.role === 'GUEST' ? kchGuestView_(result) : result;
-  } finally { KCH_REQUEST_USER_ = null; }
+  } finally { KCH_REQUEST_USER_ = null; if(typeof KCH_PERIOD_CACHE_!=='undefined')KCH_PERIOD_CACHE_=null;if(typeof KCH_OPERATION_CACHE_!=='undefined')KCH_OPERATION_CACHE_=null; }
 }

@@ -52,13 +52,13 @@
       incentiveStatus(err.message || 'Gagal memuat Insentif. Tekan Muat ulang.');
     }).getIncentiveReport(month, sales);
   }
-  function incentivePercent(value) { return (value * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '%'; }
+  function incentivePercent(value) { if(value===null||value===undefined)return '—';return (value * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '%'; }
   function renderIncentiveReport(res) {
     var q = res.quarter, m = res.monthly;
     incentiveText('incentiveDailyTotal', res.dailyTotal == null ? 'Belum dapat dihitung' : formatRupiah(res.dailyTotal));
     incentiveText('incentiveMonthlyTotal', formatRupiah(m.total));
     incentiveText('incentiveMonthTotal', res.monthTotal == null ? 'Belum dapat dihitung' : formatRupiah(res.monthTotal));
-    incentiveText('incentiveQuarterTotal', formatRupiah(q.amount));
+    incentiveText('incentiveQuarterTotal',q.masterVerified===false?'Belum terverifikasi':formatRupiah(q.amount));
     incentiveText('incentivePolicy', res.isJunior ? 'Tidak memiliki target sendiri. Mengikuti 70% hasil Senior ' + res.referenceSales.name + ' · ' + res.referenceSales.team + ', termasuk triwulan. Angka penjualan harian/triwulan di tabel adalah acuan Senior.' : res.policy === 'LOADING' ? 'MPR/Canvasser: hanya produk loading yang masuk target dan insentif. Target Fokus A Rp6,4 juta, Fokus B Rp8,2 juta, TV loading Rp80 juta, AA 400, Branding 300. TV, Fokus A dan Fokus B masing-masing harus ≥70% untuk pembayaran penuh.' : 'Motoris/MMTW: seluruh produk kecuali Promag Tablet. Target Fokus A Rp5 juta, Fokus B Rp5 juta, TV Rp27 juta dan AA 400. Pembayaran penuh jika TV ≥70%.');
     incentiveText('incentiveDailyPolicy', res.policy === 'LOADING' ? 'Rp70.000 satu kali per HK jika produk loading ≥Rp2,5 juta + Promag Tablet ≥Rp1 juta, ATAU produk loading ≥Rp3,5 juta. Produk lain tetap tercatat sebagai penjualan, tetapi tidak mengejar target insentif. ' + (res.isJunior ? 'Tarif/alokasi yang ditampilkan untuk Junior adalah 70% tarif Senior.' : 'Tarif kemudian mengikuti faktor pencapaian bulanan.') : 'Satu tarif per HK: <Rp800 ribu = Rp0; Rp800 ribu–<Rp1 juta = Rp10 ribu; Rp1 juta–<Rp1,2 juta = Rp20 ribu; Rp1,2 juta–Rp1,5 juta = Rp30 ribu; >Rp1,5 juta = Rp50 ribu. Tanpa plafon tetap 25 HK.');
     incentiveText('incentiveCombined', res.isJunior ? 'Alokasi 70% × hasil diterima Senior ' + res.referenceSales.name + ' (' + (res.referenceMonthTotal == null ? 'belum dapat dihitung' : formatRupiah(res.referenceMonthTotal)) + ') = ' + (res.monthTotal == null ? 'belum dapat dihitung' : formatRupiah(res.monthTotal)) + '. Rincian Junior diterima: harian ' + (res.dailyTotal == null ? 'belum dapat dihitung' : formatRupiah(res.dailyTotal)) + ' dan bulanan ' + formatRupiah(m.total) + '. Tidak ada potongan ulang.' : res.monthSubtotal == null ? 'Total gabungan belum dapat dihitung karena kalender harian belum tersedia.' : 'Sebelum penyesuaian: harian ' + formatRupiah(res.dailyScheduledTotal) + ' + bulanan ' + formatRupiah(m.scheduledTotal) + ' = ' + formatRupiah(res.monthSubtotal) + '. Total diterima: ' + formatRupiah(res.monthSubtotal) + ' × ' + (m.eligible ? '100%' : '50%') + ' = ' + formatRupiah(res.monthTotal) + '. Rincian diterima: harian ' + formatRupiah(res.dailyTotal) + ' dan bulanan ' + formatRupiah(m.total) + '.');
@@ -75,7 +75,7 @@
     }).join(''));
     setHtml('incentiveQuarterRows', q.months.map(function(row) {
       if (res.isJunior) row = {month:row.month,actual:row.reference.actual,target:row.reference.target,achievement:row.reference.achievement,reached:row.reached};
-      return '<tr><td>' + escapeHtml(row.month) + '</td><td>' + formatRupiah(row.actual) + '</td><td>' + formatRupiah(row.target) + '</td><td>' + incentivePercent(row.achievement) + '</td><td>' + (row.reached ? 'Target tercapai ≥100%' : 'Belum mencapai 100%') + '</td></tr>';
+      return '<tr><td>' + escapeHtml(row.month) + '</td><td>' + formatRupiah(row.actual) + '</td><td>' + formatRupiah(row.target) + '</td><td>' + incentivePercent(row.achievement) + '</td><td>' + (row.masterVerified===false?'Master belum diverifikasi':row.reached ? 'Target tercapai ≥100%' : 'Belum mencapai 100%') + '</td></tr>';
     }).join(''));
     setHtml('incentiveDailyRows', res.daily.map(function(row) {
       return '<tr><td>' + escapeHtml(row.date) + '</td><td>' + escapeHtml(row.status) + '</td><td>' + formatRupiah(res.isJunior ? row.referenceValue : row.value) + '</td><td>' + formatRupiah(res.isJunior ? row.referenceTabletValue : row.tabletValue || 0) + '</td><td>' + (row.scheduled == null || res.dailyTotal == null ? '—' : formatRupiah(row.scheduled)) + '</td><td>' + (row.amount == null || res.dailyTotal == null ? '—' : formatRupiah(row.amount)) + '</td></tr>';

@@ -34,6 +34,8 @@ function txApi_(ctx, suffix, method, body) {
 }
 
 function txBatch_(ctx, requests) {
+  if(typeof KCH_PERIOD_CACHE_!=='undefined')KCH_PERIOD_CACHE_=null;
+  if(typeof KCH_OPERATION_CACHE_!=='undefined')KCH_OPERATION_CACHE_=null;
   var data = txApi_(ctx, ':batchUpdate', 'post', { requests: requests, includeSpreadsheetInResponse: false });
   if (data.spreadsheetId !== ctx.id) throw new Error('Konfirmasi spreadsheet belum valid. Periksa hasil kiriman.');
   return data;
@@ -299,9 +301,9 @@ function txExecuteRequest_(payload, editing) {
   try {
     var ctx = { id: getKchSpreadsheet_().getId(), token: ScriptApp.getOAuthToken() };
     var meta = txMetadata_(ctx), rows = txReceipts_(ctx, meta), key = txHash_(user.uid + ':' + id);
-    var pickup = editing === 'PICKUP', deposit = editing === 'DEPOSIT', photoUpload = editing === 'PHOTO';
+    var pickup = editing === 'PICKUP', deposit = editing === 'DEPOSIT', photoUpload = editing === 'PHOTO', operations = editing === 'OPERATIONS', masterEdit = editing === 'MASTER', restore = editing === 'RESTORE', periodVerify = editing === 'PERIOD_VERIFY';
     var photoFingerprint = payload.photo ? txHash_(typeof payload.photo === 'string' ? payload.photo.slice(0,3000001) : 'INVALID') : '';
-    var fingerprint = photoUpload ? txHash_(JSON.stringify(['PHOTO',payload.photoType,txFingerprint_(payload),txHash_(payload.imageDataUrl)].concat(payload.attendanceTime?[payload.attendanceTime]:[]).concat(payload.visitTime?['VISIT_TIME',payload.visitTime]:[]).concat(payload.photoType==='attendance' && payload.attendanceStatus && payload.attendanceStatus!=='HADIR'?['ATTENDANCE_STATUS',payload.attendanceStatus]:[]))) : deposit ? txHash_(JSON.stringify(['DEPOSIT', txFingerprint_(payload), String(payload.amount), photoFingerprint])) : pickup ? txHash_(JSON.stringify(['PICKUP', txFingerprint_(payload), photoFingerprint])) : editing ? txHash_(JSON.stringify(['EDIT', payload.transactionId, payload.expectedRevision, payload.reason, txFingerprint_(payload)])) : txFingerprint_(payload);
+    var fingerprint = restore ? txHash_(JSON.stringify(['RESTORE',payload.backupId,payload.rollbackBackupId,payload.expectedRevision,payload.confirmation,payload.reason])) : periodVerify ? txHash_(JSON.stringify(['PERIOD_VERIFY',payload.month,payload.sourceId,payload.reason,payload.confirmation])) : masterEdit ? txHash_(JSON.stringify(['MASTER',payload.table,payload.data,payload.expectedRevision||'',payload.reason,payload.remove===true])) : operations ? opsFingerprint_(payload) : photoUpload ? txHash_(JSON.stringify(['PHOTO',payload.photoType,txFingerprint_(payload),txHash_(payload.imageDataUrl)].concat(payload.attendanceTime?[payload.attendanceTime]:[]).concat(payload.visitTime?['VISIT_TIME',payload.visitTime]:[]).concat(payload.photoType==='attendance' && payload.attendanceStatus && payload.attendanceStatus!=='HADIR'?['ATTENDANCE_STATUS',payload.attendanceStatus]:[]))) : deposit ? txHash_(JSON.stringify(['DEPOSIT', txFingerprint_(payload), String(payload.amount), photoFingerprint])) : pickup ? txHash_(JSON.stringify(['PICKUP', txFingerprint_(payload), photoFingerprint])) : editing ? txHash_(JSON.stringify(['EDIT', payload.transactionId, payload.expectedRevision, payload.reason, txFingerprint_(payload)])) : txFingerprint_(payload);
     var committed = txCommitted_(rows, key);
     if (committed) {
       if (committed.fingerprint !== fingerprint) return txFailure_('REQUEST_CONFLICT', 'Kode kiriman ini sudah digunakan. Periksa hasil kiriman sebelumnya.', 'CONFLICT');
@@ -313,9 +315,9 @@ function txExecuteRequest_(payload, editing) {
     if (txHasPending_(rows)) return txPendingResult_(id, 'Ada kiriman yang hasilnya belum pasti. Penyimpanan baru ditahan agar stok tetap konsisten. Admin dapat memeriksa kiriman tertunda.');
     var attempt = Utilities.getUuid();
     var stamp = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd HH:mm:ss');
-    var transactionId = editing && !pickup && !deposit && !photoUpload ? String(payload.transactionId || '') : (photoUpload ? 'PHOTO-' : deposit ? 'CASH-' : pickup ? 'PICK-' : 'TRX-') + Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMdd') + '-' + attempt.replace(/-/g, '').slice(0, 16);
+    var transactionId = editing && !pickup && !deposit && !photoUpload && !operations && !masterEdit && !restore && !periodVerify ? String(payload.transactionId || '') : (restore ? 'RESTORE-' : periodVerify ? 'PERIOD-' : masterEdit ? 'MASTER-' : operations ? 'OPS-' : photoUpload ? 'PHOTO-' : deposit ? 'CASH-' : pickup ? 'PICK-' : 'TRX-') + Utilities.formatDate(new Date(), TIMEZONE, 'yyyyMMdd') + '-' + attempt.replace(/-/g, '').slice(0, 16);
     var receipt = { request_key: key, request_id: id, actor_uid: user.uid, actor_email: user.email, fingerprint: fingerprint,
-      attempt_id: attempt, transaction_id: transactionId, state: 'PENDING', result_json: '', plan_json: '', created_at: stamp, updated_at: stamp };
+      attempt_id: attempt, transaction_id: transactionId, state: 'PENDING', result_json: '', plan_json: JSON.stringify({phase:'RESERVED_V2',engine:2}), created_at: stamp, updated_at: stamp };
     var reserve = [];
     if (!meta[KCH_TX_REQUEST_SHEET_]) txAddSheet_(meta, reserve, KCH_TX_REQUEST_SHEET_, KCH_TX_REQUEST_HEADERS_, true);
     reserve.push(txAppend_(meta[KCH_TX_REQUEST_SHEET_].sheetId, [txReceiptValues_(receipt)]));
@@ -324,8 +326,16 @@ function txExecuteRequest_(payload, editing) {
     rows = txReceipts_(ctx, meta);
     receipt = txUnique_(rows, function(row) { return row.request_key === key && row.attempt_id === attempt; }, 'Catatan kiriman');
     var plan;
-    try { plan = photoUpload ? photoUploadPlan_(ctx, meta, payload, user, transactionId, id) : deposit ? stockCashDepositPlan_(ctx, meta, payload, user, transactionId, id) : pickup ? stockPickupPlan_(ctx, meta, payload, user, transactionId, id) : editing ? txEditPlan_(ctx, meta, payload, user, transactionId, id) : txPlan_(ctx, meta, payload, user, transactionId, id); }
+    try { plan = restore ? healthRestorePlan_(ctx,meta,payload,user,transactionId,id) : periodVerify ? periodVerificationPlan_(ctx,meta,payload,user,transactionId,id) : masterEdit ? masterPlan_(ctx,meta,payload,user,transactionId,id) : operations ? opsPlan_(ctx,meta,payload,user,transactionId,id) : photoUpload ? photoUploadPlan_(ctx, meta, payload, user, transactionId, id) : deposit ? stockCashDepositPlan_(ctx, meta, payload, user, transactionId, id) : pickup ? stockPickupPlan_(ctx, meta, payload, user, transactionId, id) : editing ? txEditPlan_(ctx, meta, payload, user, transactionId, id) : txPlan_(ctx, meta, payload, user, transactionId, id); }
     catch (validation) { return txMarkFailed_(ctx, meta, receipt, 'VALIDATION_FAILED', validation.message); }
+    // A confirmed preparation marker is mandatory before any business batch is dispatched.
+    // Native recovery may cancel only an abandoned RESERVED_V2 with the same shared lock.
+    var prepared={phase:'PREPARED_V2',engine:2,summary:plan.plan,batchHash:txHash_(JSON.stringify(plan.requests))};
+    receipt.plan_json=JSON.stringify(prepared);
+    if(receipt.plan_json.length>45000)throw new Error('Rencana penyimpanan terlalu panjang.');
+    txBatch_(ctx,[txUpdate_(meta[KCH_TX_REQUEST_SHEET_].sheetId,receipt._row,0,[txReceiptValues_(receipt)])]);
+    var confirmed=txUnique_(txReceipts_(ctx,meta),function(r){return r.request_key===key&&r.attempt_id===attempt;},'Persiapan kiriman');
+    if(confirmed.state!=='PENDING'||confirmed.plan_json!==receipt.plan_json)throw new Error('Persiapan kiriman belum terkonfirmasi.');
     receipt.state = 'COMMITTED'; receipt.result_json = JSON.stringify(plan.result); receipt.plan_json = JSON.stringify(plan.plan);
     receipt.updated_at = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd HH:mm:ss');
     plan.requests.push(txUpdate_(meta[KCH_TX_REQUEST_SHEET_].sheetId, receipt._row, 0, [txReceiptValues_(receipt)]));

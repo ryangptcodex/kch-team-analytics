@@ -27,10 +27,11 @@ function incentiveLevel_(actual, target, levels) {
 function incentiveMonthly_(report) {
   var senior = incentiveSenior_({team_name:report.sales.team});
   var tariffs = senior ? [[400000,600000,800000],[250000,375000,500000],[250000,375000,500000],[50000,75000,100000],[50000,75000,100000]] : [[200000, 400000, 500000], [125000, 250000, 312500], [125000, 250000, 312500], [50000, 100000, 125000]];
-  var tv = report.parameters[2], gateChecks = (senior ? report.parameters.slice(0,3) : [tv]).map(function(p) { return {name:p.name,actual:p.actual,minimum:p.target*0.7,reached:txMoney_(p.actual,'Aktual')>=txMoney_(p.target,'Target')*0.7}; });
+  if(report.masterVerified===false)return {gateChecks:[],brandingTotal:report.totalBranding||0,brandingEnteredDays:report.brandingEnteredDays||0,eligible:false,payoutFactor:1,minimumValue:null,actualValue:report.parameters[2].actual,parameters:report.parameters.map(function(p,i){return {name:p.name,actual:p.actual,target:null,achievement:null,tier:null,scheduled:null,amount:null,tariffs:tariffs[i]};}),scheduledTotal:null,total:null,aaEnteredDays:report.enteredDays,aaTotal:report.totalAA};
+  var tv = report.parameters[2], gateChecks = (senior ? report.parameters.slice(0,3) : [tv]).map(function(p) { return {name:p.name,actual:p.actual,minimum:p.target*0.7,reached:(typeof reportMoney_==='function'?reportMoney_:txMoney_)(p.actual,'Aktual')>=txMoney_(p.target,'Target')*0.7}; });
   var eligible = gateChecks.every(function(g) { return g.reached; });
   var parameters = report.parameters.map(function(p, i) {
-    var actual = i < 3 ? txMoney_(p.actual, 'Aktual') : p.actual, target = i < 3 ? txMoney_(p.target, 'Target') : p.target;
+    var actual = i < 3 ? (typeof reportMoney_==='function'?reportMoney_:txMoney_)(p.actual, 'Aktual') : p.actual, target = i < 3 ? txMoney_(p.target, 'Target') : p.target;
     var tier = incentiveLevel_(actual, target, [90, 100, 110]), earned = tier ? tariffs[i][[90, 100, 110].indexOf(tier)] : 0;
     return { name: p.name, actual: p.actual, target: p.target, achievement: p.achievement, tier: tier,
       scheduled: earned, amount: earned * (eligible ? 1 : 0.5), tariffs: tariffs[i] };
@@ -50,18 +51,23 @@ function getIncentiveReport_(month, salesId) {
   return incentiveBuildReport_(scoreContext_(true), month, salesId);
 }
 function incentiveBuildReport_(data, month, salesId, shared) {
+  if(typeof periodContext_==='function')data=periodContext_(data,month);
   assertOwnSales_(salesId);
   var sales = txUnique_(data.sales,function(s){return normalizeKey_(s.sales_id)===normalizeKey_(salesId);},'Sales');
   if (incentiveJunior_(sales)) return incentiveJuniorReport_(data,month,sales,shared);
   if (!incentiveEligible_(sales)) throw new Error('Juklak insentif tim ini belum ditetapkan.');
   var senior = incentiveSenior_(sales); if (senior) incentiveLoadingReady_(data);
-  var mapping = shared ? shared.mapping : scoreMapping_(data);
+  var mapping = shared&&!data._periodBase ? shared.mapping : scoreMapping_(data);
   if (!mapping.ready) throw new Error('Periksa master produk: ' + mapping.issues.join('; '));
   if (!data.meta.SALES_TRANSACTIONS) throw new Error('Sheet SALES_TRANSACTIONS tidak tersedia.');
   var rows = shared ? (shared.transactionsBySales[normalizeKey_(salesId)] || []) : txTable_('SALES_TRANSACTIONS', data.raw.SALES_TRANSACTIONS, ['sales_id', 'transaction_date', 'product_id', 'quantity', 'selling_price'], false).rows.filter(function(r) { return normalizeKey_(r.sales_id) === normalizeKey_(salesId); });
   var prepared = {ledger:shared?shared.ledger:scoreLedger_(data.events),mapping:mapping,transactionsBySales:Object.create(null)};
   prepared.transactionsBySales[normalizeKey_(salesId)] = senior ? rows.filter(function(r){return KCH_CANVASSER_LOADING_.indexOf(scoreCanonicalProductId_(r.product_id))>=0;}) : rows;
-  var quarter = incentiveQuarter_(month), reports = quarter.months.map(function(m) { return scoreBuildReport_(data, m, salesId, prepared); });
+  var quarter = incentiveQuarter_(month), reports = quarter.months.map(function(m) {
+    var monthlyData=typeof periodContext_==='function'?periodContext_(data,m):data,member=monthlyData.sales.filter(function(s){return normalizeKey_(s.sales_id)===normalizeKey_(salesId);})[0];
+    if(!member||!scoreEligible_(member)||incentiveSenior_(member)!==senior)return {month:m,masterVerified:false,parameters:[{},{},{actual:0,target:null,achievement:null}]};
+    return scoreBuildReport_(data, m, salesId, prepared);
+  });
   var report = reports[quarter.months.indexOf(month)], today = scoreToday_(), values = Object.create(null), tablets = Object.create(null), products = Object.create(null);
   mapping.products.forEach(function(p) { products[p.productId] = p; });
   // scoreBuildReport_ validates the same rows/amounts first. Aggregate invoices by day,
@@ -72,8 +78,8 @@ function incentiveBuildReport_(data, month, salesId, shared) {
     var code = scoreCanonicalProductId_(row.product_id);
     if (senior ? KCH_CANVASSER_LOADING_.indexOf(code)<0 && code!=='LPRGN' : products[code].group==='EXCLUDE') return;
     var qty = txNumber_(row.quantity,'Jumlah transaksi');
-    if (!Number.isSafeInteger(qty) || qty<=0) throw new Error('Jumlah transaksi tidak valid; periksa faktur '+(row.transaction_id||''));
-    var amount = row.subtotal_sales !== undefined && row.subtotal_sales !== '' ? txMoney_(row.subtotal_sales, 'Subtotal transaksi') : txMoney_(row.selling_price, 'Harga transaksi') * txNumber_(row.quantity, 'Jumlah transaksi');
+    if (!Number.isSafeInteger(qty) || qty===0 || (row._kch_adjustment===true?qty>0:qty<0)) throw new Error('Jumlah transaksi tidak valid; periksa faktur '+(row.transaction_id||''));
+    var amount = row.subtotal_sales !== undefined && row.subtotal_sales !== '' ? (row._kch_adjustment===true?reportMoney_:txMoney_)(row.subtotal_sales, 'Subtotal transaksi') : txMoney_(row.selling_price, 'Harga transaksi') * txNumber_(row.quantity, 'Jumlah transaksi');
     var bucket = senior && code==='LPRGN' ? tablets : values;
     bucket[date] = (bucket[date] || 0) + amount;
     if (!Number.isSafeInteger(bucket[date])) throw new Error('Total harian terlalu besar.');
@@ -86,25 +92,27 @@ function incentiveBuildReport_(data, month, salesId, shared) {
       status: future ? 'Belum berjalan' : !day.isWorkDay ? (sunday ? 'Minggu' : 'Libur') : !report.holidaySource ? 'Kalender libur belum tersedia' : value ? 'Hari kerja · berdasarkan transaksi' : 'Belum ada penjualan' };
   });
   var dailyTotal = report.holidaySource ? daily.reduce(function(sum, d) { return sum + (d.amount || 0); }, 0) : null;
-  var quarterMonths = reports.map(function(r) { var p = r.parameters[2]; return { month: r.month, actual: p.actual, target: p.target, achievement: p.achievement, reached: txMoney_(p.actual, 'Total Value') >= txMoney_(p.target, 'Target') }; });
-  var quarterActual = quarterMonths.reduce(function(sum, m) { return sum + txMoney_(m.actual, 'Total Value'); }, 0);
+  var quarterVerified=reports.every(function(r){return r.masterVerified!==false;});
+  var quarterMonths = reports.map(function(r) { var p = r.parameters[2]; return { month: r.month, masterVerified:r.masterVerified!==false, actual: p.actual, target: p.target, achievement: p.achievement, reached: r.masterVerified!==false && (typeof reportMoney_==='function'?reportMoney_:txMoney_)(p.actual, 'Total Value') >= txMoney_(p.target, 'Target') }; });
+  var quarterActual = quarterMonths.reduce(function(sum, m) { return sum + (typeof reportMoney_==='function'?reportMoney_:txMoney_)(m.actual, 'Total Value'); }, 0);
   if (!Number.isSafeInteger(quarterActual)) throw new Error('Akumulasi triwulan terlalu besar.');
-  var quarterTarget = quarterMonths.reduce(function(sum, m) { return sum + txMoney_(m.target, 'Target'); }, 0);
+  var quarterTarget = quarterMonths.reduce(function(sum, m) { return sum + (m.target===null?0:txMoney_(m.target, 'Target')); }, 0);
   var tier = incentiveLevel_(quarterActual, quarterTarget, [100, 110, 120]), reached = quarterMonths.filter(function(m) { return m.reached; }).length;
   var payouts = senior ? {3:[3000000,3250000,3500000],2:[2000000,2125000,2250000],1:[1000000,1125000,1250000]} : { 3: [2000000, 2100000, 2200000], 2: [1000000, 1050000, 1100000], 1: [500000, 525000, 550000] };
-  var quarterAmount = tier && reached ? payouts[reached][[100, 110, 120].indexOf(tier)] : 0;
+  var quarterAmount = quarterVerified?(tier && reached ? payouts[reached][[100, 110, 120].indexOf(tier)] : 0):null;
   var monthly = incentiveMonthly_(report), monthEnd = report.dailyAA[report.dailyAA.length - 1].date;
+  if(report.masterVerified===false){monthly.total=null;monthly.scheduledTotal=null;dailyTotal=null;monthly.parameters.forEach(function(p){p.amount=null;p.scheduled=null;});}
   var dailyScheduledTotal = dailyTotal;
   daily.forEach(function(d) { d.scheduled = d.amount; if (d.amount !== null) d.amount *= monthly.payoutFactor; });
   if (dailyTotal !== null) dailyTotal *= monthly.payoutFactor;
   var monthSubtotal = dailyScheduledTotal === null ? null : dailyScheduledTotal + monthly.scheduledTotal;
-  return { success: true, isJunior:false, allocationFactor:1, policy:senior?'LOADING':'ALL_NON_TABLET', month: month, today: today, sales: report.sales, monthlyClosed: today > monthEnd,
+  return { success: true, masterVerified:report.masterVerified!==false, isJunior:false, allocationFactor:1, policy:senior?'LOADING':'ALL_NON_TABLET', month: month, today: today, sales: report.sales, monthlyClosed: today > monthEnd,
     workDays: report.workDays, holidaySource: report.holidaySource,
     daily: daily, dailyScheduledTotal: dailyScheduledTotal, dailyTotal: dailyTotal, paidDays: daily.filter(function(d) { return d.amount > 0; }).length,
     monthly: monthly, monthSubtotal: monthSubtotal, payoutFactor: monthly.payoutFactor,
     monthTotal: monthSubtotal === null ? null : monthSubtotal * monthly.payoutFactor,
-    quarter: { number: quarter.number, year: quarter.year, months: quarterMonths, end: quarter.end, closed: today > quarter.end,
-      actual: quarterActual / 100, target: quarterTarget / 100, achievement: quarterActual / quarterTarget, reachedMonths: reached, tier: tier, amount: quarterAmount },
-    warnings: (report.holidaySource ? [] : ['Sheet HOLIDAYS belum tersedia; insentif harian belum dapat dipastikan.'])
+    quarter: { masterVerified:quarterVerified, number: quarter.number, year: quarter.year, months: quarterMonths, end: quarter.end, closed: today > quarter.end,
+      actual: quarterVerified?quarterActual / 100:null, target: quarterVerified?quarterTarget / 100:null, achievement: quarterVerified&&quarterTarget?quarterActual / quarterTarget:null, reachedMonths: reached, tier: quarterVerified?tier:null, amount: quarterAmount },
+    warnings: (quarterVerified?[]:['Master bulan historis belum diverifikasi; bonus triwulan belum dapat disahkan.']).concat(report.masterVerified===false?['Master periode belum diverifikasi.']:[]).concat(report.holidaySource ? [] : ['Sheet HOLIDAYS belum tersedia; insentif harian belum dapat dipastikan.'])
       .concat(['AA mengikuti input harian admin yang tersedia; hari belum diinput belum menambah aktual.', 'Insentif periode berjalan adalah estimasi. Triwulan ditampilkan terpisah agar tidak dihitung tiga kali.']) };
 }

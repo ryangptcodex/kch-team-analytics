@@ -3,6 +3,7 @@
     if (!appState.stockPickup) appState.stockPickup = {data:null,seq:0,photo:'',photoBusy:false};
     return appState.stockPickup;
   }
+  function changeStockHistoryPage(kind,delta){var s=stockUiState();s[kind+'Page']=Math.max(1,(s[kind+'Page']||1)+delta);loadStockPickupData();}
   function loadStockPickupData() {
     var state = stockUiState(), seq = ++state.seq;
     setText('pickupStatus','Sedang memuat data');
@@ -11,7 +12,8 @@
       if (seq !== state.seq) return;
       if (!result || !result.success) { stockPickupLoadError(result && result.message); return; }
       state.data = result;
-      setText('pickupStatus','Data pengambilan dan pegangan sales terkini');
+      setText('pickupStatus','Diperbarui '+(result.asOf||'')+' WIB · riwayat bulan berjalan');
+      [['pickup',result.pickupPage,result.pickupPages,result.pickupTotal],['deposit',result.depositPage,result.depositPages,result.depositTotal]].forEach(function(p){state[p[0]+'Page']=p[1]||1;setText(p[0]+'Paging','Halaman '+(p[1]||1)+' / '+(p[2]||1)+' · '+(p[3]||0)+' catatan');var prev=document.getElementById(p[0]+'Prev'),next=document.getElementById(p[0]+'Next');if(prev)prev.disabled=(p[1]||1)<=1;if(next)next.disabled=(p[1]||1)>=(p[2]||1);});
       var selected = getValue('pickupSales');
       setHtml('pickupSales','<option value="">Pilih sales penerima</option>'+result.sales.filter(function(s) { return normalizeKey(s.status || 'ACTIVE') === 'ACTIVE'; }).map(function(s) { return '<option value="'+escapeHtml(s.sales_id)+'">'+escapeHtml(s.full_name)+' · '+escapeHtml(s.team_name || '')+'</option>'; }).join(''));
       if (selected) setValue('pickupSales',selected);
@@ -30,7 +32,7 @@
       document.querySelectorAll('.stock-source').forEach(function(select) { populateStockSource(select,select.value); });
       document.querySelectorAll('.item-product-select').forEach(function(select) { handleProductChange(select); });
       if (appState.pendingTransaction) txClientLock(true);
-    }).withFailureHandler(function(err) { if (seq === state.seq) stockPickupLoadError(err && err.message); }).getStockPickupData();
+    }).withFailureHandler(function(err) { if (seq === state.seq) stockPickupLoadError(err && err.message); }).getStockPickupData({pickupPage:state.pickupPage||1,depositPage:state.depositPage||1});
   }
   function stockPickupLoadError(message) {
     var state = stockUiState(); state.data = null;

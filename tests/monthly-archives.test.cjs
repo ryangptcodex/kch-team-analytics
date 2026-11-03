@@ -17,7 +17,7 @@ function fixture(){
   sheet.getLastColumn=()=>Math.max(0,...e.rows(name).map(r=>r.reduce((last,v,i)=>v!==''&&v!=null?i+1:last,0)));
   sheet.getLastRow=()=>e.rows(name).reduce((last,r,i)=>r.some(v=>v!==''&&v!=null)?i+1:last,0);
   const get=sheet.getRange;sheet.getRange=(r,...args)=>{if(typeof r==='string'){const m=/^([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/.exec(r),col=s=>Array.from(s).reduce((n,x)=>n*26+x.charCodeAt(0)-64,0);return get(Number(m[2]),col(m[1]),m[4]?Number(m[4])-Number(m[2])+1:1,m[3]?col(m[3])-col(m[1])+1:1);}return get(r,...args);};return sheet;};
- c.ScriptApp.getProjectTriggers=()=>triggers;c.ScriptApp.newTrigger=handler=>({timeBased:()=>({everyMinutes:n=>({create(){triggers.push({getHandlerFunction:()=>handler});events.push('trigger:'+n);}})})});c.ScriptApp.deleteTrigger=t=>triggers.splice(triggers.indexOf(t),1);
+ c.ScriptApp.getProjectTriggers=()=>triggers;c.ScriptApp.newTrigger=handler=>({timeBased(){let schedule='';const b={everyMinutes(n){schedule=String(n);return b;},everyDays(n){schedule='daily:'+n;return b;},atHour(){return b;},inTimezone(){return b;},create(){triggers.push({getHandlerFunction:()=>handler});events.push('trigger:'+schedule);}};return b;}});c.ScriptApp.deleteTrigger=t=>triggers.splice(triggers.indexOf(t),1);
  for(const [id,[name]]of Object.entries(c.KCH_SCORE_PRODUCT_RULES_))e.rows('PRODUCTS').push([id,name,'ACTIVE']);
  add('HOLIDAYS',[['date','holiday_name'],['2026-11-01','Minggu']]);
  const init=()=>c.kchRunSheetUpdates_(ss),run=()=>c.archiveRun_(ss);
@@ -26,7 +26,7 @@ function fixture(){
 }
 function prepare(){const e=fixture();e.save();e.init();e.events.length=0;e.backups.length=0;e.clock('2026-11-01 00:00:10');return e;}
 test('updater registers all archive schemas, installs one clock trigger, and disables the previous reset',()=>{
- const e=fixture();e.init();assert.ok(e.exists('_KCH_ARCHIVE_ROWS'));assert.ok(e.exists('_KCH_MONTHLY_ARCHIVES'));assert.equal(e.triggers.length,1);assert.equal(e.c.archiveEnabled_(),true);e.init();assert.equal(e.triggers.length,1);
+ const e=fixture();e.init();assert.ok(e.exists('_KCH_ARCHIVE_ROWS'));assert.ok(e.exists('_KCH_MONTHLY_ARCHIVES'));assert.equal(e.triggers.filter(t=>t.getHandlerFunction()==='kchMonthlyArchiveTick_').length,1);assert.equal(e.c.archiveEnabled_(),true);e.init();assert.equal(e.triggers.filter(t=>t.getHandlerFunction()==='kchMonthlyArchiveTick_').length,1);
  assert.equal(e.ss.getSheetByName('PEMBARUAN_SHEET').getRange('A15').getValue(),false);
  e.c.setupArsipBulanan=()=> 'SAFE_ARCHIVE';assert.equal(e.c.siapkanAwalNovember(),'SAFE_ARCHIVE');
 });

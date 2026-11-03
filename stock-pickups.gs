@@ -54,6 +54,7 @@ function stockFinancialSchema_(meta,raw,requests) {
 function stockBook_(meta,raw) {
   var inv = txTable_('INVENTORY',raw.INVENTORY,['product_id']);
   var distributors = txTable_('DISTRIBUTORS',raw.DISTRIBUTORS,['distributor_id','distributor_name','status']).rows;
+  var distributorIds=Object.create(null),distributorNames=Object.create(null);distributors.forEach(function(d){var id=normalizeKey_(d.distributor_id),name=stockDistributorKey_(d.distributor_name);if(!id||!name||distributorIds[id]||distributorNames[name])throw new Error('Master distributor memiliki ID/nama sumber ganda atau kosong.');distributorIds[id]=true;distributorNames[name]=true;});
   var held = meta.SALES_STOCK ? txTable_('SALES_STOCK',raw.SALES_STOCK,KCH_STOCK_SCHEMAS_.SALES_STOCK,true).rows : [];
   ['INVENTORY_MOVEMENTS','SALES_STOCK_MOVEMENTS'].forEach(function(name) { if (meta[name] && raw[name]) txTable_(name,raw[name],TABLE_SCHEMAS[name] || KCH_STOCK_SCHEMAS_[name],true); });
   var accounts = Object.create(null), totals = Object.create(null);
@@ -160,22 +161,28 @@ function stockPickupPhoto_(data,id) {
   return {fileId:file.getId(),url:file.getUrl()};
 }
 function saveStockPickup_(payload) { if (getCurrentUserInfo_().role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin.'); return txExecuteRequest_(payload,'PICKUP'); }
-function getStockPickupData_() {
+function getStockPickupData_(options) {
+  options=options||{};var pickupPage=Number(options.pickupPage||1),depositPage=Number(options.depositPage||1),limit=25;if(!Number.isSafeInteger(pickupPage)||pickupPage<1||!Number.isSafeInteger(depositPage)||depositPage<1)throw new Error('Halaman tidak valid.');
   var user = getCurrentUserInfo_();
   if (['ADMIN','GUEST'].indexOf(user.role) < 0) throw new Error('ACCESS_DENIED');
   var ctx = {id:getKchSpreadsheet_().getId(),token:ScriptApp.getOAuthToken()}, meta = txMetadata_(ctx);
   var names = ['SALES','PRODUCTS','DISTRIBUTORS','SALES_STOCK','STOCK_PICKUPS','SALES_CASH_DEPOSITS'].filter(function(n) { return !!meta[n]; });
   var raw = txRead_(ctx,names), tables = {};
   names.forEach(function(n) { tables[n] = txTable_(n,raw[n],KCH_STOCK_SCHEMAS_[n] || ['status'],false).rows; });
-  return {success:true,sales:tables.SALES || [],products:tables.PRODUCTS || [],distributors:tables.DISTRIBUTORS || [],holdings:(tables.SALES_STOCK || []).map(function(row) { row.quantity = stockQty_(row.quantity); return row; }),pickups:(tables.STOCK_PICKUPS || []).slice(-500).reverse(),cashDeposits:(tables.SALES_CASH_DEPOSITS || []).slice(-500).reverse()};
+  var entries=typeof opsEntries_==='function'?opsEntries_(ctx,meta):[],pickups=typeof opsEffectiveRecordRows_==='function'?opsEffectiveRecordRows_('STOCK_PICKUPS',tables.STOCK_PICKUPS||[],entries):tables.STOCK_PICKUPS||[],deposits=typeof opsEffectiveRecordRows_==='function'?opsEffectiveRecordRows_('SALES_CASH_DEPOSITS',tables.SALES_CASH_DEPOSITS||[],entries):tables.SALES_CASH_DEPOSITS||[];
+  var groups=Object.create(null),ids=[];pickups.slice().reverse().forEach(function(row){if(!groups[row.pickup_id]){groups[row.pickup_id]=[];ids.push(row.pickup_id);}groups[row.pickup_id].push(row);});
+  var pageRows=[];ids.slice((pickupPage-1)*limit,pickupPage*limit).forEach(function(id){pageRows=pageRows.concat(groups[id]);});
+  return {success:true,sales:tables.SALES || [],products:tables.PRODUCTS || [],distributors:tables.DISTRIBUTORS || [],holdings:(tables.SALES_STOCK || []).map(function(row) { row.quantity = stockQty_(row.quantity); return row; }),pickups:pageRows,cashDeposits:deposits.slice().reverse().slice((depositPage-1)*limit,depositPage*limit),pickupPage:pickupPage,pickupTotal:ids.length,pickupPages:Math.max(1,Math.ceil(ids.length/limit)),depositPage:depositPage,depositTotal:deposits.length,depositPages:Math.max(1,Math.ceil(deposits.length/limit)),asOf:Utilities.formatDate(new Date(),TIMEZONE,'yyyy-MM-dd HH:mm:ss')};
 }
-function getStockPickupEvidence_(id) {
-  var data = getStockPickupData_();
-  var row = data.pickups.filter(function(r) { return r.pickup_id === id; })[0];
-  if (!row && typeof archiveFindEvidence_ === 'function') row=archiveFindEvidence_('STOCK_PICKUPS',id);
-  if (!row || !row.photo_file_id) throw new Error('Bukti foto tidak ditemukan.');
-  return stockEvidenceData_(row);
+function stockFindEvidence_(name,id){
+  var user=getCurrentUserInfo_();if(['ADMIN','GUEST'].indexOf(user.role)<0)throw new Error('ACCESS_DENIED');
+  if(typeof id!=='string'||!id||id.length>128)throw new Error('Bukti foto tidak ditemukan.');
+  var ctx={id:getKchSpreadsheet_().getId(),token:ScriptApp.getOAuthToken()},meta=txMetadata_(ctx),field=name==='STOCK_PICKUPS'?'pickup_id':'deposit_id';
+  var rows=meta[name]?txTable_(name,txRead_(ctx,[name])[name],KCH_STOCK_SCHEMAS_[name],true).rows:[];
+  var row=rows.filter(function(r){return r[field]===id;})[0];
+  return row||(typeof archiveFindEvidence_==='function'?archiveFindEvidence_(name,id):null);
 }
+function getStockPickupEvidence_(id) {return stockEvidenceData_(stockFindEvidence_('STOCK_PICKUPS',id));}
 function stockEvidenceData_(row) {
   if (!row || !row.photo_file_id) throw new Error('Bukti foto tidak ditemukan.');
   var blob = DriveApp.getFileById(row.photo_file_id).getBlob(), bytes = blob.getBytes();
@@ -214,9 +221,4 @@ function saveSalesCashDeposit_(payload) {
   if (getCurrentUserInfo_().role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin yang boleh mencatat setoran.');
   return txExecuteRequest_(payload,'DEPOSIT');
 }
-function getSalesCashDepositEvidence_(id) {
-  var data = getStockPickupData_();
-  var row=data.cashDeposits.filter(function(row) { return row.deposit_id === id; })[0];
-  if (!row && typeof archiveFindEvidence_ === 'function') row=archiveFindEvidence_('SALES_CASH_DEPOSITS',id);
-  return stockEvidenceData_(row);
-}
+function getSalesCashDepositEvidence_(id) {return stockEvidenceData_(stockFindEvidence_('SALES_CASH_DEPOSITS',id));}

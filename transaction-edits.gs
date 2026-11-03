@@ -3,6 +3,7 @@ var KCH_TX_EDIT_SHEET_ = '_KCH_TX_EDITS';
 var KCH_TX_EDIT_HEADERS_ = ['edit_id', 'transaction_id', 'actor_email', 'actor_role', 'reason', 'before_json', 'after_json', 'stock_json', 'created_at'];
 
 function txEditSnapshot_(ctx, meta, transactionId, user) {
+  if(typeof opsAssertEditable_==='function')opsAssertEditable_(transactionId);
   if (typeof transactionId !== 'string' || !transactionId.trim() || transactionId.length > 128) throw new Error('ID faktur tidak valid.');
   if (!meta.SALES_TRANSACTIONS) throw new Error('Faktur tidak ditemukan atau tidak dapat diakses.');
   var names = ['SALES_TRANSACTIONS'];

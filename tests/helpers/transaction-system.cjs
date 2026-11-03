@@ -20,7 +20,7 @@ function system(options = {}) {
         const range={ getValues: values, getDisplayValues: () => values().map(row => row.map(String)),getValue:()=>values()[0][0],setValue(v){return range.setValues([[v]]);},setValues(v){v.forEach((row,y)=>row.forEach((cell,x)=>{if(!sheet.rows[r-1+y])sheet.rows[r-1+y]=[];sheet.rows[r-1+y][c-1+x]=cell;}));return range;},setRichTextValue(v){return range.setValue(v.getText());},setNumberFormat(){return range;}};return range; } };
   }
   const properties={};
-  const context = { console, PropertiesService:{getScriptProperties:()=>({getProperty:k=>properties[k]??null,setProperty(k,v){properties[k]=v;},deleteProperty(k){delete properties[k];},getProperties:()=>({...properties})})}, ScriptApp: { getScriptId:()=> options.scriptId||'mock-uji-script', getOAuthToken: () => 'TEST_ONLY_OAUTH',getProjectTriggers:()=>[],newTrigger:()=>({timeBased:()=>({everyMinutes:()=>({create(){}})})}) },
+  const context = { console, PropertiesService:{getScriptProperties:()=>({getProperty:k=>properties[k]??null,setProperty(k,v){properties[k]=v;},deleteProperty(k){delete properties[k];},getProperties:()=>({...properties})})}, ScriptApp: { getScriptId:()=> options.scriptId||'mock-uji-script', getOAuthToken: () => 'TEST_ONLY_OAUTH',getProjectTriggers:()=>[],newTrigger:()=>({timeBased(){const b={everyMinutes:()=>b,everyDays:()=>b,atHour:()=>b,inTimezone:()=>b,create(){}};return b;}}) },
     SpreadsheetApp: { newRichTextValue:()=>({setText(text){return {build:()=>({getText:()=>text})};}}), flush() {} }, Session: { getActiveUser: () => ({getEmail:()=> 'mhmdryyan7@gmail.com'}) },
     LockService: { getScriptLock: () => ({ waitLock() { if(options.busy) throw Error('busy'); }, releaseLock() {} }) },
     Utilities: { DigestAlgorithm: { SHA_256: 'sha256' }, Charset: { UTF_8: 'utf8' },
@@ -59,8 +59,8 @@ function system(options = {}) {
         const colStart = request.appendCells ? 0 : edit.start.columnIndex;
         edit.rows.forEach((row,y) => row.values.forEach((cell,x) => {
           const typed = cell.userEnteredValue;
-          assert.ok(!Object.hasOwn(typed,'formulaValue'),'All writes must be literal values');
-          const value = Object.hasOwn(typed,'stringValue') ? typed.stringValue : Object.hasOwn(typed,'boolValue') ? typed.boolValue : typed.numberValue;
+          assert.ok(options.allowRestoreFormula || !Object.hasOwn(typed,'formulaValue'),'All normal writes must be literal values');
+          const value = Object.hasOwn(typed,'formulaValue') ? typed.formulaValue : Object.hasOwn(typed,'stringValue') ? typed.stringValue : Object.hasOwn(typed,'boolValue') ? typed.boolValue : typed.numberValue;
           if(typeof value === 'number') assert.ok(Number.isFinite(value));
           sheet.rows[rowStart+y] ??= []; sheet.rows[rowStart+y][colStart+x] = value;
         }));
@@ -78,7 +78,7 @@ function system(options = {}) {
       const requests = JSON.parse(request.payload).requests;
       const isArchive = requests.some(r=>r.appendCells && byId(store,r.appendCells.sheetId)?.title==='_KCH_ARCHIVE_ROWS');
       const isProduction = requests.some(r=>r.updateCells?.start?.rowIndex===1 && (byId(store,r.updateCells.start.sheetId)?.title==='_KCH_PRODUCTION_STATE'||requests.some(a=>a.addSheet?.properties.sheetId===r.updateCells.start.sheetId&&a.addSheet.properties.title==='_KCH_PRODUCTION_STATE')));
-      const isFinancial = isProduction || isArchive || requests.some(r => { const edit=r.appendCells||r.updateCells; if(!edit || (r.updateCells && r.updateCells.start?.rowIndex===0))return false; const id=edit.sheetId??edit.start?.sheetId??edit.range?.sheetId; return ['SALES_TRANSACTIONS','STOCK_PICKUPS','SALES_CASH_DEPOSITS','ATTENDANCE','VISIT_PHOTOS'].includes(byId(store,id)?.title || requests.find(a=>a.addSheet?.properties.sheetId===id)?.addSheet.properties.title); });
+      const isFinancial = isProduction || isArchive || requests.some(r => { const edit=r.appendCells||r.updateCells; if(!edit || (r.updateCells && r.updateCells.start?.rowIndex===0))return false; const id=edit.sheetId??edit.start?.sheetId??edit.range?.sheetId; return ['SALES_TRANSACTIONS','STOCK_PICKUPS','SALES_CASH_DEPOSITS','ATTENDANCE','VISIT_PHOTOS','_KCH_OPERATIONS'].includes(byId(store,id)?.title || requests.find(a=>a.addSheet?.properties.sheetId===id)?.addSheet.properties.title); });
       if(isFinancial) {
         financialAttempts++;
         if(options.financialFault==='reject400') return response(400,{error:{status:'INVALID_ARGUMENT'}});
@@ -102,7 +102,7 @@ function system(options = {}) {
     return response(200,{spreadsheetId:options.bookId||'test-book',sheets:Object.values(store).map(s=>({properties:{sheetId:s.sheetId,title:s.title,gridProperties:s.gridProperties}}))});
   }};
   vm.createContext(context);
-  for(const f of ['firebase-config.gs','code.gs','setup.gs','transactions.gs','stock-pickups.gs','transaction-edits.gs','monthly-archives.gs','production-setup.gs','guest-crypto.gs','guest-auth.gs','auth.gs']) vm.runInContext(fs.readFileSync(path.join(root,f),'utf8'),context,{filename:f});
+  for(const f of ['firebase-config.gs','code.gs','setup.gs','transactions.gs','stock-pickups.gs','transaction-edits.gs','operations.gs','period-masters.gs','health.gs','monthly-archives.gs','production-setup.gs','guest-crypto.gs','guest-auth.gs','auth.gs']) vm.runInContext(fs.readFileSync(path.join(root,f),'utf8'),context,{filename:f});
   add('SALES',[['sales_id','full_name','team_name','status'],['S1','Sales One','Motoris','ACTIVE'],['S2','Sales Two','Motoris','ACTIVE']]);
   add('PRODUCTS',[['product_id','product_name','status'],['P1','Product One','ACTIVE'],['P2','Product Two','ACTIVE']]);
   add('PRICE_MASTER',[['product_id','team_name','cost_price','selling_price','shj','status'],['P1','Motoris',60,100,10,'ACTIVE'],['P2','Motoris',20,40,20,'ACTIVE']]);

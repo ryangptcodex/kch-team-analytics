@@ -75,7 +75,7 @@ var TABLE_SCHEMAS = {
     'date', 'holiday_name'
   ],
   FILES: [
-    'file_name', 'category', 'drive_url', 'update_date'
+    'file_name', 'category', 'drive_url', 'update_date', 'status'
   ],
   KCH_NEWS: [
     'news_id', 'publish_date', 'title', 'summary', 'banner_text', 'image_url', 'news_url', 'status', 'article_content', 'banner_kicker', 'banner_subtitle'

@@ -50,6 +50,7 @@ function archiveMergeTable_(name, active, archiveValues) {
 }
 function archiveHistoryObjects_(name) {
   var ctx={id:getKchSpreadsheet_().getId(),token:ScriptApp.getOAuthToken()},meta=txMetadata_(ctx);
+  if(name==='SALES_TRANSACTIONS' && !meta[name])throw new Error('Sumber SALES_TRANSACTIONS tidak ditemukan; laporan ditahan.');
   var names=[name,KCH_ARCHIVE_ROWS_].filter(function(n){return !!meta[n];}),raw=txRead_(ctx,names);
   var table=archiveMergeTable_(name,raw[name]||[],raw[KCH_ARCHIVE_ROWS_]||[KCH_ARCHIVE_SCHEMAS_[KCH_ARCHIVE_ROWS_]]);
   return {headers:table[0]||[],rows:filterAuthorizedRows_(name,txTable_(name,table,[],false).rows)};
@@ -81,6 +82,7 @@ function setupArsipBulanan() {
 }
 function kchMonthlyArchiveTick_() {
   if (!archiveEnabled_()) return;
+  if(typeof healthApplyRestoreMarker_==='function')healthApplyRestoreMarker_();
   var props=PropertiesService.getScriptProperties();
   if (props.getProperty('KCH_ARCHIVE_CHECKED_MONTH')===archiveMonth_() || props.getProperty('KCH_ARCHIVE_ERROR_MONTH')===archiveMonth_()) return;
   return archiveRun_(getKchSpreadsheet_(),true);

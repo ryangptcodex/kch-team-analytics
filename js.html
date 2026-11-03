@@ -62,7 +62,7 @@
 
   function updateDynamicGreeting() {
     var now = new Date();
-    var hour = now.getHours();
+    var hour = Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Jakarta',hour:'2-digit',hourCycle:'h23'}).format(now));
     var greeting = 'Good Morning';
     if (hour >= 12 && hour < 18) greeting = 'Good Afternoon';
     if (hour >= 18) greeting = 'Good Evening';
@@ -128,6 +128,7 @@
   }
 
   function formatRupiah(value) {
+    if(value===null)return '—';
     var n = parseCleanNumber(value);
     return 'Rp ' + n.toLocaleString('id-ID', { maximumFractionDigits: 2 });
   }
@@ -280,6 +281,7 @@
   }
 
   function switchView(viewName) {
+    if (['master-admin','monitor-admin'].indexOf(viewName)>=0 && (!appState.user||appState.user.role!=='ADMIN')) {showToast('Fitur ini khusus Admin.','error');return;}
     if (viewName === 'dokumen' && (!appState.user || appState.user.role !== 'ADMIN')) { showToast('Dokumen internal hanya tersedia untuk Admin.', 'error'); return; }
     if (appState.user && appState.user.role === 'GUEST' && viewName === 'input-tx') { showToast('Akun Tamu hanya boleh melihat data.', 'error'); return; }
     appState.currentView = viewName;
@@ -300,6 +302,7 @@
     if (subtitle) {
       var subtitles = {
         dashboard: 'Dashboard Sales Monitoring',
+        operasional:'Stok Masuk, Retur dan Koreksi', 'master-admin':'Kelola Master', 'monitor-admin':'Monitor dan Pemulihan',
         'input-tx': 'Pencatatan Penjualan Faktur',
         riwayat: 'Riwayat Transaksi Penjualan',
         'laporan-bulanan': 'Laporan Bulanan Tim',
@@ -326,6 +329,9 @@
     var userMenu = document.getElementById('userDropdownMenu');
     if (userMenu) userMenu.style.display = 'none';
 
+    if(viewName==='operasional')openOperations();
+    if(viewName==='master-admin')openMasterEditor();
+    if(viewName==='monitor-admin')openOperationalHealth();
     if (viewName === 'skor') openScore();
     if (viewName === 'insentif') openIncentives();
     if (viewName === 'input-tx') {
@@ -342,6 +348,7 @@
     if (viewName === 'stok') renderInventoryTable();
     if (viewName === 'harga') renderPriceMasterTable();
     if (viewName === 'tim') renderSalesProfiles();
+    if (['master-admin','monitor-admin'].indexOf(viewName)>=0 && (!appState.user||appState.user.role!=='ADMIN')) {showToast('Fitur ini khusus Admin.','error');return;}
     if (viewName === 'dokumen') renderDriveFiles();
     if (viewName === 'foto-kunjungan') renderVisitPhotos();
     if (viewName === 'today-plan') {
@@ -401,7 +408,8 @@
   }
 
   function loadMetadata(callback) {
-    if (appState.isLoadingMetadata) return;
+    if(typeof callback==='function'){if(!appState.metadataCallbacks)appState.metadataCallbacks=[];appState.metadataCallbacks.push(callback);}
+    if (appState.isLoadingMetadata) {appState.metadataRefreshQueued=true;return;}
     appState.isLoadingMetadata = true;
     setMetadataWidgetState('loading');
     // Invalidate older metrics while fresh metadata is being read.
@@ -416,9 +424,10 @@
           setDashboardLoadState('error');
           setMetadataWidgetState('error');
           showKchAuthError(res && res.message || 'Gagal memuat data aplikasi.');
-          return;
+          appState.metadataCallbacks=[];appState.metadataRefreshQueued=false;return;
         }
 
+        appState.lastSyncAt=res.asOf?String(res.asOf).slice(11,19):new Date().toLocaleTimeString('en-GB',{timeZone:'Asia/Jakarta'});
         appState.user = res.user || appState.user;
         appState.teams = res.teams || [];
         appState.distributors = res.distributors || [];
@@ -456,13 +465,17 @@
         if (appState.pendingTransaction) txClientLock(true);
         if (appState.transactionEdit) updateEditTransactionTotals();
         loadDashboardMetrics();
-        if (typeof callback === 'function') callback();
+        if(typeof startAuditSync==='function')startAuditSync();
+        if(appState.currentView==='foto-kunjungan')reloadVisitPhotosOnly();
+        if(appState.metadataRefreshQueued){appState.metadataRefreshQueued=false;loadMetadata();}
+        else {var readyCallbacks=appState.metadataCallbacks||[];appState.metadataCallbacks=[];readyCallbacks.forEach(function(fn){fn();});}
       })
       .withFailureHandler(function(err) {
         appState.isLoadingMetadata = false;
         setDashboardLoadState('error');
         setMetadataWidgetState('error');
         showToast('Gagal terhubung ke server: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+        if(appState.metadataRefreshQueued){appState.metadataRefreshQueued=false;loadMetadata();}else appState.metadataCallbacks=[];
       })
       .getInitialAppMetadata();
   }
@@ -525,7 +538,7 @@
         setText('monthlyReportTotalSales', formatRupiah(summary.totalSales));
         setText('monthlyReportTotalShj', formatRupiah(summary.totalShj));
         setText('monthlyReportTotalHK', (Number(summary.totalHK) || 0) + ' Hari');
-        var targetText = sales.targetMonthly > 0
+        var targetText = sales.targetVerified===false?'Target historis belum diverifikasi':sales.targetMonthly > 0
           ? 'Target bulanan: ' + formatRupiah(sales.targetMonthly) + ' · ' + (Number(sales.achievementPercent) || 0).toFixed(1).replace('.', ',') + '%'
           : 'Target bulanan tidak tersedia';
         setText('monthlyReportTargetInfo', targetText);
@@ -680,7 +693,7 @@
       if (canvas && canvas.parentElement) canvas.parentElement.setAttribute('data-chart-state', state);
     });
     if (ready) {
-      setHtml('dashboardLoadStatus', '<span class="live-dot"></span> Live Sync');
+      setHtml('dashboardLoadStatus', '<span class="live-dot"></span> Diperbarui '+escapeHtml(appState.lastSyncAt||'baru saja')+' WIB');
       return;
     }
     setText('dashboardLoadStatus', state === 'error' ? 'Gagal memuat data' : 'Sedang memuat data');
@@ -721,6 +734,7 @@
           showToast(res && res.message ? res.message : 'Gagal memuat dashboard.', 'error');
           return;
         }
+        appState.lastSyncAt=res.asOf?String(res.asOf).slice(11,19):appState.lastSyncAt;
         appState.dashboardData = res;
         appState.attendanceData = res.todayAttendance || [];
         renderDashboardData(res);
@@ -735,6 +749,7 @@
   }
 
   function renderDashboardData(data) {
+    setText('dashboardDataNotice',data.notice||'');
     if (!data) return;
     renderKpiCards(data.kpi || {});
     renderSalesTrendChart(data.salesTrend || []);
@@ -751,15 +766,16 @@
   }
 
   function renderKpiCards(kpi) {
+    var targetKnown=kpi.totalTarget!==null&&kpi.cumulativeTarget!==null;
     var totalSales = parseCleanNumber(kpi.totalSales);
     var totalTarget = parseCleanNumber(kpi.totalTarget || kpi.cumulativeTarget);
     var pct = Number(kpi.achievementPct || 0);
     var remaining = Math.max(totalTarget - totalSales, 0);
 
     setText('kpiTotalOmset', formatRupiah(totalSales));
-    setHtml('kpiAchieveBadge', '<i class="fa-solid fa-arrow-trend-up"></i> ' + pct.toFixed(1).replace('.0', '') + '%');
-    setText('kpiCumulativeTarget', formatRupiah(totalTarget));
-    setHtml('kpiRemainingLabel', '<i class="fa-solid fa-flag-checkered"></i> Sisa: ' + formatRupiah(remaining));
+    setHtml('kpiAchieveBadge',targetKnown?'<i class="fa-solid fa-arrow-trend-up"></i> ' + pct.toFixed(1).replace('.0', '') + '%':'Belum terverifikasi');
+    setText('kpiCumulativeTarget', targetKnown?formatRupiah(totalTarget):'—');
+    setHtml('kpiRemainingLabel', targetKnown?'<i class="fa-solid fa-flag-checkered"></i> Sisa: ' + formatRupiah(remaining):'Target periode belum diverifikasi');
     setStyle('kpiProgressBar', 'width', Math.min(Math.max(pct, 0), 100) + '%');
 
     var passed = parseCleanNumber(kpi.workDaysPassed);
@@ -892,10 +908,10 @@
     }
 
     tbody.innerHTML = rows.map(function(sp, idx) {
-      var target = parseCleanNumber(sp.monthlyTarget || sp.target);
+      var targetKnown=sp.monthlyTarget!==null&&sp.target!==null;var target = targetKnown?parseCleanNumber(sp.monthlyTarget || sp.target):null;
       var achieved = parseCleanNumber(sp.achieved);
       var pct = target > 0 ? Math.round((achieved / target) * 100) : parseCleanNumber(sp.percentage);
-      var width = Math.min(Math.max(pct, 0), 100);
+      var pctLabel=targetKnown?pct+'%':'—';var width = targetKnown?Math.min(Math.max(pct, 0), 100):0;
       var initial = String(sp.name || 'S').trim().charAt(0).toUpperCase() || 'S';
       var badge = getTeamBadgeClass(sp.teamName);
       return '<tr>' +
@@ -911,11 +927,11 @@
         '<td><span class="badge ' + badge + '">' + escapeHtml(sp.teamName || '-') + '</span></td>' +
         '<td class="text-right">' + formatRupiah(target) + '</td>' +
         '<td class="text-right font-semibold">' + formatRupiah(achieved) + '</td>' +
-        '<td class="text-center"><span class="badge ' + (pct >= 100 ? 'badge-success' : pct >= 75 ? 'badge-primary' : pct >= 50 ? 'badge-warning' : 'badge-danger') + '">' + pct + '%</span></td>' +
+        '<td class="text-center"><span class="badge ' + (pct >= 100 ? 'badge-success' : pct >= 75 ? 'badge-primary' : pct >= 50 ? 'badge-warning' : 'badge-danger') + '">' + pctLabel + '</span></td>' +
         '<td style="min-width:160px;">' +
           '<div style="display:flex;align-items:center;gap:8px;">' +
             '<div style="flex:1;height:7px;background:#f1f5f9;border-radius:10px;overflow:hidden;"><div style="height:100%;width:' + width + '%;background:#2563eb;border-radius:10px;"></div></div>' +
-            '<span style="font-size:10.5px;font-weight:700;color:#64748b;min-width:33px;text-align:right;">' + pct + '%</span>' +
+            '<span style="font-size:10.5px;font-weight:700;color:#64748b;min-width:33px;text-align:right;">' + pctLabel + '</span>' +
           '</div>' +
         '</td>' +
       '</tr>';
@@ -964,7 +980,7 @@
     var total = values.reduce(function(sum, n) { return sum + n; }, 0);
     var centerPct = appState.dashboardData && appState.dashboardData.kpi ? Number(appState.dashboardData.kpi.achievementPct || 0) : 0;
 
-    setText('donutCenterPct', centerPct.toFixed(1).replace('.0', '') + '%');
+    setText('donutCenterPct',appState.dashboardData&&appState.dashboardData.targetVerified===false?'—':centerPct.toFixed(1).replace('.0', '') + '%');
 
     appState.charts.teamDonutChart = new Chart(canvas.getContext('2d'), {
       type: 'doughnut',
@@ -1168,7 +1184,8 @@
       var data=result && result.success && /^data:image\/(?:jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(result.dataUrl || '') ? result.dataUrl : '';
       var images=(state.pending[request.key] || []).filter(function(img){return matches(img,request.key);});
       var message=error && error.message || result && result.message || '';
-      if(!data && request.attempt===0 && images.length && !/AUTH_REQUIRED|ACCESS_DENIED|tidak ditemukan|not found|permission|format|ukuran/i.test(message)){
+      if(result&&result.code==='NEED_SINGLE'&&!request.single){request.single=true;state.pending[request.key]=images;state.queue.unshift(request);}
+      else if(!data && request.attempt===0 && images.length && !/AUTH_REQUIRED|ACCESS_DENIED|tidak ditemukan|not found|permission|format|ukuran/i.test(message)){
         request.attempt=1;state.pending[request.key]=images;state.queue.push(request);
       }else {
         delete state.pending[request.key];
@@ -1186,16 +1203,21 @@
       if(!live())return;
       state.queue.sort(function(a,b){return Number(visible(b))-Number(visible(a));});
       while(state.active<4 && state.queue.length){
-        var request=state.queue.shift();
-        if(!(state.pending[request.key] || []).some(function(img){return matches(img,request.key);})){delete state.pending[request.key];continue;}
-        state.active++;
-        (function(r){
-          var settled=false;
-          function complete(result,error){if(settled)return;settled=true;clearTimeout(timer);finish(r,result,error);}
+        var batch=[];
+        while(batch.length<4-state.active&&state.queue.length){var request=state.queue.shift();
+          if(!(state.pending[request.key]||[]).some(function(img){return matches(img,request.key);})){delete state.pending[request.key];continue;}
+          if(request.single&&batch.length){state.queue.unshift(request);break;}batch.push(request);if(request.single)break;
+        }
+        if(!batch.length)continue;state.active+=batch.length;
+        (function(group){var settled=false;
+          function complete(result,error){if(settled)return;settled=true;clearTimeout(timer);
+            group.forEach(function(r){var entry=group.length===1?result:result&&result.results&&result.results.filter(function(v){return v.kind===r.kind&&v.ref===r.ref;})[0];finish(r,entry,error);});
+          }
           var timer=setTimeout(function(){complete(null,new Error('Waktu pemuatan foto habis.'));},20000);
-          try{kchRun().withSuccessHandler(function(result){complete(result);}).withFailureHandler(function(err){complete(null,err);}).getSalesPhotoEvidence(r.kind,r.ref);}
-          catch(err){complete(null,err);}
-        })(request);
+          try{var runner=kchRun().withSuccessHandler(function(result){complete(result);}).withFailureHandler(function(err){complete(null,err);});
+            if(group.length===1)runner.getSalesPhotoEvidence(group[0].kind,group[0].ref);else runner.getSalesPhotoEvidenceBatch(group.map(function(r){return {kind:r.kind,ref:r.ref};}));
+          }catch(err){complete(null,err);}
+        })(batch);
       }
     }
     container.querySelectorAll('img[data-kch-photo-ref]').forEach(function(img){
@@ -1816,6 +1838,7 @@
     setStyle('btnResetVisitPhotosToday', 'display', resetDisplay);
     setStyle('btnResetVisitPhotosPageToday', 'display', resetDisplay);
     renderVisitPhotos();
+    if(appState.user)reloadVisitPhotosOnly();
   }
 
   function resetVisitPhotosToToday() {
@@ -1828,6 +1851,7 @@
   }
 
   function reloadVisitPhotosOnly() {
+    var wanted=appState.visitPhotoDate||getLocalDateInputValue();if(appState.visitPhotoBusyDate===wanted)return;appState.visitPhotoBusyDate=wanted;var visitSeq=(appState.visitPhotoRequestSeq||0)+1;appState.visitPhotoRequestSeq=visitSeq;
     ['visitPhotosCountBadge', 'visitPhotosPageCountBadge'].forEach(function(id) { setText(id, 'Sedang memuat data'); });
     var targetDate = appState.visitPhotoDate || getLocalDateInputValue();
     ['visitPhotosDashboardGridContainer', 'visitPhotosPageGridContainer'].forEach(function(id) {
@@ -1837,6 +1861,7 @@
 
     kchRun()
       .withSuccessHandler(function(res) {
+        if(visitSeq!==appState.visitPhotoRequestSeq)return;appState.visitPhotoBusyDate='';
         if (!res || !res.success) {
           showToast(res && res.message ? res.message : 'Gagal memuat foto kunjungan.', 'error');
           renderVisitPhotos();
@@ -1849,6 +1874,7 @@
         renderVisitPhotos();
       })
       .withFailureHandler(function(err) {
+        if(visitSeq!==appState.visitPhotoRequestSeq)return;appState.visitPhotoBusyDate='';
         showToast('Gagal memuat foto kunjungan: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
         renderVisitPhotos();
       })
@@ -2465,6 +2491,7 @@
     if (pickupFields) pickupFields.disabled = !!locked;
     var depositFields = document.getElementById('cashDepositFormFields');
     if (depositFields) depositFields.disabled = !!locked;
+    ['operationsFields','masterEditorFields','periodVerificationFields','healthRestoreFields'].forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=!!locked;});
     ['photoAttendanceStatus','photoUploadSalesId','photoUploadDate','photoUploadTime','photoUploadNotes','photoUploadFile','btnSubmitPhotoUpload'].forEach(function(id) {
       var field = document.getElementById(id); if (field) field.disabled = !!locked;
     });
@@ -2472,7 +2499,10 @@
   }
 
   function txClientStatus(message, showRetry) {
-    [['txRequestStatus', 'txRequestStatusText', 'txRequestCode', 'btnRetryTxRequest', 'btnCheckTxRequest'],
+    [['opsRequestStatus','opsRequestStatusText','opsRequestCode','btnRetryOpsRequest','btnCheckOpsRequest'],
+      ['masterRequestStatus','masterRequestStatusText','masterRequestCode','btnRetryMasterRequest','btnCheckMasterRequest'],
+      ['healthRequestStatus','healthRequestStatusText','healthRequestCode','btnRetryHealthRequest','btnCheckHealthRequest'],
+      ['txRequestStatus', 'txRequestStatusText', 'txRequestCode', 'btnRetryTxRequest', 'btnCheckTxRequest'],
       ['editTxRequestStatus', 'editTxRequestStatusText', 'editTxRequestCode', 'btnRetryTxEditRequest', 'btnCheckTxEditRequest'],
       ['pickupRequestStatus', 'pickupRequestStatusText', 'pickupRequestCode', 'btnRetryPickupRequest', 'btnCheckPickupRequest'],
       ['depositRequestStatus', 'depositRequestStatusText', 'depositRequestCode', 'btnRetryDepositRequest', 'btnCheckDepositRequest'],
@@ -2523,6 +2553,7 @@
     if (result && result.success && result.state === 'COMMITTED') {
       try { txClientClear(); }
       catch (err) { txClientStatus('Transaksi ' + result.transactionId + ' sudah tersimpan, tetapi browser belum dapat membersihkan status kiriman. Periksa hasil lagi sebelum transaksi baru.', false); return; }
+      if(['OPERATIONS','MASTER','PERIOD_VERIFY','RESTORE'].indexOf(result.operation)>=0){auditOperationCommitted(result);return;}
       if (result.operation === 'PHOTO') {
         closePhotoUploadForm(); showToast(result.message || 'Foto berhasil disimpan.', 'success');
         if (result.type === 'attendance') { handleAttendanceDateChange(result.date); loadMetadata(); }
@@ -2569,7 +2600,11 @@
     if (depositBtn && payload.operation === 'DEPOSIT') { depositBtn.disabled = true; depositBtn.textContent = 'Menyimpan…'; }
     var photoBtn = document.getElementById('btnSubmitPhotoUpload');
     if (photoBtn && payload.operation === 'PHOTO') photoBtn.textContent = 'Menyimpan…';
-    if (payload.operation === 'PHOTO') runner.saveSalesPhotoUpload(payload, payload.photoType);
+    if(payload.operation==='OPERATIONS')runner.saveOperationalChange(payload);
+    else if(payload.operation==='MASTER')runner.saveMasterRecord(payload);
+    else if(payload.operation==='PERIOD_VERIFY')runner.savePeriodVerification(payload);
+    else if(payload.operation==='RESTORE')runner.saveBackupRestore(payload);
+    else if (payload.operation === 'PHOTO') runner.saveSalesPhotoUpload(payload, payload.photoType);
     else if (payload.operation === 'DEPOSIT') runner.saveSalesCashDeposit(payload);
     else if (payload.operation === 'PICKUP') runner.saveStockPickup(payload);
     else if (payload.transactionId) runner.editSalesTransaction(payload);
@@ -2897,7 +2932,7 @@
         '<td class="text-right">' + formatRupiah(item.totalCost) + '</td>' +
         '<td class="text-right font-semibold">' + formatRupiah(item.totalSales) + '</td>' +
         '<td class="text-right text-success font-semibold">' + formatRupiah(item.totalShj) + '</td>' +
-        '<td class="text-center"><div style="display:flex;gap:6px;justify-content:center"><button type="button" class="btn btn-outline btn-sm" title="Lihat faktur" onclick="openTransactionDetail(\'' + escapeHtml(jsQuote(item.id || '')) + '\')"><i class="fa-regular fa-eye"></i></button>' + (item.archived ? '<span class="badge badge-light">Arsip</span>' : '<button type="button" class="btn btn-outline btn-sm" data-kch-write title="Edit faktur" onclick="openSalesTransactionEdit(\'' + escapeHtml(jsQuote(item.id || '')) + '\')"><i class="fa-solid fa-pen"></i> Edit</button>') + '</div></td>' +
+        '<td class="text-center"><div style="display:flex;gap:6px;justify-content:center"><button type="button" class="btn btn-outline btn-sm" title="Lihat faktur" onclick="openTransactionDetail(\'' + escapeHtml(jsQuote(item.id || '')) + '\')"><i class="fa-regular fa-eye"></i></button>' + (item.adjustment ? '<span class="badge badge-light">Koreksi</span>' : item.hasCorrections ? '<span class="badge badge-light">Ada retur</span>' : item.archived ? '<span class="badge badge-light">Arsip</span>' : '<button type="button" class="btn btn-outline btn-sm" data-kch-write title="Edit faktur" onclick="openSalesTransactionEdit(\'' + escapeHtml(jsQuote(item.id || '')) + '\')"><i class="fa-solid fa-pen"></i> Edit</button>') + '</div></td>' +
       '</tr>';
     }).join('');
   }
@@ -2934,12 +2969,12 @@
         }
         var h = res.header || {};
         setText('modalTxIdTitle', h.id || 'Faktur Penjualan');
-        setText('modalTxDateSubtitle', 'Tanggal: ' + formatDateIndo(h.date));
+        setText('modalTxDateSubtitle', 'Tanggal: ' + formatDateIndo(h.date)+(h.status?' · '+h.status:'')+(h.referenceId?' · Referensi '+h.referenceId:''));
         setText('modalTxSalesName', h.salesName || '-');
         setHtml('modalTxTeamName', '<span class="badge ' + getTeamBadgeClass(h.teamName) + '">' + escapeHtml(h.teamName || '-') + '</span>');
         setText('modalTxDistributorName', h.distributor || '-');
         setText('modalTxCreatedBy', h.createdBy || '-');
-        setText('modalTxNotes', h.notes || '-');
+        setText('modalTxNotes', (h.notes || '-')+(h.returnedValue?' · Nilai awal '+formatRupiah(h.totalSales)+' · Retur '+formatRupiah(h.returnedValue)+' · Bersih '+formatRupiah(h.netTotalSales):''));
         setText('modalTxTotalSales', formatRupiah(h.totalSales));
         setText('modalTxTotalShj', formatRupiah(h.totalShj));
 
@@ -2986,7 +3021,7 @@
         unit: p.unit || 'Box',
         globalStock: parseCleanNumber(inv['PT. Global Mitra Prima'] || inv.pt_global_mitra_prima),
         geubrinaStock: parseCleanNumber(inv['AP. Geubrina Rizki'] || inv.ap_geubrina_rizki),
-        minStock: parseCleanNumber(p.min_stock || p.minStock) || 50
+        minStock: p.min_stock!==undefined&&p.min_stock!==''?parseCleanNumber(p.min_stock):p.minStock!==undefined&&p.minStock!==''?parseCleanNumber(p.minStock):50
       };
     }).filter(function(row) {
       var blob = [row.productId, row.productName, row.category, row.brand].join(' ').toLowerCase();
@@ -3375,10 +3410,8 @@ function renderDriveFiles() {
 
   function getLocalDateInputValue() {
     var d = new Date();
-    var y = d.getFullYear();
-    var m = ('0' + (d.getMonth() + 1)).slice(-2);
-    var day = ('0' + d.getDate()).slice(-2);
-    return y + '-' + m + '-' + day;
+    var parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d),values={};
+    parts.forEach(function(p){values[p.type]=p.value;});return values.year+'-'+values.month+'-'+values.day;
   }
 
   function normalizePhone(phone) {

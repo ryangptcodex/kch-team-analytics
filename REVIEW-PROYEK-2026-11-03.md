@@ -1,3 +1,5 @@
+> Catatan historis audit sebelum perbaikan (baseline552bff3). Status paket terbaru dan bukti penutupan ada di [IMPLEMENTASI-AUDIT-2026-11-03.md](IMPLEMENTASI-AUDIT-2026-11-03.md).
+
 # Audit proyek KCH — 3 November 2026
 
 Kesimpulan: aplikasi sudah mempunyai fondasi operasional Admin input/Tamu membaca, tetapi masih ada kesalahan laporan yang perlu diprioritaskan. Penjualan Canvasser dapat masuk omzet cabang namun tidak masuk grafik tim; target berbeda antarlayar; dan filter tanggal masih dapat menyembunyikan faktur bertanggal dengan jam. Fitur penerimaan/retur/pembatalan dan pemulihan operasional juga belum lengkap.

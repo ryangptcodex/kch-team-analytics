@@ -18,12 +18,12 @@ function kchIncentiveSheetRows_(data) {
   var shared = { mapping: scoreMapping_(data), ledger: scoreLedger_(data.events), transactionsBySales: Object.create(null) };
   if (!shared.mapping.ready) throw new Error('Insentif: periksa master produk: ' + shared.mapping.issues.join('; '));
   if (!data.meta.SALES_TRANSACTIONS) throw new Error('Insentif: SALES_TRANSACTIONS belum tersedia.');
-  var sales = data.sales.filter(incentiveEligible_).sort(function(a,b) { return String(a.sales_id).localeCompare(String(b.sales_id)); });
+  var sales = (typeof periodHistoricalSales_==='function'?periodHistoricalSales_(data):data.sales.filter(incentiveEligible_)).sort(function(a,b) { return String(a.sales_id).localeCompare(String(b.sales_id)); });
   var known = Object.create(null), firstMonth = Object.create(null);
   sales.forEach(function(s) {
     var id = normalizeKey_(s.sales_id);
     if (!id || known[id]) throw new Error('Insentif: master SALES memiliki ID kosong/ganda.');
-    known[id] = true; firstMonth[id] = currentMonth;
+    known[id] = true; firstMonth[id] = s._periodFirstMonth&&s._periodFirstMonth<currentMonth?s._periodFirstMonth:currentMonth;
   });
   txTable_('SALES_TRANSACTIONS', data.raw.SALES_TRANSACTIONS, ['sales_id','transaction_date','product_id','quantity','selling_price'], false).rows.forEach(function(row) {
     var id = normalizeKey_(row.sales_id); if (!known[id]) return;
@@ -49,12 +49,14 @@ function kchIncentiveSheetRows_(data) {
   sales.forEach(function(s) {
     var id = normalizeKey_(s.sales_id), month = scoreMonth_(firstMonth[id]), quarters = Object.create(null);
     while (month <= currentMonth) {
+      var monthlyData=typeof periodContext_==='function'?periodContext_(data,month):data,monthlyMember=monthlyData.sales.filter(function(v){return normalizeKey_(v.sales_id)===id;})[0];
+      if(!monthlyMember||!incentiveEligible_(monthlyMember)){var skipY=Number(month.slice(0,4)),skipM=Number(month.slice(5));month=skipM===12?String(skipY+1)+'-01':String(skipY)+'-'+('0'+(skipM+1)).slice(-2);continue;}
       var r = incentiveBuildReport_(data, month, id, shared), m = r.monthly, q = r.quarter, source = r.referenceSales || r.sales, allocation = (r.allocationFactor||1)*100;
-      var identity = [month,r.sales.salesId,r.sales.name,r.sales.team], state = r.monthlyClosed ? 'SELESAI' : 'ESTIMASI';
+      var identity = [month,r.sales.salesId,r.sales.name,r.sales.team], state = r.masterVerified===false?'BELUM TERVERIFIKASI':r.monthlyClosed ? 'SELESAI' : 'ESTIMASI';
       r.daily.forEach(function(d) {
         push('INSENTIF_HARIAN', [month,d.date,r.sales.salesId,r.sales.name,r.sales.team,d.isWorkDay,d.value,
           r.dailyTotal === null || d.scheduled === null ? '' : d.scheduled,m.payoutFactor*100,
-          r.dailyTotal === null || d.amount === null ? '' : d.amount,r.dailyTotal === null ? 'Kalender libur belum tersedia' : d.status,r.today,state,d.tabletValue,source.salesId,source.name,allocation,d.referenceValue,d.referenceTabletValue]);
+          r.dailyTotal === null || d.amount === null ? '' : d.amount,r.masterVerified===false?'Master periode belum diverifikasi':r.dailyTotal === null ? 'Kalender libur belum tersedia' : d.status,r.today,state,d.tabletValue,source.salesId,source.name,allocation,d.referenceValue,d.referenceTabletValue]);
       });
       var monthly = identity.slice();
       m.parameters.slice(0,4).forEach(function(p) { monthly = monthly.concat([p.actual,p.target,p.tier,p.scheduled,p.amount]); });
@@ -65,7 +67,7 @@ function kchIncentiveSheetRows_(data) {
         quarters[quarterKey] = true;
         var qr = [q.year,'TW'+q.number,r.sales.salesId,r.sales.name,r.sales.team,q.actual,q.target,q.achievement===null?'':q.achievement*100,q.reachedMonths,q.tier,q.amount];
         q.months.forEach(function(v) { qr = qr.concat([v.month,v.actual,v.target,v.achievement===null?'':v.achievement*100]); });
-        push('INSENTIF_TRIWULAN', qr.concat([q.end,r.today,q.closed ? 'SELESAI' : 'ESTIMASI',source.salesId,source.name,allocation,r.isJunior?r.referenceQuarter.actual:q.actual,r.isJunior?r.referenceQuarter.target:q.target]));
+        push('INSENTIF_TRIWULAN', qr.concat([q.end,r.today,q.masterVerified===false?'BELUM TERVERIFIKASI':q.closed ? 'SELESAI' : 'ESTIMASI',source.salesId,source.name,allocation,r.isJunior?r.referenceQuarter.actual:q.actual,r.isJunior?r.referenceQuarter.target:q.target]));
       }
       var y = Number(month.slice(0,4)), n = Number(month.slice(5,7));
       month = n === 12 ? String(y+1)+'-01' : String(y)+'-'+('0'+(n+1)).slice(-2);
@@ -75,13 +77,14 @@ function kchIncentiveSheetRows_(data) {
 }
 
 function kchIncentiveSyncPlan_(ss, meta, ctx) {
-  var previous = KCH_REQUEST_USER_, rows;
+  var previous = KCH_REQUEST_USER_, rows, archivedRefresh={requests:[],changes:[]};
   try {
     // Entry point already checked native admin email, target ID, lock and pending writes.
     KCH_REQUEST_USER_ = {role:'ADMIN',email:KCH_BOOTSTRAP_ADMIN_EMAIL_,salesId:''};
-    rows = kchIncentiveSheetRows_(scoreContext_(true));
+    var data=scoreContext_(true);rows = kchIncentiveSheetRows_(data);
+    if(typeof periodArchiveReportRefreshPlan_==='function')archivedRefresh=periodArchiveReportRefreshPlan_(data,meta);
   } finally { KCH_REQUEST_USER_ = previous; }
-  var requests = [], changes = [];
+  var requests = archivedRefresh.requests, changes = archivedRefresh.changes;
   Object.keys(KCH_INCENTIVE_SHEET_SCHEMAS_).forEach(function(name) {
     var headers = KCH_INCENTIVE_SHEET_SCHEMAS_[name], values = rows[name], p = meta[name], sheet = ss.getSheetByName(name);
     if (!p) throw new Error(name + ': rencana struktur belum disiapkan.');
@@ -105,4 +108,19 @@ function kchIncentiveSyncPlan_(ss, meta, ctx) {
   });
   if (JSON.stringify(requests).length > 8000000) throw new Error('Laporan Insentif terlalu besar untuk satu batch; pembaruan dibatalkan.');
   return {requests:requests,changes:changes};
+}
+
+// Only previously unverified derived archive results may be completed after
+// explicit master verification. Verified/final results and business rows stay frozen.
+function periodArchiveReportRefreshPlan_(data,meta){
+  if(!archiveEnabled_()||!meta[KCH_ARCHIVE_ROWS_]||!data.raw[KCH_ARCHIVE_ROWS_])return {requests:[],changes:[]};
+  var rows=txTable_(KCH_ARCHIVE_ROWS_,data.raw[KCH_ARCHIVE_ROWS_],KCH_ARCHIVE_SCHEMAS_[KCH_ARCHIVE_ROWS_],true).rows;
+  var pending=rows.filter(function(r){if(!KCH_INCENTIVE_SHEET_SCHEMAS_[r.sheet_name])return false;var hs=JSON.parse(r.headers_json),vs=JSON.parse(r.values_json);return vs[hs.indexOf('period_status')]==='BELUM TERVERIFIKASI';});
+  if(!pending.some(function(r){var s=periodRead_(r.month);return !!(s&&s.verified);}))return {requests:[],changes:[]};
+  var previous=KCH_ARCHIVE_BUILD_FULL_,full;try{KCH_ARCHIVE_BUILD_FULL_=true;full=kchIncentiveSheetRows_(data);}finally{KCH_ARCHIVE_BUILD_FULL_=previous;}
+  function key(name,headers,row){var fields=name==='INSENTIF_HARIAN'?['date','sales_id']:name==='INSENTIF_BULANAN'?['month','sales_id']:['year','quarter','sales_id'];return JSON.stringify(fields.map(function(h){return String(row[headers.indexOf(h)]);}));}
+  var maps={};Object.keys(full).forEach(function(name){var hs=KCH_INCENTIVE_SHEET_SCHEMAS_[name];maps[name]={};full[name].forEach(function(r){if(r[hs.indexOf('period_status')]!=='BELUM TERVERIFIKASI')maps[name][key(name,hs,r)]=r;});});
+  var requests=[],updated=0;pending.forEach(function(r){var oldHeaders=JSON.parse(r.headers_json),values=JSON.parse(r.values_json),fresh=maps[r.sheet_name][key(r.sheet_name,oldHeaders,values)];if(!fresh)return;var hs=KCH_INCENTIVE_SHEET_SCHEMAS_[r.sheet_name];requests.push(txUpdate_(meta[KCH_ARCHIVE_ROWS_].sheetId,r._row,2,[[JSON.stringify(hs),JSON.stringify(fresh)]]));updated++;});
+  if(updated)healthLogRequest_(meta,requests,'COMPLETE_VERIFIED_ARCHIVE_REPORTS','INSENTIF',{rows:updated},getCurrentUserInfo_());
+  return {requests:requests,changes:updated?[updated+' hasil arsip insentif yang sebelumnya belum terverifikasi diperbarui.']:[]};
 }

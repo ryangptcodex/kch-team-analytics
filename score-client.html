@@ -76,7 +76,7 @@
       var notes = row.message ? [row.message] : (row.guidance || []).map(scoreGuidanceText);
       function points(index) {
         var p = (row.parameters || [])[index];
-        return !p ? '—' : p.score.toLocaleString('id-ID', { maximumFractionDigits: 2 }) + ' / ' + p.max;
+        return !p || p.score===null ? '—' : (p.score===null?'—':p.score.toLocaleString('id-ID', { maximumFractionDigits: 2 })) + ' / ' + p.max;
       }
       return '<tr><td style="min-width:280px;max-width:440px;white-space:normal"><strong>' + escapeHtml(row.sales.name) + (row.active ? '' : ' (nonaktif)') + '</strong><ul style="padding-left:16px;margin-top:6px;font-size:12px;color:#64748b;line-height:1.6">' + notes.map(function(note) { return '<li>' + escapeHtml(note).replace(/\n/g, '<br>') + '</li>'; }).join('') + '</ul></td><td>' + escapeHtml(row.sales.team) + '</td><td>' + points(0) + '</td><td>' + points(1) + '</td><td>' + points(2) + '</td><td>' + points(3) + '</td><td>' + points(4) + '</td><td class="font-semibold">' + (row.total == null ? '—' : row.total.toLocaleString('id-ID', { maximumFractionDigits: 2 })) + '</td><td>' + escapeHtml(row.category || 'Belum dapat dihitung') + '</td></tr>';
     }).join(''));
@@ -148,7 +148,7 @@
       scoreText('scoreCategory', res.category ? res.category + ' · ' + res.nextMonth : 'Pemetaan master perlu diperiksa');
       scoreText('scoreCalendar', res.workDaysPassed + ' dari ' + res.workDays + ' hari kerja · Minggu dikecualikan; libur mengikuti ' + (res.holidaySource || 'sheet HOLIDAYS yang belum tersedia') + '. Target tetap sebulan penuh.');
       document.getElementById('scoreRows').innerHTML = res.parameters.map(function(p, i) {
-        return '<tr><td>' + escapeHtml(p.name) + '</td><td>' + (i >= 3 ? p.actual.toLocaleString('id-ID') : formatRupiah(p.actual)) + '</td><td>' + (i >= 3 ? p.target : formatRupiah(p.target)) + '</td><td>' + (p.weight * 100) + '%</td><td>' + (p.achievement * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '%</td><td>' + p.points.toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '</td><td>' + p.score.toLocaleString('id-ID', { maximumFractionDigits: 2 }) + ' / ' + p.max + '</td></tr>';
+        return '<tr><td>' + escapeHtml(p.name) + '</td><td>' + (i >= 3 ? p.actual.toLocaleString('id-ID') : formatRupiah(p.actual)) + '</td><td>' + (p.target===null?'—':i >= 3 ? p.target : formatRupiah(p.target)) + '</td><td>' + (p.weight * 100) + '%</td><td>' + (p.achievement * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '%</td><td>' + (p.points===null?'—':p.points.toLocaleString('id-ID', { maximumFractionDigits: 2 })) + '</td><td>' + (p.score===null?'—':p.score.toLocaleString('id-ID', { maximumFractionDigits: 2 })) + ' / ' + p.max + '</td></tr>';
       }).join('');
       scoreText('scoreAASummary', 'AA: ' + res.totalAA.toLocaleString('id-ID') + ' / 400 · ' + res.enteredDays + ' hari sudah diinput. Tanda — berarti belum diinput, bukan angka nol.');
       document.getElementById('scoreDailyRows').innerHTML = res.dailyAA.map(function(d) {

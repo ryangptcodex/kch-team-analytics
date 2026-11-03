@@ -53,7 +53,9 @@ function kchSheetUpdateModules_() {
   var stockSchemas = stockSchemas_();
   if (!stockSchemas.SALES_CASH_DEPOSITS || !stockSchemas.SALES_TRANSACTIONS || stockSchemas.SALES_TRANSACTIONS.indexOf('stock_distributor_id') < 0) throw new Error('Pasang stock-pickups.gs terbaru yang mencakup setoran dan asal stok sebelum Perbarui.');
   if (typeof KCH_ARCHIVE_SCHEMAS_ === 'undefined' || typeof archiveRun_ !== 'function') throw new Error('Pasang monthly-archives.gs terbaru sebelum Perbarui.');
-  return [{name:'ARSIP_BULANAN',schemas:KCH_ARCHIVE_SCHEMAS_,buildPlan:function(){return {requests:[],changes:[]};}}, {name:'PENGAMBILAN',schemas:stockSchemas,buildPlan:function(){return {requests:[],changes:[]};}}, {name:'INSENTIF',schemas:KCH_INCENTIVE_SHEET_SCHEMAS_,buildPlan:kchIncentiveSyncPlan_}];
+  if(typeof opsSchemas_!=='function'||typeof periodSyncPlan_!=='function'||typeof healthSchemas_!=='function')throw new Error('Pasang operations.gs, period-masters.gs dan health.gs lengkap sebelum memperbarui sheet.');
+  var additions=[];if(typeof healthSchemas_==='function')additions.push({name:'MONITOR_BACKUP',schemas:healthSchemas_(),buildPlan:function(){return {requests:[],changes:[]};}});if(typeof opsSchemas_==='function')additions.push({name:'OPERASIONAL',schemas:opsSchemas_(),buildPlan:function(){return {requests:[],changes:[]};}});if(typeof periodSchemas_==='function')additions.push({name:'MASTER_PERIODE',schemas:periodSchemas_(),buildPlan:periodSyncPlan_});
+  return additions.concat([{name:'ARSIP_BULANAN',schemas:KCH_ARCHIVE_SCHEMAS_,buildPlan:function(){return {requests:[],changes:[]};}}, {name:'PENGAMBILAN',schemas:stockSchemas,buildPlan:function(){return {requests:[],changes:[]};}}, {name:'INSENTIF',schemas:KCH_INCENTIVE_SHEET_SCHEMAS_,buildPlan:kchIncentiveSyncPlan_}]);
 }
 
 function kchSheetSchemas_() {
@@ -175,7 +177,10 @@ function kchRunSheetUpdates_(ss) {
     control.getRange('B10').setValue(backupUrl); SpreadsheetApp.flush();
     // Schema, legacy-account cleanup and generated reports commit atomically together.
     txBatch_(ctx, plan.requests);
+    if(typeof periodSyncPlan_==='function')PropertiesService.getScriptProperties().setProperty('KCH_PERIOD_SNAPSHOTS_ACTIVE','TRUE');
     if (typeof archiveEnsureTrigger_ === 'function') archiveEnsureTrigger_(ss);
+    if(typeof healthEnsureTriggers_==='function')healthEnsureTriggers_(ss);
+    if(typeof healthProtectBusinessSheets_==='function')healthProtectBusinessSheets_(ss);
     control.getRange('B8').setValue('Berhasil');
     control.getRange('B9').setValue(stamp);
     control.getRange('B11').setValue(plan.changes.join('\n') || 'Struktur sudah sesuai kode terbaru. Tidak ada sheet/kolom ganda.');

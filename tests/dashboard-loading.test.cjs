@@ -23,7 +23,7 @@ test('initial HTML has neutral KPI values and no sample target or identity',()=>
 test('refresh clears old values and charts until a genuine server response arrives',()=>{
  const e=browser();let destroyed=0;e.c.appState.dashboardData={kpi:{totalTarget:147000000}};e.c.appState.charts.salesTrendChart={destroy(){destroyed++}};
  e.c.loadDashboardMetrics();assert.equal(e.els.kpiCumulativeTarget.textContent,'Sedang memuat data');assert.equal(e.c.appState.dashboardData,null);assert.equal(destroyed,1);assert.equal(e.els['view-dashboard']['aria-busy'],'true');
- e.calls[0].ok({success:true,kpi:{totalTarget:123456,totalSales:200}});assert.match(e.els.kpiCumulativeTarget.textContent,/123\.456/);assert.equal(e.els.kpiCumulativeTarget['data-loading'],'false');assert.match(e.els.dashboardLoadStatus.innerHTML,/Live Sync/);assert.equal(e.els['view-dashboard']['aria-busy'],'false');
+ e.calls[0].ok({success:true,kpi:{totalTarget:123456,totalSales:200}});assert.match(e.els.kpiCumulativeTarget.textContent,/123\.456/);assert.equal(e.els.kpiCumulativeTarget['data-loading'],'false');assert.match(e.els.dashboardLoadStatus.innerHTML,/Diperbarui/);assert.equal(e.els['view-dashboard']['aria-busy'],'false');
 });
 test('failed or empty responses stay neutral rather than showing false zeros or stale values',()=>{
  for(const mode of ['transport','rejected','null']){const e=browser();e.c.loadDashboardMetrics();if(mode==='transport')e.calls[0].fail(Error('offline'));else e.calls[0].ok(mode==='null'?null:{success:false,message:'No data'});
