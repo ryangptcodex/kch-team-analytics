@@ -1,0 +1,6 @@
+{"id":"L01","case":"Closed snapshot rules ignored after calculator rule changes","beforeFocusA":200,"afterFocusA":0,"totalSales":200,"stillVerified":true}
+{"id":"L02","case":"Missing calendar becomes certified empty calendar after snapshot","beforeDailyTotal":null,"afterDailyTotal":0,"afterCalendar":"Snapshot periode","stillVerified":true}
+{"id":"L03","case":"Accepted product master edit breaks score mapping and incentive report","writeAccepted":true,"mappingReady":false,"issues":["LBMAV: nama master tidak cocok dengan Bejo Jahe Merah"]}
+{"id":"L04","case":"Monitor misses a balance account removed while its movement ledger remains positive","movementBalance":2,"balanceRows":0,"holdingIssues":[]}
+{"id":"L05","case":"Historical eligible sales absent from screen selectors after moving to SPR","scoreSelector":["S2"],"incentiveSelector":["S2"],"historicalDirectReadWorks":true}
+{"id":"L06","case":"Absolute stock count has no revision guard against intervening sales","physicalCountBeforeSale":10,"balanceAfterSale":8,"accepted":true,"balanceAfterStaleCount":10}

@@ -757,3 +757,12 @@ Branch kerja **production** beserta tautan file sudah tersedia. `uji-login` dipe
 - Final489tes Node lulus;8suite browser lulus, termasuk alur Admin/Tamu, responsive dan recovery. Source diuji dengan Google simulasi. Agen tidak menerapkan paket ke Google atau mengklaim isi Production sudah diperiksa langsung.
 - Langkah pengguna: pasang semua file lengkap dan5file baru, simpan → updater aman A3 → deployment Production yang sama Versi baru → Monitor Admin dan pemeriksaan transaksi nyata berikutnya. Jangan reset/inisialisasi/saldo awal ulang. Tidak perlu menanyakan lagi aturan yang sudah disetujui.
 - Master periode lama yang tidak diketahui tetap belum terverifikasi sampai pemilik memeriksa arsip/cadangan terdaftar. Juklak uang tetap. Receipt PREPARED/legacy ambigu tidak boleh dihapus; monitor hanya membatalkan reservasi terbukti belum terkirim. Restore berpratinjau dan menjaga akun/closed period/idempotensi.
+
+
+### Audit ulang sebelum launch — checkpoint setelah5c69964
+
+- User meminta analisis menyeluruh sebelum benar-benar launch, belum meminta implementasi temuan audit ulang. Jangan menganggap perbaikan paket sebelumnya menutup seluruh celah.
+- Pengguna mengonfirmasi webapp sudah terbuka normal setelah error HTML; root file terpasang yang keliru belum diinspeksi. Monitor Admin belum dipahami; jelaskan cukup buka sidebar Monitor Admin dan kirim screenshot, tidak perlu salin kode.
+-489tes tetap lulus dan browser audit UI lulus ulang, tetapi6observasi baru terbukti pada mock: L01aturan snapshot belum dipakai kalkulator lama; L02kalender hilang dianggap snapshot kosong sah; L03edit nama produk terpetakan diterima lalu merusak Skor/insentif; L04monitor tidak mendeteksi akun saldo pegangan yang hilang; L05dropdown sales historis hilang setelah pindah keSPR; L06stock opname tanpa guardversi dapat menimpa penjualan intervening.
+- Lihat REVIEW-PRELAUNCH-2026-11-03.md dan tools/prelaunch-audit-2026-11-03.cjs; bukti docs/prelaunch-audit-observations-2026-11-03.jsonl. Tidak ada source aplikasi atau Google yang diubah oleh audit ini. Jangan mengklaim keenamnya sudah diperbaiki.
+- Rekomendasi belum launch penuh semua fitur sebelum pengaman angka/master/histori diperbaiki serta Google nyata diperiksa. Stok fisik sebelumnya sudah dikonfirmasi cocok; jangan reset/saldoawal ulang. Pengguna menolak ZIP: berikan tautan masing-masing file lengkap.
