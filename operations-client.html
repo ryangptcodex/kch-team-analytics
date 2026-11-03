@@ -55,7 +55,7 @@
     if(kind==='STOCK_COUNT'){var count=auditUiState().countPreview;if(!count||count.signature!==JSON.stringify(stockCountInput()))return showToast('Periksa saldo dan selisih opname dahulu.','error');payload.expectedRevision=count.revision;}
     if(payload.reason.trim().length<3)return showToast('Isi keterangan/alasan minimal 3 karakter.','error');auditBeginRequest(payload);
   }
-  var masterFieldLabels={sales_id:'ID sales',full_name:'Nama lengkap',team_name:'Tim',area:'Area',target_monthly:'Target bulanan (Rp)',phone:'Telepon',email:'Email',photo_url:'URL foto profil',status:'Status',product_id:'Kode produk',product_name:'Nama produk',category:'Kategori',unit:'Satuan',brand:'Merek',min_stock:'Stok minimum',cost_price:'Modal (Rp)',selling_price:'Harga jual (Rp)',shj:'SHJ per produk (Rp)',distributor_id:'ID distributor',distributor_name:'Nama distributor',distributor_type:'Jenis distributor',date:'Tanggal libur',holiday_name:'Nama hari libur',file_name:'Nama dokumen',drive_url:'Tautan dokumen HTTPS',update_date:'Tanggal pembaruan'};
+  var masterFieldLabels={sales_id:'ID sales',full_name:'Nama lengkap',team_name:'Tim',area:'Area',target_monthly:'Target bulanan (Rp)',phone:'Telepon',email:'Email',photo_url:'URL foto profil',status:'Status',product_id:'Kode produk',product_name:'Nama produk',category:'Kategori',unit:'Satuan',brand:'Merek',min_stock:'Stok minimum',cost_price:'Modal / setoran (Rp)',selling_price:'Harga jual (Rp)',shj:'SHJ per produk (Rp)',distributor_id:'ID distributor',distributor_name:'Nama distributor',distributor_type:'Jenis distributor',date:'Tanggal libur',holiday_name:'Nama hari libur',file_name:'Nama dokumen',drive_url:'Tautan dokumen HTTPS',update_date:'Tanggal pembaruan'};
   function openMasterEditor(){
     if(!auditAdmin())return;var state=auditUiState(),seq=++state.masterSeq;setText('masterEditorStatus','Memuat master…');auditSafeRunner(function(r){try{auditCheckResponse(r);if(seq!==auditUiState().masterSeq)return;state.masters=r;masterTableChanged();setText('masterEditorStatus','Periode tersimpan: '+(r.periods.join(', ')||'Belum ada snapshot. Jalankan Perbarui Seluruh Sheet.'));if(appState.pendingTransaction)txClientLock(true);}catch(err){setText('masterEditorStatus',err.message);}},function(err){setText('masterEditorStatus',err.message);}).getMasterEditor();
   }
@@ -69,6 +69,13 @@
       return '<div class="form-group"><label for="'+id+'">'+escapeHtml(masterFieldLabels[h])+'</label>'+input+'</div>';}).join(''));
     if(existing&&name==='PRICE_MASTER'){var team=document.getElementById('masterField_team_name');if(team)team.disabled=true;}
     document.getElementById('masterRemoveHoliday').hidden=!(name==='HOLIDAYS'&&existing);
+    if(name==='PRICE_MASTER'){['cost_price','selling_price'].forEach(function(h){document.getElementById('masterField_'+h).oninput=updateMasterShj;});updateMasterShj();}
+  }
+  function updateMasterShj(){
+    if(getValue('masterTable')!=='PRICE_MASTER')return;
+    var cost=document.getElementById('masterField_cost_price'),sell=document.getElementById('masterField_selling_price'),shj=document.getElementById('masterField_shj');if(!cost||!sell||!shj)return;
+    var costCents=Math.round(Number(cost.value)*100),sellCents=Math.round(Number(sell.value)*100);
+    shj.value=cost.value.trim()===''||sell.value.trim()===''||!Number.isSafeInteger(costCents)||!Number.isSafeInteger(sellCents)||costCents<0||sellCents<0?'':String((sellCents-costCents)/100);
   }
   function submitMasterRecord(event,remove){
     if(event)event.preventDefault();if(!auditCanWrite())return;var state=auditUiState(),name=getValue('masterTable'),table=state.masters&&state.masters.tables[name];if(!table)return;var old=table.rows.find(function(r){return r.key===getValue('masterRecord');}),data={};table.headers.forEach(function(h){var field=document.getElementById('masterField_'+h);data[h]=field?field.value:old?old.data[h]:'';});

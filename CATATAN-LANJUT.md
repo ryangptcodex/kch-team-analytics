@@ -776,3 +776,10 @@ Branch kerja **production** beserta tautan file sudah tersedia. `uji-login` dipe
 - Snapshot policyV1 lengkap membaca aturan tersimpan; kalender hilang/legacy kosong tanpa bukti tidak disahkan. Snapshot legacy yang belum valid dapat dilengkapi hanya lewat verifikasi Admin terhadap sumber terdaftar yang sudah diperiksa; snapshot valid final tidak ditimpa. Monitor menunjukkan periode belum sah dan batas rekonsiliasi legacy distributor. Jangan menulis ulang angka final lama otomatis atau mengklaim seluruh histori sudah disahkan.
 - Langkah pasang: selesaikan input berjalan, ganti semua13file lengkap sesuaijenis, Simpan → A3 aman → deployment Production yang sama Versi baru → Monitor Admin pastikan releaseR2. Jangan reset/inisialisasi/saldo awal ulang. Belum ada Google yang diubah agen.
 - Pengguna mengonfirmasi webapp normal setelah error HTML. Monitor belum dikirim; cukup minta screenshot menu **Monitor Admin** / judul **Monitor & Pemulihan**, tidak perlu menyalin kode. Isi sheet/izin/trigger/latensi/backup nyata belum terverifikasi langsung.
+
+
+### SHJ langsung pada Kelola Master Harga — 3 November 2026
+
+- User meminta kolomSHJ langsung mengikuti harga jual dikurangi modal/setoran saat mengetik. `operations-client.html` memperbarui SHJ pada input kedua harga dan ketika memilih catatan; SHJ tetap readonly, kosong jika salah satu harga kosong/tidak valid. Perhitungan pratinjau memakai sen agar pecahan seperti0.3−0.1ditampilkan0.2. Label modal menjadi “Modal / setoran (Rp)”.
+- Backend `period-masters.gs` sudah menghitung SHJ sendiri saat simpan dan tidak perlu diubah. Hanya file HTML `operations-client.html` yang perlu diganti pengguna, lalu Simpan dan Versi baru deployment yang sama; tidak perlu A3/reset untuk perubahan UI ini.
+- Browser audit lulus dengan perubahan kedua kolom, angka330/500/−500, kosong, pecahan dan simpan330ke backend simulasi. Tidak ada harga atau data Google nyata yang diubah agen.
