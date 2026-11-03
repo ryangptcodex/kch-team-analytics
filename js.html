@@ -1038,7 +1038,12 @@
     rows = sortPhotoCardsByTime(rows);
 
     appState.attendanceData = attendanceRows;
-    var countHtml = '<i class="fa-solid fa-user-check"></i> ' + rows.length + ' Hadir';
+    var presentIds={};
+    rows.forEach(function(item){
+      var key=normalizeKey(item.status || ''),present=typeof item.countsAsPresent==='boolean'?item.countsAsPresent:['','ACTIVE','PRESENT','TERLAMBAT','LATE','MASUK','CHECK IN','CHECKIN'].indexOf(key)>=0 || /^HADIR(?: |$)/.test(key);
+      if(present)presentIds[normalizeKey(item.salesId || item.id || '')]=true;
+    });
+    var countHtml = '<i class="fa-solid fa-user-check"></i> ' + Object.keys(presentIds).length + ' Hadir';
     setHtml('attendanceCountBadge', countHtml);
     setHtml('attendancePageCountBadge', countHtml);
 
@@ -1069,7 +1074,8 @@
       else if (statusNorm.indexOf('TIDAK HADIR') > -1 || statusNorm.indexOf('ALPHA') > -1) banner = '<div class="att-photo-banner-overlay banner-tidak-hadir"><i class="fa-solid fa-user-xmark banner-icon"></i><span class="banner-text-label">TIDAK HADIR</span><span class="banner-sublabel">Tidak ada dokumentasi absensi</span></div>';
 
       var statusClass = 'att-status-hadir';
-      if (statusNorm.indexOf('TEPAT') > -1) statusClass = 'att-status-tepat-waktu';
+      if (statusNorm==='HADIR TAPI TIDAK ABSEN') statusClass='att-status-tanpa-absen';
+      else if (statusNorm.indexOf('TEPAT') > -1) statusClass = 'att-status-tepat-waktu';
       else if (statusNorm.indexOf('TERLAMBAT') > -1 || statusNorm.indexOf('TELAT') > -1) statusClass = 'att-status-terlambat';
       else if (statusNorm === 'HADIR') statusClass = 'att-status-toleransi';
       else if (statusNorm.indexOf('IZIN') > -1) statusClass = 'att-status-izin';
@@ -1077,13 +1083,12 @@
       else if (statusNorm.indexOf('TIDAK') > -1 || statusNorm.indexOf('ALPHA') > -1) statusClass = 'att-status-tidak-hadir';
 
       var imgHtml = privatePhotoImage(att,'attendance','Foto Absensi');
-      var cardData = encodeURIComponent(JSON.stringify(att));
+      var cardData = encodeURIComponent(JSON.stringify(att)).replace(/'/g,'%27');
+      var panel=attendanceStatusPanel(att.status);
+      var media=panel || '<div class="att-img-wrap">'+imgHtml+banner+'<div class="att-badge-time"><i class="fa-regular fa-clock"></i> '+escapeHtml(att.time || '-')+'</div><div class="att-badge-status '+statusClass+'">'+escapeHtml(att.status || 'Hadir')+'</div></div>';
 
       return '<div class="att-card" onclick="openAttendancePhotoByEncoded(\'' + cardData + '\')">' +
-        '<div class="att-img-wrap">' + imgHtml + banner +
-          '<div class="att-badge-time"><i class="fa-regular fa-clock"></i> ' + escapeHtml(att.time || '-') + '</div>' +
-          '<div class="att-badge-status ' + statusClass + '">' + escapeHtml(att.status || 'Hadir') + '</div>' +
-        '</div>' +
+        media +
         '<div class="att-info">' +
           '<div class="att-name">' + escapeHtml(att.salesName || '-') + '</div>' +
           '<div class="att-team-badge">' + escapeHtml(att.teamName || '-') + '</div>' +
@@ -1102,6 +1107,17 @@
       '</div>';
     }).join('');
     containers.forEach(function(container) { container.innerHTML = cardsHtml; loadPrivatePhotoImages(container); });
+  }
+
+  function attendanceStatusPanel(status) {
+    var key=normalizeKey(status),styles={
+      'IZIN':['att-panel-izin','fa-person-walking-arrow-right'],
+      'TIDAK HADIR':['att-panel-tidak-hadir','fa-user-xmark'],
+      'SAKIT':['att-panel-sakit','fa-kit-medical'],
+      'HADIR TAPI TIDAK ABSEN':['att-panel-tanpa-absen','fa-user-check']
+    },style=styles[key];
+    if(!style)return '';
+    return '<div class="att-img-wrap att-status-panel '+style[0]+'"><div class="att-absence-placeholder"><i class="fa-solid '+style[1]+'"></i><span>'+escapeHtml(key)+'</span></div></div>';
   }
 
   function privatePhotoImage(photo,kind,label) {
@@ -1875,13 +1891,26 @@
     var fileInput = document.getElementById('photoUploadFile');
     if (fileInput) fileInput.value = '';
     appState.photoUploadType = photoType;
-    setText('photoUploadTitle', photoType === 'attendance' ? 'Input Foto Absensi' : 'Input Foto Kunjungan');
+    setValue('photoAttendanceStatus','HADIR');
+    setStyle('photoAttendanceStatusGroup','display',photoType==='attendance' && appState.user && appState.user.role==='ADMIN'?'block':'none');
+    handlePhotoAttendanceStatusChange();
+    setText('photoUploadTitle', photoType === 'attendance' ? 'Input Absensi' : 'Input Foto Kunjungan');
     setText('btnSubmitPhotoUpload', 'Simpan');
     var submitButton = document.getElementById('btnSubmitPhotoUpload');
     if (submitButton) submitButton.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Simpan';
     setStyle('modalPhotoUpload', 'display', 'flex');
     txClientLock(!!appState.pendingTransaction || !!appState.isSubmittingTransaction);
     if (appState.pendingTransaction) txClientStatus('Ada kiriman yang perlu diperiksa sebelum menyimpan foto baru.', false);
+  }
+
+  function handlePhotoAttendanceStatusChange() {
+    var status=String(getValue('photoAttendanceStatus') || 'HADIR'),special=appState.photoUploadType==='attendance' && status!=='HADIR';
+    var file=document.getElementById('photoUploadFile'),time=document.getElementById('photoUploadTime');
+    setStyle('photoUploadFileGroup','display',special?'none':'block');
+    setStyle('photoUploadTimeGroup','display',!special && appState.user && appState.user.role==='ADMIN'?'block':'none');
+    if(file){file.required=!special;file.disabled=special || !!appState.pendingTransaction || !!appState.isSubmittingTransaction;if(special)file.value='';}
+    if(time)time.disabled=special || !!appState.pendingTransaction || !!appState.isSubmittingTransaction;
+    var button=document.getElementById('btnSubmitPhotoUpload');if(button && !appState.isSubmittingTransaction)button.textContent=special?'Simpan status':'Simpan';
   }
 
   function handlePhotoUploadSalesChange(salesId) {
@@ -1942,15 +1971,17 @@
     if (previous && previous.payload) { checkPendingSalesTransaction(); return; }
     var type = appState.photoUploadType, salesId = getValue('photoUploadSalesId');
     var date = getValue('photoUploadDate'), notes = String(getValue('photoUploadNotes') || '').trim();
-    var photoTime=String(getValue('photoUploadTime') || '').trim();
+    var selectedStatus=type==='attendance'?String(getValue('photoAttendanceStatus') || 'HADIR'):'HADIR';
+    var withoutPhoto=type==='attendance' && selectedStatus!=='HADIR';
+    var photoTime=withoutPhoto?'':String(getValue('photoUploadTime') || '').trim();
     var fileInput = document.getElementById('photoUploadFile'), file = fileInput && fileInput.files ? fileInput.files[0] : null;
-    if (!type || !salesId || !date || !file) { showToast('Lengkapi Sales ID, tanggal, dan foto.', 'error'); return; }
+    if (!type || !salesId || !date || (!withoutPhoto && !file)) { showToast('Lengkapi Sales ID, tanggal, dan foto.', 'error'); return; }
     var submitButton = document.getElementById('btnSubmitPhotoUpload');
     appState.isSubmittingTransaction = true;
     txClientLock(true);
-    if (submitButton) submitButton.textContent = 'Mengompres…';
+    if (submitButton) submitButton.textContent = withoutPhoto?'Menyimpan…':'Mengompres…';
     var uploadGeneration = kchAuthGeneration;
-    compressPhotoFile(file, function(imageDataUrl, errorMessage) {
+    function prepareUpload(imageDataUrl, errorMessage) {
       if (uploadGeneration !== kchAuthGeneration) return;
       if (errorMessage) {
         appState.isSubmittingTransaction = false; txClientLock(false);
@@ -1958,7 +1989,7 @@
         showToast(errorMessage, 'error'); return;
       }
       var payload = {operation:'PHOTO',photoType:type,salesId:salesId,date:date,notes:notes,imageDataUrl:imageDataUrl};
-      if(type==='attendance')payload.attendanceTime=photoTime;
+      if(type==='attendance'){payload.attendanceStatus=selectedStatus;if(!withoutPhoto)payload.attendanceTime=photoTime;}
       else payload.visitTime=photoTime;
       try {
         payload.requestId = previous ? previous.requestId : txClientNewId();
@@ -1970,7 +2001,8 @@
         showToast('Foto belum dikirim. Izinkan penyimpanan sesi browser agar hasil dapat diperiksa.', 'error'); return;
       }
       txClientSend(payload);
-    });
+    }
+    if(withoutPhoto)prepareUpload('','');else compressPhotoFile(file,prepareUpload);
   }
 
   function openAttendancePhotoByEncoded(encoded) {
@@ -1984,11 +2016,14 @@
   function openAttendancePhoto(att) {
     appState.selectedAttendance = att;
     setText('modalAttSalesName', att.salesName || 'Foto Absensi Sales');
-    setText('modalAttMeta', formatDateIndo(att.date) + ' • KCH Cabang Lhokseumawe');
+    setText('modalAttMeta', formatDateIndo(att.date) + ' • ' + (att.status || 'HADIR') + ' • KCH Cabang Lhokseumawe');
     setText('modalAttTime', att.time || '-');
     setHtml('modalAttTeam', '<span class="badge ' + getTeamBadgeClass(att.teamName) + '">' + escapeHtml(att.teamName || '-') + '</span>');
     setText('modalAttLocation', att.location || '-');
     setText('modalAttNotes', att.notes || '-');
+    var statusPanel=att.photoRef?'':attendanceStatusPanel(att.status);
+    setHtml('modalAttStatusPanel',statusPanel);
+    setStyle('modalAttStatusPanel','display',statusPanel?'block':'none');
 
     var img = document.getElementById('modalAttImg');
     if (img) {
@@ -2379,9 +2414,10 @@
     if (pickupFields) pickupFields.disabled = !!locked;
     var depositFields = document.getElementById('cashDepositFormFields');
     if (depositFields) depositFields.disabled = !!locked;
-    ['photoUploadSalesId','photoUploadDate','photoUploadTime','photoUploadNotes','photoUploadFile','btnSubmitPhotoUpload'].forEach(function(id) {
+    ['photoAttendanceStatus','photoUploadSalesId','photoUploadDate','photoUploadTime','photoUploadNotes','photoUploadFile','btnSubmitPhotoUpload'].forEach(function(id) {
       var field = document.getElementById(id); if (field) field.disabled = !!locked;
     });
+    if(!locked && appState.photoUploadType)handlePhotoAttendanceStatusChange();
   }
 
   function txClientStatus(message, showRetry) {

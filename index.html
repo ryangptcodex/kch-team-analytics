@@ -1481,6 +1481,7 @@
       <div class="modal-body" style="padding: 14px; text-align: center;">
         <div class="att-modal-img-container">
           <img id="modalAttImg" src="" alt="Foto Absen" class="att-modal-img">
+          <div id="modalAttStatusPanel" style="display:none;"></div>
         </div>
         <div class="att-modal-details-card">
           <div class="att-modal-row">
@@ -1532,6 +1533,17 @@
             <label class="form-label">Area</label>
             <input type="text" class="form-control" id="photoUploadArea" readonly placeholder="Terisi otomatis dari Sales ID">
           </div>
+          <div class="form-group" id="photoAttendanceStatusGroup" style="display:none;margin-bottom:14px;">
+            <label class="form-label required" for="photoAttendanceStatus">Status absensi</label>
+            <select class="form-control" id="photoAttendanceStatus" onchange="handlePhotoAttendanceStatusChange()">
+              <option value="HADIR">HADIR (dengan foto)</option>
+              <option value="IZIN">IZIN</option>
+              <option value="TIDAK HADIR">TIDAK HADIR</option>
+              <option value="SAKIT">SAKIT</option>
+              <option value="HADIR TAPI TIDAK ABSEN">HADIR TAPI TIDAK ABSEN</option>
+            </select>
+            <small class="text-muted" style="display:block;margin-top:5px;">Pilihan selain HADIR dengan foto dapat disimpan tanpa foto dan jam. Keterangan tetap opsional.</small>
+          </div>
           <div class="form-group" style="margin-bottom:14px;">
             <label class="form-label" for="photoUploadNotes">Keterangan (opsional)</label>
             <textarea class="form-control" id="photoUploadNotes" rows="3" placeholder="Tambahkan keterangan jika diperlukan"></textarea>
@@ -1545,7 +1557,7 @@
             <input type="time" class="form-control" id="photoUploadTime" step="60">
             <small class="text-muted" id="photoUploadTimeHelp" style="display:block;margin-top:5px;">HADIR TEPAT WAKTU sampai 08.00, HADIR 08.01–09.00, HADIR TELAT mulai 09.01 WIB, termasuk setelah 12.00. Kosongkan untuk memakai waktu server hari ini. Untuk tanggal sebelumnya, isi jam absensi sebenarnya.</small>
           </div>
-          <div class="form-group">
+          <div class="form-group" id="photoUploadFileGroup">
             <label class="form-label required" for="photoUploadFile">Foto</label>
             <input type="file" class="form-control" id="photoUploadFile" accept="image/*" required>
             <small class="text-muted" style="display:block;margin-top:5px;">Foto akan dikompres sebelum diunggah.</small>

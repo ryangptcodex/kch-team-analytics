@@ -469,12 +469,38 @@ function logClientActivity_(action, targetRef, details, username) {
   }
 }
 
+function attendanceIsPresent_(status) {
+  var key=normalizeKey_(status).replace(/[\s_-]+/g,' ');
+  return ['','ACTIVE','PRESENT','TERLAMBAT','LATE','MASUK','CHECK IN','CHECKIN'].indexOf(key)>-1 || /^HADIR(?: |$)/.test(key);
+}
+function attendanceSpecialStatus_(status) {
+  return ['IZIN','TIDAK HADIR','SAKIT','HADIR TAPI TIDAK ABSEN'].indexOf(normalizeKey_(status))>=0;
+}
+function attendanceInputStatus_(value) {
+  if(value===undefined || value==='')return 'HADIR';
+  if(typeof value!=='string')throw new Error('Status absensi tidak valid.');
+  var key=normalizeKey_(value);
+  if(key!=='HADIR' && !attendanceSpecialStatus_(key))throw new Error('Status absensi tidak valid.');
+  return key;
+}
+// Status declarations are append-only events. For a day with an explicit status,
+// the latest event wins; older photos/rows remain stored and auditable.
+function attendanceEffectiveRows_(rows) {
+  var keys=[],last=Object.create(null),explicit=Object.create(null);
+  rows.forEach(function(row,i){
+    var id=normalizeKey_(row.sales_id),date=normalizeDateString_(row.date || row.attendance_date || '');
+    var key=id && date?JSON.stringify([id,date]):'';keys.push(key);
+    if(key){last[key]=i;if(attendanceSpecialStatus_(row.status))explicit[key]=true;}
+  });
+  return rows.filter(function(row,i){var key=keys[i];return !key || !explicit[key] || last[key]===i;});
+}
+
 // Actual attendance days, independently from calendar workdays and sales dates.
 function getAttendanceWorkDatesBySales_(month, today) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(month || ''))) throw new Error('Bulan absensi tidak valid.');
   today = today || Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
   var daysBySales = Object.create(null);
-  getSheetData_('ATTENDANCE').rows.forEach(function(row) {
+  attendanceEffectiveRows_(getSheetData_('ATTENDANCE').rows).forEach(function(row) {
     var salesId = normalizeKey_(row.sales_id);
     var date = normalizeDateString_(row.date || row.attendance_date || '');
     if (!salesId || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date.slice(0, 7) !== month || date > today) return;
@@ -482,8 +508,7 @@ function getAttendanceWorkDatesBySales_(month, today) {
     var monthNumber = Number(date.slice(5, 7));
     var day = Number(date.slice(8, 10));
     if (day < 1 || day > new Date(Date.UTC(year, monthNumber, 0)).getUTCDate()) return;
-    var status = normalizeKey_(row.status).replace(/[\s_-]+/g, ' ');
-    var present = ['', 'ACTIVE', 'PRESENT', 'TERLAMBAT', 'LATE', 'MASUK', 'CHECK IN', 'CHECKIN'].indexOf(status) > -1 || /^HADIR(?: |$)/.test(status);
+    var present = attendanceIsPresent_(row.status);
     if (!present) return;
     if (!daysBySales[salesId]) daysBySales[salesId] = Object.create(null);
     daysBySales[salesId][date] = true;
@@ -946,7 +971,7 @@ function getDashboardMetrics_(filters) {
       });
     });
 
-    var attendanceSheetRows = getSheetData_('ATTENDANCE').rows;
+    var attendanceSheetRows = attendanceEffectiveRows_(getSheetData_('ATTENDANCE').rows);
     var todayAttendanceList = [];
     var targetAttDate = filters.attendanceDate ? normalizeDateString_(filters.attendanceDate) : todayRealStr;
 
@@ -970,6 +995,7 @@ function getDashboardMetrics_(filters) {
           time: formatVisitPhotoTime_(aRow.time) || '-',
           photoUrl: '', photoRef: photoEvidenceRef_('attendance',aRow),
           status: attendanceCategory_(aRow.status,aRow.time),
+          countsAsPresent: attendanceIsPresent_(aRow.status),
           location: aRow.location || 'Cabang Lhokseumawe',
           notes: aRow.notes || ''
         });
@@ -1039,7 +1065,7 @@ function getAttendanceByDate_(dateStr) {
     var targetDate = normalizeDateString_(dateStr);
     if (!targetDate) targetDate = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
 
-    var attendanceSheetRows = getSheetData_('ATTENDANCE').rows;
+    var attendanceSheetRows = attendanceEffectiveRows_(getSheetData_('ATTENDANCE').rows);
     var salesData = getSheetData_('SALES').rows;
     var salesNameMap = {};
     var salesTeamMap = {};
@@ -1071,6 +1097,7 @@ function getAttendanceByDate_(dateStr) {
           time: formatVisitPhotoTime_(aRow.time) || '-',
           photoUrl: '', photoRef: photoEvidenceRef_('attendance',aRow),
           status: attendanceCategory_(aRow.status,aRow.time),
+          countsAsPresent: attendanceIsPresent_(aRow.status),
           location: aRow.location || 'Cabang Lhokseumawe',
           notes: aRow.notes || ''
         });
@@ -1671,17 +1698,21 @@ function validatePhotoUploadDate_(value, now) {
 }
 
 function saveSalesPhotoUpload_(payload, photoType) {
-  if (!payload || typeof payload.imageDataUrl !== 'string' || payload.imageDataUrl.length > 7 * 1024 * 1024) {
-    return {success:false,terminal:true,state:'FAILED',message:'Foto tidak valid atau terlalu besar.'};
-  }
-  var request = Object.assign({}, payload, {photoType:String(photoType || '').toLowerCase()});
-  return txExecuteRequest_(request, 'PHOTO');
+  var request=Object.assign({},payload || {},{photoType:String(photoType || '').toLowerCase()});
+  try{
+    if(request.photoType==='attendance')request.attendanceStatus=attendanceInputStatus_(request.attendanceStatus);
+  }catch(err){return {success:false,terminal:true,state:'FAILED',message:err.message};}
+  var withoutPhoto=request.photoType==='attendance' && attendanceSpecialStatus_(request.attendanceStatus);
+  if(withoutPhoto && request.imageDataUrl===undefined)request.imageDataUrl='';
+  if(typeof request.imageDataUrl!=='string' || request.imageDataUrl.length>7*1024*1024)return {success:false,terminal:true,state:'FAILED',message:'Foto tidak valid atau terlalu besar.'};
+  return txExecuteRequest_(request,'PHOTO');
 }
 
 // Categories use the recorded WIB minute. Reclassify only presence labels;
 // leave Izin/Sakit/Tidak Hadir and unknown explicit statuses intact.
 function attendanceCategory_(status,time) {
   var key=normalizeKey_(status || '');
+  if(attendanceSpecialStatus_(key))return status;
   if(['','ACTIVE','PRESENT','TERLAMBAT','TELAT','LATE','MASUK','CHECK IN','CHECKIN'].indexOf(key)<0 && !/^HADIR(?: |$)/.test(key))return status;
   var clock=formatVisitPhotoTime_(time),match=/^([01]\d|2[0-3]):([0-5]\d)$/.exec(clock);
   if(!match)return 'HADIR';
@@ -1725,10 +1756,14 @@ function visitClock_(date,payload,user,now) {
 function photoUploadPlan_(ctx, meta, payload, user, id, requestId) {
   var type = payload.photoType;
   if (type !== 'attendance' && type !== 'visit') throw new Error('Jenis foto tidak dikenali.');
+  var selectedStatus=type==='attendance'?attendanceInputStatus_(payload.attendanceStatus):'HADIR';
+  var withoutPhoto=type==='attendance' && attendanceSpecialStatus_(selectedStatus);
+  if(withoutPhoto && user.role!=='ADMIN')throw new Error('ACCESS_DENIED: Hanya Admin yang boleh menetapkan status absensi.');
+  if(withoutPhoto && payload.imageDataUrl)throw new Error('Untuk status ini, simpan absensi tanpa foto.');
   var now = new Date(), date = validatePhotoUploadDate_(payload.date, now);
   if (typeof archiveAssertOpenDate_ === 'function') archiveAssertOpenDate_(date);
   var salesId = String(payload.salesId || '').trim(), notes = String(payload.notes || '').trim();
-  if (!salesId || !payload.imageDataUrl) throw new Error('Sales ID, tanggal, dan foto wajib diisi.');
+  if (!salesId || (!withoutPhoto && !payload.imageDataUrl)) throw new Error('Sales ID, tanggal, dan foto wajib diisi.');
   if (notes.length > 2000) throw new Error('Keterangan maksimal 2000 karakter.');
   var name = type === 'attendance' ? 'ATTENDANCE' : 'VISIT_PHOTOS';
   if (!meta[name]) throw new Error('Sheet ' + name + ' tidak ditemukan. Jalankan Perbarui Seluruh Sheet.');
@@ -1739,21 +1774,23 @@ function photoUploadPlan_(ctx, meta, payload, user, id, requestId) {
   if (meta.ACTIVITY_LOGS) txTable_('ACTIVITY_LOGS',raw.ACTIVITY_LOGS,TABLE_SCHEMAS.ACTIVITY_LOGS,true);
   else txAddSheet_(meta,requests,'ACTIVITY_LOGS',TABLE_SCHEMAS.ACTIVITY_LOGS,false);
   var time = Utilities.formatDate(now,TIMEZONE,'HH:mm:ss'), stamp = Utilities.formatDate(now,TIMEZONE,'yyyy-MM-dd HH:mm:ss');
-  var clock=type==='attendance'?attendanceClock_(date,payload,user,now):visitClock_(date,payload,user,now);
-  if(clock)time=clock.time;
-  var file = createUploadedPhotoFile_(payload,type,sales.sales_id,date), url = file.getUrl(), fileId = file.getId();
+  var clock=withoutPhoto?null:type==='attendance'?attendanceClock_(date,payload,user,now):visitClock_(date,payload,user,now);
+  time=clock?clock.time:'';
+  var previous=type==='attendance'?attendanceEffectiveRows_(table.rows).filter(function(row){return normalizeKey_(row.sales_id)===normalizeKey_(sales.sales_id) && normalizeDateString_(row.date || row.attendance_date || '')===date;}):[];
+  var priorStatus=previous.length?previous[previous.length-1].status:'';
+  var file=withoutPhoto?null:createUploadedPhotoFile_(payload,type,sales.sales_id,date),url=file?file.getUrl():'',fileId=file?file.getId():'';
   var values = type === 'attendance' ? {
     sales_id:sales.sales_id,sales_name:sales.full_name,team_name:sales.team_name,date:date,time:time,
-    photo_url:url,status:clock.status,location:sales.area || '',notes:notes
+    photo_url:url,status:withoutPhoto?selectedStatus:clock.status,location:sales.area || '',notes:notes
   } : {
     visit_id:id,visit_date:date,visit_time:time,sales_id:sales.sales_id,sales_name:sales.full_name,
     team_name:sales.team_name,area:sales.area || '',photo_url:url,notes:notes,status:'ACTIVE'
   };
   requests.push(txAppend_(meta[name].sheetId,[table.headers.map(function(h){return Object.prototype.hasOwnProperty.call(values,h)?values[h]:'';})]));
-  requests.push(txAppend_(meta.ACTIVITY_LOGS.sheetId,[['AUD-'+Utilities.getUuid(),stamp,user.email,'UPLOAD_'+type.toUpperCase(),id,JSON.stringify({salesId:sales.sales_id,date:date,actorRole:user.role,assisted:user.role==='ADMIN',attendanceClock:type==='attendance'?clock:null,visitClock:type==='visit'?clock:null})]]));
-  return {requests:requests,cleanupFileId:fileId,plan:{operation:'PHOTO',type:type,date:date,salesId:sales.sales_id,photoFileId:fileId},result:{
+  requests.push(txAppend_(meta.ACTIVITY_LOGS.sheetId,[['AUD-'+Utilities.getUuid(),stamp,user.email,withoutPhoto?'SET_ATTENDANCE_STATUS':'UPLOAD_'+type.toUpperCase(),id,JSON.stringify({salesId:sales.sales_id,date:date,actorRole:user.role,assisted:user.role==='ADMIN',attendanceStatus:type==='attendance'?values.status:'',previousAttendanceStatus:priorStatus,attendanceClock:type==='attendance'?clock:null,visitClock:type==='visit'?clock:null})]]));
+  return {requests:requests,cleanupFileId:fileId,plan:{operation:'PHOTO',type:type,date:date,salesId:sales.sales_id,photoFileId:fileId,attendanceStatus:type==='attendance'?values.status:'',previousAttendanceStatus:priorStatus},result:{
     success:true,terminal:true,state:'COMMITTED',operation:'PHOTO',transactionId:id,requestId:requestId,type:type,date:date,
-    photoUrl:'',photoRef:photoEvidenceRef_(type,values),message:type==='attendance'?'Foto absensi berhasil disimpan.':'Foto kunjungan berhasil disimpan.'
+    photoUrl:'',photoRef:photoEvidenceRef_(type,values),attendanceStatus:type==='attendance'?values.status:'',withoutPhoto:withoutPhoto,message:withoutPhoto?'Status absensi berhasil disimpan.':type==='attendance'?'Foto absensi berhasil disimpan.':'Foto kunjungan berhasil disimpan.'
   }};
 }
 

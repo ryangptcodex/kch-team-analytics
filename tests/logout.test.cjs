@@ -130,7 +130,7 @@ test('photo compression started before logout cannot submit under the next accou
   const e = browser(); const c = e.context; let compressionDone, rpcCount = 0;
   const input = { files: [{}] }; const originalGet = e.document.getElementById;
   e.document.getElementById = id => id === 'photoUploadFile' ? input : originalGet(id);
-  c.getValue = () => 'present'; c.appState.photoUploadType = 'attendance';
+  c.getValue = id => id==='photoAttendanceStatus'?'HADIR':'present'; c.appState.photoUploadType = 'attendance';
   c.compressPhotoFile = (file, callback) => { compressionDone = callback; };
   c.kchRun = () => { rpcCount++; throw new Error('Stale upload must not start an RPC'); };
   c.submitPhotoUploadForm({ preventDefault() {} });
