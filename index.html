@@ -1081,7 +1081,7 @@
           <div class="table-card" style="padding:16px;margin-bottom:18px">
             <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
               <div style="flex:1;min-width:180px"><label class="form-label" for="incentiveSales">Sales</label><select class="form-control" id="incentiveSales" onchange="loadIncentiveReport()"></select></div>
-              <div><label class="form-label" for="incentiveMonth">Bulan insentif</label><input type="month" class="form-control" id="incentiveMonth" onchange="loadIncentiveReport()"></div>
+              <div><label class="form-label" for="incentiveMonth">Bulan insentif</label><input type="month" class="form-control" id="incentiveMonth" onchange="openIncentives()"></div>
               <button type="button" class="btn btn-primary" onclick="openIncentives()">Muat ulang</button>
             </div>
             <p id="incentivePeriod" class="text-muted" style="margin-top:12px"></p>
@@ -1116,7 +1116,7 @@
           <div class="table-card" style="padding:16px;margin-bottom:18px">
             <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
               <div style="flex:1;min-width:180px"><label class="form-label" for="scoreSales">Sales</label><select class="form-control" id="scoreSales" onchange="loadScoreReport()"></select></div>
-              <div><label class="form-label" for="scoreMonth">Bulan penilaian</label><input type="month" class="form-control" id="scoreMonth" onchange="loadScoreReport()"></div>
+              <div><label class="form-label" for="scoreMonth">Bulan penilaian</label><input type="month" class="form-control" id="scoreMonth" onchange="openScore()"></div>
               <button type="button" class="btn btn-primary btn-sm" onclick="openScore()">Muat ulang</button>
             </div>
             <p id="scoreMessage" role="status" aria-live="polite" style="overflow-wrap:anywhere"></p>

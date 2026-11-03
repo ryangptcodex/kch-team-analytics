@@ -1,3 +1,5 @@
+> **Pembaruan R2:** perbaikan enam temuan audit lanjutan dan tautan13file lengkap ada di [PERBAIKAN-PRIORITAS-PRELAUNCH.md](PERBAIKAN-PRIORITAS-PRELAUNCH.md). Bagian di bawah merekam paket/audit sebelumnya.
+
 # Paket perbaikan audit Production — 3 November 2026
 
 Release: **KCH-AUDIT-2026-11-03**. Paket berisi file lengkap, bukan potongan kode. Source dan pengujian lokal telah diperbarui; file di Google Apps Script tidak berubah otomatis melalui GitHub.

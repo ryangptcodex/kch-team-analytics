@@ -33,7 +33,7 @@
     }).withFailureHandler(function(err) {
       if (seq !== incentiveState().setupSeq) return;
       incentiveStatus(err.message || 'Gagal memuat daftar sales. Tekan Muat ulang.');
-    }).getIncentiveSetup();
+    }).getIncentiveSetup(document.getElementById('incentiveMonth').value||undefined);
   }
   function loadIncentiveReport() {
     var state = incentiveState(), seq = ++state.seq;

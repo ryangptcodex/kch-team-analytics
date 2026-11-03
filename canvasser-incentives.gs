@@ -10,7 +10,7 @@ function incentiveJunior_(sales) { return ['JUNIOR CANVASSER','ASISTEN MPR'].ind
 function incentiveSenior_(sales) { return ['MPR','CANVASSER'].indexOf(txTeamKey_(sales.team_name)) >= 0; }
 function incentiveSourceSales_(data, sales) {
   if (!incentiveJunior_(sales)) return sales;
-  var pair = KCH_INCENTIVE_PAIRS_.filter(function(p) { return normalizeKey_(p[1]) === normalizeKey_(sales.sales_id); });
+  var pair = periodPolicy_(data).pairs.filter(function(p) { return normalizeKey_(p[1]) === normalizeKey_(sales.sales_id); });
   if (pair.length !== 1) throw new Error('Pasangan Senior belum ditetapkan untuk ' + sales.full_name + '.');
   var senior = txUnique_(data.sales, function(s) { return normalizeKey_(s.sales_id) === normalizeKey_(pair[0][0]); }, 'Senior pasangan ' + sales.full_name);
   if (!incentiveSenior_(senior)) throw new Error('Tim Senior pasangan tidak sesuai untuk ' + sales.full_name + '.');
@@ -19,19 +19,17 @@ function incentiveSourceSales_(data, sales) {
 function incentiveLoadingReady_(data) {
   var available = Object.create(null);
   data.products.forEach(function(p) { available[scoreCanonicalProductId_(p.product_id)] = true; });
-  var missing = KCH_CANVASSER_LOADING_.filter(function(id) { return !available[id]; });
+  var missing = periodPolicy_(data).loading.filter(function(id) { return !available[id]; });
   if (missing.length) throw new Error('Periksa master PRODUCTS untuk produk loading: ' + missing.join(', '));
 }
-function incentiveCanvasserDailyRate_(loadingCents, tabletCents) {
-  return loadingCents >= 350000000 || (loadingCents >= 250000000 && tabletCents >= 100000000) ? 70000 : 0;
-}
+function incentiveCanvasserDailyRate_(loadingCents,tabletCents,policy){var rule=(policy||periodCurrentPolicy_()).dailySenior;return loadingCents>=rule.loading||(loadingCents>=rule.mixedLoading&&tabletCents>=rule.tablet)?rule.amount:0;}
 function incentiveJuniorReport_(data, month, junior, shared) {
   var senior = incentiveSourceSales_(data, junior), base = incentiveBuildReport_(data, month, senior.sales_id, shared);
   var r = JSON.parse(JSON.stringify(base));
   r.sales = {salesId:String(junior.sales_id),name:String(junior.full_name),team:String(junior.team_name)};
-  r.isJunior = true; r.allocationFactor = 0.7; r.referenceSales = base.sales;
+  r.isJunior = true; r.allocationFactor = periodPolicy_(data).juniorFactor; r.referenceSales = base.sales;
   r.referenceQuarter = base.quarter; r.referenceMonthTotal=base.monthTotal;
-  function allocate(value) { return value === null ? null : value * 7 / 10; }
+  function allocate(value) { return value === null ? null : value * r.allocationFactor; }
   r.daily.forEach(function(d) {
     d.referenceValue=d.value; d.referenceTabletValue=d.tabletValue; d.value=null; d.tabletValue=null;
     d.scheduled=allocate(d.scheduled);d.amount=allocate(d.amount);

@@ -28,15 +28,28 @@ function isAttendanceOnlyTeam_(teamName) {
 }
 
 function doGet(e) {
-  var template = HtmlService.createTemplateFromFile('index');
-  return template.evaluate()
-    .setTitle('Kalbe Consumer Health - Cabang Lhokseumawe')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  try {
+    var template = HtmlService.createTemplateFromFile('index');
+    return template.evaluate()
+      .setTitle('Kalbe Consumer Health - Cabang Lhokseumawe')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  } catch (err) {
+    var match=String(err.message||'').match(/File ([A-Za-z0-9_-]+)\.html belum sesuai/),file=match?match[1]+'.html':'index.html dan kelengkapan file Apps Script';
+    return HtmlService.createHtmlOutput('<!doctype html><html lang="id"><head><meta charset="utf-8"></head><body><h2>Pemasangan halaman belum lengkap</h2><p>Periksa '+file+'. Ganti seluruh isi file dengan kode lengkap bernama sama. File HTML dan Script .gs berbeda jenis.</p><p>Simpan seluruh file, lalu buka kembali webapp. Data sheet tidak direset.</p></body></html>')
+      .setTitle('Periksa pemasangan KCH').addMetaTag('viewport','width=device-width, initial-scale=1.0');
+  }
 }
 
 function include_(filename) {
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+  try {
+    var content=HtmlService.createHtmlOutputFromFile(filename).getContent();
+    var expected=filename==='css'?/^\s*<style\b/i:filename==='js'||/-client$/.test(filename)?/^\s*<script\b/i:/^\s*</;
+    if(!expected.test(content))throw new Error('INVALID_HTML_FILE');
+    return content;
+  } catch (err) {
+    throw new Error('File '+filename+'.html belum sesuai. Ganti seluruh isinya dengan file HTML bernama sama; jangan memakai isi Script .gs.');
+  }
 }
 
 function getCurrentUserInfo_() {
@@ -776,8 +789,8 @@ function getDashboardMetrics_(filters) {
 
       if (isAttendanceOnlyTeam_(finalTeamName) || !txActive_(s)) return;
 
-      var sOfficialMonthlyTarget = getIndividualMonthlyTarget_(finalTeamName,s.target_monthly !== undefined?s.target_monthly:s.target_amount);
-      var sDailyRate = getIndividualDailyTargetRate_(finalTeamName);
+      var sOfficialMonthlyTarget = s._periodFrozen?parseCleanNumber_(s.target_monthly):getIndividualMonthlyTarget_(finalTeamName,s.target_monthly !== undefined?s.target_monthly:s.target_amount);
+      var sDailyRate = s._periodFrozen?s._periodDailyRate:getIndividualDailyTargetRate_(finalTeamName);
 
       branchOfficialMonthlyTargetTotal += sOfficialMonthlyTarget;
       branchDailyTargetTotal += sDailyRate;
@@ -2110,7 +2123,7 @@ function getMonthlyTeamReport_(reportMonth, salesId) {
     if(periodSnapshot&&periodSnapshot.verified)selectedSales=(periodSnapshot.tables.SALES||[]).filter(function(s){return normalizeKey_(s.sales_id)===normalizeKey_(salesId);})[0]||null;
     var teamName = selectedSales ? (selectedSales.team_name || '') : '';
     var rawTarget = selectedSales ? (selectedSales.target_monthly || selectedSales.target_amount || 0) : 0;
-    var targetMonthly = targetVerified?getIndividualMonthlyTarget_(teamName, rawTarget):null;
+    var targetMonthly = targetVerified?(periodSnapshot&&periodSnapshot.verified?parseCleanNumber_(rawTarget):getIndividualMonthlyTarget_(teamName, rawTarget)):null;
     var reportRows = products.length ? products : [{
       productId: '', productName: 'Belum ada transaksi produk', quantity: 0, totalSales: 0, totalShj: 0
     }];

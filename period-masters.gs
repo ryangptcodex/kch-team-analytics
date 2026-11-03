@@ -5,6 +5,41 @@ var KCH_PERIOD_CACHE_=null;
 var KCH_MASTER_TABLES_=['SALES','PRODUCTS','PRICE_MASTER','DISTRIBUTORS','HOLIDAYS','FILES'];
 function periodSchemas_(){var s={};s[KCH_PERIOD_MASTERS_]=KCH_PERIOD_HEADERS_.slice();return s;}
 function periodKey_(name,row){if(name==='RULES')return 'POLICY';if(name==='PRICE_MASTER')return JSON.stringify([normalizeKey_(row.product_id),txTeamKey_(row.team_name)]);return normalizeKey_(row[name==='SALES'?'sales_id':name==='PRODUCTS'?'product_id':name==='DISTRIBUTORS'?'distributor_id':name==='HOLIDAYS'?'date':'file_name']);}
+// Immutable implementation of the confirmed V1 juklak; new policies require a new version.
+function periodPolicyV1_(){return {
+  policy:'KCH_2026_V1',formulaVersion:1,dailyTargets:{CANVASSER:3500000,MPR:3500000,MOTORIS:1200000,MMTW:1200000,'MOTORIS ULTIMATE':800000,'SPG KELONTONG':800000,'JUNIOR CANVASSER':0,'ASISTEN MPR':0,SPR:0},
+  productRules:{LBMAV:['Bejo Jahe Merah','FOCUS_A'],LKXOD:['Komix Herbal Sachet Original','FOCUS_B'],LKXJA:['Komix Herbal Sachet Jahe','FOCUS_B'],LKXPA:['Komix Herbal Sachet Peppermint','FOCUS_B'],LKXNA:['Komix Herbal Sachet Jeruk Nipis','FOCUS_B'],LKXOB:['Komix Herbal Tube Original','FOCUS_B'],LKXLA:['Komix Herbal Tube Lemon','FOCUS_B'],LPRGR:['Promag Herbal','FOCUS_B'],LPRGN:['Promag Tablet','EXCLUDE']},
+  loading:['LPRGR','TMXTG','TMXGF','TMXGE','CKPXE','TXONE','LETSB','TNTPK','TFTGF','TFTSG','LMHGA','LBMAV','LKXPA','LKXLA','LKXNA','LKXOD','LKXJA','LKXOB','LEXUA','PEMAB','PEGAB','PBSJC'],
+  pairs:[['CANVASSER-BAC-LHOKSEUMAWE-1','JUNIOR CANVASSER-BAC-LHOKSEUMAWE-1'],['MPR-LSE-BIREUN','ASS. MPR-LSE-BIREUN'],['MPR-LSE-IDI','ASS. MPR-LSE-IDI'],['MPR-LSE-LHOKSEUMAWE','ASS. MPR-LSE-LHOKSEUMAWE']],
+  scoreField:[['Fokus A · Bejo Jahe Merah',5000000,0.40,40],['Fokus B · Komix Herbal Family + Promag Herbal',5000000,0.25,25],['Total Value (non Promag Tablet)',27000000,0.25,25],['Active Account (AA)',400,0.10,10]],
+  scoreSenior:[['Fokus A · Bejo Jahe Merah',6400000,0.40,40],['Fokus B · Komix Herbal Family + Promag Herbal',8200000,0.25,25],['Total Value (non Promag Tablet)',80000000,0.25,25],['Active Account (AA)',400,0.05,5],['Branding',300,0.05,5]],
+  tariffsField:[[200000,400000,500000],[125000,250000,312500],[125000,250000,312500],[50000,100000,125000]],tariffsSenior:[[400000,600000,800000],[250000,375000,500000],[250000,375000,500000],[50000,75000,100000],[50000,75000,100000]],
+  dailyField:[[150000000,50000,true],[120000000,30000,false],[100000000,20000,false],[80000000,10000,false]],dailySenior:{loading:350000000,mixedLoading:250000000,tablet:100000000,amount:70000},
+  monthlyLevels:[90,100,110],quarterLevels:[100,110,120],gate:0.7,reducedFactor:0.5,juniorFactor:0.7,
+  quarterField:{3:[2000000,2100000,2200000],2:[1000000,1050000,1100000],1:[500000,525000,550000]},quarterSenior:{3:[3000000,3250000,3500000],2:[2000000,2125000,2250000],1:[1000000,1125000,1250000]},
+  categories:[[40,'EVALUASI'],[60,'DISPENSASI LANJUT'],[null,'LANJUT BULAN BERIKUTNYA']]
+};}
+function periodCurrentPolicy_(){var p=periodPolicyV1_();if(typeof KCH_SCORE_PRODUCT_RULES_!=='undefined')p.productRules=KCH_SCORE_PRODUCT_RULES_;if(typeof KCH_CANVASSER_LOADING_!=='undefined')p.loading=KCH_CANVASSER_LOADING_;if(typeof KCH_INCENTIVE_PAIRS_!=='undefined')p.pairs=KCH_INCENTIVE_PAIRS_;return JSON.parse(JSON.stringify(p));}
+function periodResolvePolicy_(stored){
+  if(!stored||stored.policy!=='KCH_2026_V1'||stored.formulaVersion!==undefined&&stored.formulaVersion!==1||!stored.productRules||!Array.isArray(stored.loading)||!Array.isArray(stored.pairs))return null;
+  var p=periodPolicyV1_();Object.keys(p).forEach(function(k){if(Object.prototype.hasOwnProperty.call(stored,k))p[k]=stored[k];});
+  try{if(!Object.keys(p.productRules).length||Object.keys(p.productRules).some(function(k){var r=p.productRules[k];return !Array.isArray(r)||typeof r[0]!=='string'||['FOCUS_A','FOCUS_B','OTHER','EXCLUDE'].indexOf(r[1])<0;}))return null;
+    if(p.loading.some(function(k){return typeof k!=='string'||!k;})||p.pairs.some(function(pair){return !Array.isArray(pair)||pair.length!==2||pair.some(function(k){return typeof k!=='string'||!k;});}))return null;
+    var numeric=JSON.stringify([p.dailyTargets,p.scoreField,p.scoreSenior,p.tariffsField,p.tariffsSenior,p.dailyField,p.dailySenior,p.monthlyLevels,p.quarterLevels,p.gate,p.reducedFactor,p.juniorFactor,p.quarterField,p.quarterSenior,p.categories]);
+    // V1 numeric policy is fixed. Unsupported tariffs/formulas cannot be certified by changing JSON.
+    var v=periodPolicyV1_();if(numeric!==JSON.stringify([v.dailyTargets,v.scoreField,v.scoreSenior,v.tariffsField,v.tariffsSenior,v.dailyField,v.dailySenior,v.monthlyLevels,v.quarterLevels,v.gate,v.reducedFactor,v.juniorFactor,v.quarterField,v.quarterSenior,v.categories]))return null;
+  }catch(err){return null;}return p;
+}
+function periodPolicy_(data){return data&&data.periodRules||periodCurrentPolicy_();}
+function periodPolicySignature_(policy){
+  var copy=JSON.parse(JSON.stringify(policy));copy.loading.sort();copy.pairs.sort(function(a,b){return JSON.stringify(a).localeCompare(JSON.stringify(b));});
+  function canonical(value){if(Array.isArray(value))return value.map(canonical);if(value&&typeof value==='object'){var out={};Object.keys(value).sort().forEach(function(k){out[k]=canonical(value[k]);});return out;}return value;}
+  return txHash_(JSON.stringify(canonical(copy)));
+}
+function periodCalendar_(raw){
+  var values=raw.HOLIDAYS,headers=values&&values[0]||[],present=headers.indexOf('date')>=0,dates=present?txTable_('HOLIDAYS',values,['date'],false).rows.map(function(h){var d=normalizeDateString_(h.date);if(!isValidCalendarDate_(d))throw new Error('Kalender snapshot memiliki tanggal tidak valid.');return d;}).sort():[];
+  return {source:present?'HOLIDAYS':'',verified:present,count:dates.length,digest:txHash_(JSON.stringify(dates))};
+}
 function periodRead_(month){
   if(KCH_PERIOD_CACHE_&&Object.prototype.hasOwnProperty.call(KCH_PERIOD_CACHE_,month))return KCH_PERIOD_CACHE_[month];
   if(!KCH_PERIOD_CACHE_)KCH_PERIOD_CACHE_={};
@@ -16,13 +51,17 @@ function periodRead_(month){
   }
   var rows=KCH_PERIOD_CACHE_._rows.filter(function(r){return r.period===month;}),result={verified:false,tables:{},rows:rows},seen={};
   rows.forEach(function(r){var key=r.entity+':'+r.record_key;if(seen[key])throw new Error('Snapshot master periode terdaftar ganda.');seen[key]=true;if(!result.tables[r.entity])result.tables[r.entity]=[];result.tables[r.entity].push(JSON.parse(r.data_json));});
-  result.verified=!!(result.tables.SALES&&result.tables.PRODUCTS&&result.tables.RULES&&result.tables.RULES[0].policy==='KCH_2026_V1');KCH_PERIOD_CACHE_[month]=result;return result;
+  var stored=result.tables.RULES&&result.tables.RULES[0];result.policy=periodResolvePolicy_(stored);
+  var dates=(result.tables.HOLIDAYS||[]).map(function(h){return normalizeDateString_(h.date);}).sort(),validDates=dates.every(isValidCalendarDate_);
+  result.calendarVerified=!!(validDates&&stored&&(stored.calendar?stored.calendar.verified===true&&stored.calendar.source==='HOLIDAYS'&&stored.calendar.count===dates.length&&stored.calendar.digest===txHash_(JSON.stringify(dates)):dates.length>0));
+  result.verified=!!(result.tables.SALES&&result.tables.PRODUCTS&&result.policy&&result.calendarVerified);KCH_PERIOD_CACHE_[month]=result;return result;
 }
 function periodContext_(data,month){
   var base=data._periodBase||data;if(!base.meta[KCH_PERIOD_MASTERS_])return base;if(month>=scoreToday_().slice(0,7))return base;
   var snapshot=periodRead_(month);if(snapshot===null)return base;
   var next={};Object.keys(base).forEach(function(k){next[k]=base[k];});next._periodBase=base;next.masterVerified=snapshot.verified;next.period=month;
-  if(snapshot.verified){next.sales=snapshot.tables.SALES;next.products=snapshot.tables.PRODUCTS;next.periodHolidays=snapshot.tables.HOLIDAYS||[];}
+  next.periodRules=snapshot.policy||periodCurrentPolicy_();next.periodCalendarVerified=snapshot.calendarVerified;next.periodHolidays=snapshot.tables.HOLIDAYS||[];
+  if(snapshot.tables.SALES&&snapshot.tables.PRODUCTS){next.sales=snapshot.tables.SALES;next.products=snapshot.tables.PRODUCTS;}
   else {
     // Retain captured invoice teams for actuals, but never certify guessed historical targets/payouts.
     var transactions=base.raw.SALES_TRANSACTIONS?txTable_('SALES_TRANSACTIONS',base.raw.SALES_TRANSACTIONS,[],false).rows:[];
@@ -30,7 +69,7 @@ function periodContext_(data,month){
   }
   return next;
 }
-function periodSnapshotPlan_(meta,raw,month,user,source,replace){
+function periodSnapshotPlan_(meta,raw,month,user,source,replace,policy){
   if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month))throw new Error('Bulan snapshot tidak valid.');
   var requests=[],existing=raw[KCH_PERIOD_MASTERS_]?txTable_(KCH_PERIOD_MASTERS_,raw[KCH_PERIOD_MASTERS_],KCH_PERIOD_HEADERS_,true).rows:[],same=existing.filter(function(r){return r.period===month;});
   if(same.length&&!replace)throw new Error('Master periode ini sudah diverifikasi dan dikunci.');
@@ -38,7 +77,8 @@ function periodSnapshotPlan_(meta,raw,month,user,source,replace){
 
   var stamp=Utilities.formatDate(new Date(),TIMEZONE,'yyyy-MM-dd HH:mm:ss'),rows=[];
   ['SALES','PRODUCTS','PRICE_MASTER','HOLIDAYS'].forEach(function(name){var seen=Object.create(null);if(!raw[name])return;txTable_(name,raw[name],[],false).rows.forEach(function(item){var clean={};Object.keys(item).forEach(function(k){if(k.charAt(0)!=='_')clean[k]=item[k];});if(name==='SALES'){if(month<Utilities.formatDate(new Date(),TIMEZONE,'yyyy-MM')){clean.target_monthly=txMoney_(clean.target_monthly,'Target master historis')/100;if(getIndividualDailyTargetRate_(clean.team_name)>0&&clean.target_monthly<=0)throw new Error('Target historis sumber belum lengkap.');}else clean.target_monthly=getIndividualMonthlyTarget_(clean.team_name,clean.target_monthly);}var key=periodKey_(name,clean);if(!key||seen[key])throw new Error(name+': ID snapshot kosong/ganda.');seen[key]=true;var encoded=JSON.stringify(clean);if(encoded.length>45000)throw new Error('Master terlalu panjang untuk snapshot.');rows.push([month,name,key,encoded,source,user.email,stamp]);});});
-  rows.push([month,'RULES','POLICY',JSON.stringify({policy:'KCH_2026_V1',productRules:typeof KCH_SCORE_PRODUCT_RULES_==='undefined'?{}:KCH_SCORE_PRODUCT_RULES_,loading:typeof KCH_CANVASSER_LOADING_==='undefined'?[]:KCH_CANVASSER_LOADING_,pairs:typeof KCH_INCENTIVE_PAIRS_==='undefined'?[]:KCH_INCENTIVE_PAIRS_}),source,user.email,stamp]);
+  var capturedPolicy=JSON.parse(JSON.stringify(policy||(month<Utilities.formatDate(new Date(),TIMEZONE,'yyyy-MM')?periodPolicyV1_():periodCurrentPolicy_())));capturedPolicy.calendar=periodCalendar_(raw);
+  rows.push([month,'RULES','POLICY',JSON.stringify(capturedPolicy),source,user.email,stamp]);
   var reused=Math.min(same.length,rows.length);for(var i=0;i<reused;i++)requests.push(txUpdate_(meta[KCH_PERIOD_MASTERS_].sheetId,same[i]._row,0,[rows[i]]));if(rows.length>reused)requests.push(txAppend_(meta[KCH_PERIOD_MASTERS_].sheetId,rows.slice(reused)));for(var j=reused;j<same.length;j++)requests.push(txUpdate_(meta[KCH_PERIOD_MASTERS_].sheetId,same[j]._row,0,[KCH_PERIOD_HEADERS_.map(function(){return '';})]));return requests;
 }
 function periodSyncPlan_(ss,meta,ctx){
@@ -52,6 +92,12 @@ function getMasterEditor_(){
   return {success:true,tables:tables,periods:Array.from(new Set(periods.map(function(p){return p.period;}))).sort().reverse()};
 }
 function saveMasterRecord_(payload){opsAdmin_();return txExecuteRequest_(payload,'MASTER');}
+function masterValidateProductMapping_(product,rows,old){
+  var rules=KCH_SCORE_PRODUCT_RULES_,id=scoreCanonicalProductId_(product.product_id),name=normalizeKey_(product.product_name).replace(/[^A-Z0-9]+/g,' ').trim(),rule=rules[id];
+  if((rows||[]).some(function(r){return (!old||r._row!==old._row)&&scoreCanonicalProductId_(r.product_id)===id;}))throw new Error('Kode kanonik produk sudah terdaftar; jangan menggandakan alias lama.');
+  if(rule){var expected=normalizeKey_(rule[0]).replace(/[^A-Z0-9]+/g,' ').trim();if(name!==expected&&name.indexOf(expected+' ')!==0)throw new Error('Nama '+id+' terikat pemetaan Skor: gunakan '+rule[0]+'. Perubahan alias perlu migrasi yang disahkan.');}
+  else if(Object.keys(rules).some(function(key){return name===normalizeKey_(rules[key][0]).replace(/[^A-Z0-9]+/g,' ').trim();}))throw new Error('Nama produk terikat Skor memakai kode lain. Gunakan kode produk resmi.');
+}
 function masterPlan_(ctx,meta,payload,user,id,requestId){
   opsAdmin_();var name=payload.table,data=payload.data;if(KCH_MASTER_TABLES_.indexOf(name)<0||!data||typeof data!=='object'||Array.isArray(data))throw new Error('Master tidak valid.');
   var reason=String(payload.reason||'').trim();if(reason.length<3||reason.length>500)throw new Error('Isi alasan perubahan master 3–500 karakter.');
@@ -62,7 +108,7 @@ function masterPlan_(ctx,meta,payload,user,id,requestId){
   if(clean.status!==undefined&&['ACTIVE','INACTIVE'].indexOf(normalizeKey_(clean.status))<0)throw new Error('Status master harus ACTIVE atau INACTIVE.');
   if(clean.status!==undefined)clean.status=normalizeKey_(clean.status);
   if(name==='SALES'){if(!clean.full_name||!clean.team_name)throw new Error('Nama dan tim sales wajib.');if(STANDARD_TEAMS.concat(['SPR']).map(txTeamKey_).indexOf(txTeamKey_(clean.team_name))<0)throw new Error('Tim sales tidak dikenal.');clean.target_monthly=getIndividualMonthlyTarget_(clean.team_name,txMoney_(clean.target_monthly||0,'Target bulanan')/100);if(clean.photo_url&&!/^https:\/\//i.test(clean.photo_url)&&!extractDriveFileId_(clean.photo_url))throw new Error('URL foto profil harus HTTPS atau ID Drive.');if(clean.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean.email))throw new Error('Email sales tidak valid.');}
-  if(name==='PRODUCTS'){if(old&&old.unit&&normalizeKey_(old.unit)!==normalizeKey_(clean.unit))throw new Error('Satuan produk lama tidak boleh diubah tanpa migrasi; gunakan kode produk baru.');if(!clean.product_name||!clean.unit)throw new Error('Nama produk dan satuan wajib.');clean.min_stock=stockQty_(clean.min_stock||0);}
+  if(name==='PRODUCTS'){if(old&&old.unit&&normalizeKey_(old.unit)!==normalizeKey_(clean.unit))throw new Error('Satuan produk lama tidak boleh diubah tanpa migrasi; gunakan kode produk baru.');if(!clean.product_name||!clean.unit)throw new Error('Nama produk dan satuan wajib.');clean.min_stock=stockQty_(clean.min_stock||0);masterValidateProductMapping_(clean,table.rows,old);}
   if(name==='PRICE_MASTER'){var product=txUnique_(txTable_('PRODUCTS',raw.PRODUCTS,['product_id']).rows,function(p){return normalizeKey_(p.product_id)===normalizeKey_(clean.product_id);},'Produk harga');if(STANDARD_TEAMS.map(txTeamKey_).indexOf(txTeamKey_(clean.team_name))<0)throw new Error('Tim harga tidak dikenal.');clean.cost_price=txMoney_(clean.cost_price,'Modal')/100;clean.selling_price=txMoney_(clean.selling_price,'Harga jual')/100;if(!clean.selling_price)throw new Error('Harga jual harus positif.');clean.shj=clean.selling_price-clean.cost_price;clean.product_name=product.product_name;clean.unit=product.unit||clean.unit;}
   if(name==='DISTRIBUTORS'){if(table.rows.some(function(d){return (!old||d._row!==old._row)&&stockDistributorKey_(d.distributor_name)===stockDistributorKey_(clean.distributor_name);}))throw new Error('Nama sumber distributor sudah terdaftar.');if(!clean.distributor_name)throw new Error('Nama distributor wajib.');if(['GMP','GEUBRINA'].indexOf(stockDistributorKey_(clean.distributor_name))<0||old&&stockDistributorKey_(old.distributor_name)!==stockDistributorKey_(clean.distributor_name))throw new Error('Gunakan distributor asal GMP/Geubrina; perubahan sumber stok perlu migrasi tersendiri.');}
   if(name==='HOLIDAYS'&&!isValidCalendarDate_(clean.date))throw new Error('Tanggal libur tidak valid.');
@@ -100,7 +146,10 @@ function periodVerificationPlan_(ctx,meta,payload,user,id,requestId){
   var file=DriveApp.getFileById(payload.sourceId);if(!file.getOwner()||String(file.getOwner().getEmail()).toLowerCase()!==KCH_BOOTSTRAP_ADMIN_EMAIL_||file.getSharingAccess()!==DriveApp.Access.PRIVATE)throw new Error('Sumber harus privat dan dimiliki Admin.');
   var sourceCtx={id:payload.sourceId,token:ctx.token},sourceMeta=txMetadata_(sourceCtx),names=['SALES','PRODUCTS','PRICE_MASTER','HOLIDAYS'].filter(function(n){return !!sourceMeta[n];}),raw=txRead_(sourceCtx,names);if(!raw.SALES||!raw.PRODUCTS)throw new Error('Master sumber belum lengkap.');
   raw[KCH_PERIOD_MASTERS_]=meta[KCH_PERIOD_MASTERS_]?txRead_(ctx,[KCH_PERIOD_MASTERS_])[KCH_PERIOD_MASTERS_]:[];
-  var requests=periodSnapshotPlan_(meta,raw,month,user,'ADMIN_VERIFIED:'+payload.sourceId,false);healthLogRequest_(meta,requests,'VERIFY_CLOSED_PERIOD',month,{sourceId:payload.sourceId,reason:reason},user);
+  var current=periodRead_(month);if(current&&current.verified)throw new Error('Master periode ini sudah diverifikasi dan dikunci.');
+  var sourcePolicy=null;if(sourceMeta[KCH_PERIOD_MASTERS_]){var sourceSnapshots=txTable_(KCH_PERIOD_MASTERS_,txRead_(sourceCtx,[KCH_PERIOD_MASTERS_])[KCH_PERIOD_MASTERS_],KCH_PERIOD_HEADERS_,true).rows.filter(function(r){return r.period===month&&r.entity==='RULES';});if(sourceSnapshots.length>1)throw new Error('Aturan sumber periode ganda.');if(sourceSnapshots.length){sourcePolicy=periodResolvePolicy_(JSON.parse(sourceSnapshots[0].data_json));if(!sourcePolicy)throw new Error('Versi aturan sumber periode belum didukung.');}}
+  if(!periodCalendar_(raw).verified)throw new Error('Kalender sumber belum tersedia; periode belum dapat disahkan.');
+  var requests=periodSnapshotPlan_(meta,raw,month,user,'ADMIN_VERIFIED:'+payload.sourceId,!!(current&&current.rows.length),sourcePolicy||periodPolicyV1_());healthLogRequest_(meta,requests,'VERIFY_CLOSED_PERIOD',month,{sourceId:payload.sourceId,reason:reason},user);
   return {requests:requests,result:{success:true,terminal:true,state:'COMMITTED',operation:'PERIOD_VERIFY',requestId:requestId,transactionId:id,totalSales:0,message:'Master periode disahkan dari sumber yang dipilih. Transaksi lama tetap.',stockUpdates:[]},plan:{operation:'PERIOD_VERIFY',month:month,sourceId:payload.sourceId}};
 }
 function periodEnsureCurrentLocked_(ss,ctx,meta,user){
@@ -115,7 +164,7 @@ function periodDashboardRoster_(sales,start,end,period){
   if(period==='CUSTOM'&&isValidCalendarDate_(start)&&isValidCalendarDate_(end)){
     var month=start.slice(0,7),last=end.slice(0,7);while(month<=last&&months.length<120){months.push(month);var year=Number(month.slice(0,4)),n=Number(month.slice(5));month=n===12?String(year+1)+'-01':String(year)+'-'+('0'+(n+1)).slice(-2);}if(month<=last)throw new Error('Pilih rentang paling lama 120 bulan.');
   }else months=[current];
-  var rows=[],verified=true,holidays=getHolidayDateMap_();months.forEach(function(month){var snapshot=month<current?periodRead_(month):null;if(snapshot&&snapshot.verified){rows=rows.concat(filterAuthorizedRows_('SALES',snapshot.tables.SALES));Object.keys(holidays).forEach(function(d){if(d.slice(0,7)===month)delete holidays[d];});(snapshot.tables.HOLIDAYS||[]).forEach(function(h){var d=normalizeDateString_(h.date);if(d.slice(0,7)===month)holidays[d]=true;});}else {if(snapshot&&!snapshot.verified)verified=false;rows=rows.concat(sales);}});return {rows:rows,verified:verified,months:months,holidays:holidays};
+  var rows=[],verified=true,holidays=getHolidayDateMap_();months.forEach(function(month){var snapshot=month<current?periodRead_(month):null;if(snapshot&&snapshot.verified){rows=rows.concat(filterAuthorizedRows_('SALES',snapshot.tables.SALES).map(function(s){var frozen={};Object.keys(s).forEach(function(k){frozen[k]=s[k];});frozen._periodFrozen=true;frozen._periodDailyRate=snapshot.policy.dailyTargets[txTeamKey_(s.team_name)]||0;return frozen;}));Object.keys(holidays).forEach(function(d){if(d.slice(0,7)===month)delete holidays[d];});(snapshot.tables.HOLIDAYS||[]).forEach(function(h){var d=normalizeDateString_(h.date);if(d.slice(0,7)===month)holidays[d]=true;});}else {if(snapshot&&!snapshot.verified)verified=false;rows=rows.concat(sales);}});return {rows:rows,verified:verified,months:months,holidays:holidays};
 }
 
 function periodHistoricalSales_(data){

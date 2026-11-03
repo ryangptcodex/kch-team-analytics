@@ -1,3 +1,5 @@
+// Historical audit of source5c69964. Fixed-release regressions: tests/prelaunch-fixes.test.cjs.
+if(!process.argv.includes('--historical-baseline')){console.log('Historical observations only: run against5c69964 with --historical-baseline. Current validation: node --test tests/*.test.cjs');process.exit(0);}
 // Read-only audit of source5c69964. All data changes below are confined to in-memory Google mocks.
 // These assertions reproduce remaining gaps; they are observations, not desired-behavior regression tests.
 const assert=require('node:assert/strict');

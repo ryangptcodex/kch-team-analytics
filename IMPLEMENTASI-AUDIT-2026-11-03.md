@@ -1,3 +1,5 @@
+> **Pembaruan R2:** perbaikan enam temuan audit lanjutan dan tautan13file lengkap ada di [PERBAIKAN-PRIORITAS-PRELAUNCH.md](PERBAIKAN-PRIORITAS-PRELAUNCH.md). Bagian di bawah merekam paket/audit sebelumnya.
+
 > **Audit lanjutan:** enam celah tersisa ditemukan pada source5c69964. Lihat [REVIEW-PRELAUNCH-2026-11-03.md](REVIEW-PRELAUNCH-2026-11-03.md). Bukti pengujian paket di bawah tetap historis valid; penutupan seluruh histori/monitor belum lengkap.
 
 # Hasil implementasi audit — KCH-AUDIT-2026-11-03

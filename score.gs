@@ -92,26 +92,26 @@ function scoreLedger_(events) {
   return { latest: latest, ids: ids };
 }
 function scoreMapping_(data) {
-  var seen = Object.create(null), issues = [];
+  var seen = Object.create(null), issues = [],rules=periodPolicy_(data).productRules;
   var products = scoreCatalog_(data).map(function(p) {
-    var rule = KCH_SCORE_PRODUCT_RULES_[p.productId], group = rule ? rule[1] : 'OTHER';
+    var rule = rules[p.productId], group = rule ? rule[1] : 'OTHER';
     seen[p.productId] = true;
     var normalized = normalizeKey_(p.productName).replace(/[^A-Z0-9]+/g, ' ').trim();
     if (rule) {
       var expected = normalizeKey_(rule[0]).replace(/[^A-Z0-9]+/g, ' ').trim();
       if (normalized !== expected && normalized.indexOf(expected + ' ') !== 0) issues.push(p.productId + ': nama master tidak cocok dengan ' + rule[0]);
-    } else if (Object.keys(KCH_SCORE_PRODUCT_RULES_).some(function(id) {
-      return normalized === normalizeKey_(KCH_SCORE_PRODUCT_RULES_[id][0]).replace(/[^A-Z0-9]+/g, ' ').trim();
+    } else if (Object.keys(rules).some(function(id) {
+      return normalized === normalizeKey_(rules[id][0]).replace(/[^A-Z0-9]+/g, ' ').trim();
     })) {
       issues.push(p.productId + ': nama produk yang dipetakan memakai kode lain; periksa master');
     }
     return { productId: p.productId, productName: p.productName, group: group };
   });
-  Object.keys(KCH_SCORE_PRODUCT_RULES_).forEach(function(id) { if (!seen[id]) issues.push(id + ': tidak ditemukan di PRODUCTS'); });
+  Object.keys(rules).forEach(function(id) { if (!seen[id]) issues.push(id + ': tidak ditemukan di PRODUCTS'); });
   return { ready: issues.length === 0, products: products, issues: issues };
 }
-function getScoreSetup_() {
-  var user = getCurrentUserInfo_(), data = scoreContext_(false), ledger = scoreLedger_(data.events), mapping = scoreMapping_(data);
+function getScoreSetup_(month) {
+  var user = getCurrentUserInfo_(), data = scoreContext_(false);if(month){scoreMonth_(month);data=periodContext_(data,month);}var ledger = scoreLedger_(data.events), mapping = scoreMapping_(data);
   return { success: true, canManage: user.role === 'ADMIN', today: scoreToday_(), mappingReady: mapping.ready,
     mappingIssues: mapping.issues,
     products: user.role === 'ADMIN' ? mapping.products : [],
@@ -158,21 +158,11 @@ function saveScoreDailyCount_(input, metric) {
     return scoreWriteEvent_(data, ledger, metric + ':' + id + ':' + date, { salesId: id, date: date, count: input.count }, input, user);
   } finally { lock.releaseLock(); }
 }
-function scoreParameters_(actuals, teamName) {
-  var branding = scoreBrandingTeam_(teamName);
-  var rules = [
-    ['Fokus A · Bejo Jahe Merah', branding ? 6400000 : 5000000, 0.40, 40],
-    ['Fokus B · Komix Herbal Family + Promag Herbal', branding ? 8200000 : 5000000, 0.25, 25],
-    ['Total Value (non Promag Tablet)', branding ? 80000000 : 27000000, 0.25, 25],
-    ['Active Account (AA)', 400, branding ? 0.05 : 0.10, branding ? 5 : 10]
-  ];
-  if (branding) rules.push(['Branding', 300, 0.05, 5]);
-  return rules.map(function(r, i) {
-    var achievement = actuals[i] / r[1], points = r[2] * achievement * 100;
-    return { name: r[0], actual: actuals[i], target: r[1], weight: r[2], max: r[3], achievement: achievement, points: points, score: Math.max(0,Math.min(points, r[3])) };
-  });
+function scoreParameters_(actuals,teamName,policy){
+  policy=policy||periodCurrentPolicy_();var rules=scoreBrandingTeam_(teamName)?policy.scoreSenior:policy.scoreField;
+  return rules.map(function(r,i){var achievement=actuals[i]/r[1],points=r[2]*achievement*100;return {name:r[0],actual:actuals[i],target:r[1],weight:r[2],max:r[3],achievement:achievement,points:points,score:Math.max(0,Math.min(points,r[3]))};});
 }
-function scoreCategory_(total) { return total < 40 ? 'EVALUASI' : total < 60 ? 'DISPENSASI LANJUT' : 'LANJUT BULAN BERIKUTNYA'; }
+function scoreCategory_(total,policy){var rules=(policy||periodCurrentPolicy_()).categories;return rules.filter(function(r){return r[0]===null||total<r[0];})[0][1];}
 function getScoreReport_(month, salesId) {
   getCurrentUserInfo_(); assertOwnSales_(salesId); scoreMonth_(month);
   return scoreBuildReport_(scoreContext_(true), month, salesId);
@@ -182,7 +172,8 @@ function scoreBuildReport_(data, month, salesId, prepared) {
   var sales = scoreSales_(data, salesId), ledger = prepared ? prepared.ledger : scoreLedger_(data.events), mapping = prepared ? prepared.mapping : scoreMapping_(data);
   var today = scoreToday_(), start = month + '-01', end = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).toISOString().slice(0, 10);
   var holidayName = ['HOLIDAYS', 'HARI_LIBUR', 'LIBUR'].filter(function(n) { return !!data.meta[n]; })[0], holidays = Object.create(null);
-  if (data.periodHolidays) {data.periodHolidays.forEach(function(row){holidays[scoreDate_(row.date)]=true;});holidayName='Snapshot periode';}
+  if(data.periodCalendarVerified===false){holidayName='';}
+  else if (data.periodHolidays) {data.periodHolidays.forEach(function(row){holidays[scoreDate_(row.date)]=true;});holidayName='Snapshot periode';}
   else if (holidayName) {
     var h = txTable_(holidayName, data.raw[holidayName], [], false);
     var dateHeader = ['date', 'holiday_date', 'tanggal', 'tgl'].filter(function(n) { return h.headers.indexOf(n) >= 0; })[0];
@@ -226,12 +217,12 @@ function scoreBuildReport_(data, month, salesId, prepared) {
   }
   for (var i = 0; i < 3; i++) { if (!Number.isSafeInteger(totals[i])) throw new Error('Total transaksi terlalu besar.'); totals[i] /= 100; }
   if (brandingEnabled) totals.push(totalBranding);
-  var parameters = mapping.ready ? scoreParameters_(totals, sales.team_name) : [], total = parameters.reduce(function(sum, p) { return sum + p.score; }, 0);
+  var parameters = mapping.ready ? scoreParameters_(totals, sales.team_name,periodPolicy_(data)) : [], total = parameters.reduce(function(sum, p) { return sum + p.score; }, 0);
   if(data.masterVerified===false){parameters.forEach(function(p){p.target=null;p.achievement=null;p.points=null;p.score=null;});total=null;}
   var months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
   var next = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 1));
-  return { success: true, masterVerified:data.masterVerified!==false, mappingReady: mapping.ready, month: month, sales: { salesId: String(sales.sales_id), name: String(sales.full_name), team: String(sales.team_name) },
-    parameters: parameters, total: mapping.ready ? total : null, category: mapping.ready && total!==null ? scoreCategory_(total) : null,
+  return { success: true, policy:periodPolicy_(data),policySignature:periodPolicySignature_(periodPolicy_(data)), masterVerified:data.masterVerified!==false, mappingReady: mapping.ready, month: month, sales: { salesId: String(sales.sales_id), name: String(sales.full_name), team: String(sales.team_name) },
+    parameters: parameters, total: mapping.ready ? total : null, category: mapping.ready && total!==null ? scoreCategory_(total,periodPolicy_(data)) : null,
     nextMonth: months[next.getUTCMonth()] + ' ' + next.getUTCFullYear(), holidaySource: holidayName || '', workDays: calendar.workDays,
     workDaysPassed: daily.filter(function(d) { return d.isWorkDay && d.date <= today; }).length,
     brandingEnabled: brandingEnabled, dailyBranding: dailyBranding, totalBranding: totalBranding,

@@ -272,10 +272,10 @@ function saveAccessUser_(payload) {
 function kchApi(token, method, args) {
   var handlers = {
     getMonthlyArchives:function(){return getMonthlyArchives_();}, getMonthlyArchiveTable:function(month,name,page){return getMonthlyArchiveTable_(month,name,page);},
-    getIncentiveSetup: function() { return getIncentiveSetup_(); },
+    getIncentiveSetup: function(month) { return getIncentiveSetup_(month); },
     getIncentiveReport: function(month, salesId) { return getIncentiveReport_(month, salesId); },
     getScoreTeamSummary: function(month) { return getScoreTeamSummary_(month); },
-    getScoreSetup: function() { return getScoreSetup_(); },
+    getScoreSetup: function(month) { return getScoreSetup_(month); },
     getScoreReport: function(month, salesId) { return getScoreReport_(month, salesId); },
     saveScoreBranding: function(input) { return saveScoreBranding_(input); },
     saveScoreAA: function(input) { return saveScoreAA_(input); },
@@ -287,6 +287,7 @@ function kchApi(token, method, args) {
     createOperationalBackup:function(id){return createOperationalBackup_(id);},prepareBackupRestore:function(id,requestId){return prepareBackupRestore_(id,requestId);},saveBackupRestore:function(payload){return saveBackupRestore_(payload);},createRecoveryCopy:function(id){return createRecoveryCopy_(id);},recoverAbandonedReservation:function(id,reason){return recoverAbandonedReservation_(id,reason);},
     getHistoricalMasterSources:function(month){return getHistoricalMasterSources_(month);},savePeriodVerification:function(payload){return savePeriodVerification_(payload);},
     getMasterEditor:function(){return getMasterEditor_();},saveMasterRecord:function(payload){return saveMasterRecord_(payload);},
+    getStockCountPreview:function(payload){return getStockCountPreview_(payload);},
     getOperationsSetup:function(page,keyword){return getOperationsSetup_(page,keyword);}, getOperationsReference:function(kind,id){return getOperationsReference_(kind,id);}, saveOperationalChange:function(payload){return saveOperationalChange_(payload);},
     getAuthProfile: function() { return { success: true, user: getCurrentUserInfo_() }; },
     saveMyProfile: saveMyProfile_,
@@ -317,7 +318,7 @@ function kchApi(token, method, args) {
       'getTransactionsPaginated', 'getTransactionDetail', 'getAllTransactionsForExport', 'getMonthlyTeamReport',
       'getScoreSetup', 'getScoreReport', 'getScoreTeamSummary', 'getIncentiveSetup', 'getIncentiveReport'];
     if (user.role === 'GUEST' && guestReads.indexOf(method) < 0) throw new Error('ACCESS_DENIED: Akun Tamu hanya boleh melihat data.');
-    var adminOnly = ['inspectOperationalRequest','getOperationalHealth','createOperationalBackup','prepareBackupRestore','saveBackupRestore','createRecoveryCopy','recoverAbandonedReservation','getHistoricalMasterSources','savePeriodVerification','getMasterEditor','saveMasterRecord','saveOperationalChange','getOperationsReference','saveSalesCashDeposit', 'saveStockPickup', 'saveScoreBranding', 'saveMyProfile', 'saveScoreAA', 'listAccessUsers', 'saveAccessUser', 'saveGuestCredentials', 'saveTodayPlan', 'archiveTodayPlan',
+    var adminOnly = ['getStockCountPreview','inspectOperationalRequest','getOperationalHealth','createOperationalBackup','prepareBackupRestore','saveBackupRestore','createRecoveryCopy','recoverAbandonedReservation','getHistoricalMasterSources','savePeriodVerification','getMasterEditor','saveMasterRecord','saveOperationalChange','getOperationsReference','saveSalesCashDeposit', 'saveStockPickup', 'saveScoreBranding', 'saveMyProfile', 'saveScoreAA', 'listAccessUsers', 'saveAccessUser', 'saveGuestCredentials', 'saveTodayPlan', 'archiveTodayPlan',
       'saveWeeklyMeeting', 'archiveWeeklyMeeting', 'saveKchNewsArticle', 'archiveKchNewsArticle'];
     if (adminOnly.indexOf(method) >= 0 && user.role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin yang boleh melakukan operasi ini.');
     if (['saveSalesTransaction', 'saveSalesPhotoUpload'].indexOf(method) >= 0) {

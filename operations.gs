@@ -48,6 +48,28 @@ function opsReference_(kind,id,ctx,meta,entries){
   return {id:id,salesId:first.sales_id,salesName:first.sales_name,date:normalizeDateString_(first.transaction_date||first.pickup_date),revision:revision,items:items,sourceRows:rows,voided:entries.some(function(e){return e.reference_id===id&&e.kind==='INVOICE_VOID';})};
 }
 function getOperationsReference_(kind,id){opsAdmin_();if(['SALE_RETURN','INVOICE_VOID','PICKUP_CORRECT','DEPOSIT_CORRECT'].indexOf(kind)<0)throw new Error('Jenis referensi tidak valid.');var ctx={id:getKchSpreadsheet_().getId(),token:ScriptApp.getOAuthToken()},meta=txMetadata_(ctx),r=opsReference_(kind,id,ctx,meta,opsEntries_(ctx,meta));delete r.sourceRows;return {success:true,reference:r};}
+// A count preview binds the physical count to the balances and movement history observed by Admin.
+function opsCountPreview_(ctx,meta,payload,raw,book){
+  var type=payload.sourceType||'DIRECT',salesId=type==='SALES'?String(payload.salesId||''):'';
+  if(['DIRECT','SALES'].indexOf(type)<0)throw new Error('Sumber opname tidak valid.');
+  if(type==='SALES')txUnique_(txTable_('SALES',raw.SALES,['sales_id']).rows,function(s){return normalizeKey_(s.sales_id)===normalizeKey_(salesId);},'Sales opname');
+  var dist=stockDistributor_(book.distributors,payload.distributor,false),products=txTable_('PRODUCTS',raw.PRODUCTS,['product_id','product_name']).rows;
+  if(!Array.isArray(payload.items)||!payload.items.length||payload.items.length>100)throw new Error('Isi 1–100 produk opname.');
+  var seen={},items=payload.items.map(function(value){
+    if(!value||typeof value!=='object')throw new Error('Produk opname tidak valid.');
+    var p=txUnique_(products,function(p){return normalizeKey_(p.product_id)===normalizeKey_(value.productId);},'Produk opname'),key=normalizeKey_(p.product_id);
+    if(seen[key])throw new Error('Produk opname ganda.');seen[key]=true;
+    var target=stockQty_(value.targetQty),account=book.adjust(type,salesId,p.product_id,dist,0);
+    return {productId:String(p.product_id),productName:String(p.product_name),before:account.after,targetQty:target,delta:target-account.after};
+  }).sort(function(a,b){return a.productId.localeCompare(b.productId);});
+  // Including movements also rejects a balance that changed and returned to the same value.
+  var revision=txHash_(JSON.stringify([type,normalizeKey_(salesId),normalizeKey_(dist.distributor_id),items,['INVENTORY','SALES_STOCK','INVENTORY_MOVEMENTS','SALES_STOCK_MOVEMENTS'].map(function(n){return raw[n]||[];})]));
+  return {success:true,revision:revision,items:items};
+}
+function getStockCountPreview_(payload){
+  opsAdmin_();var ctx={id:getKchSpreadsheet_().getId(),token:ScriptApp.getOAuthToken()},meta=txMetadata_(ctx),names=['SALES','PRODUCTS','DISTRIBUTORS','INVENTORY','SALES_STOCK','INVENTORY_MOVEMENTS','SALES_STOCK_MOVEMENTS'].filter(function(n){return !!meta[n];}),raw=txRead_(ctx,names);
+  return opsCountPreview_(ctx,meta,payload,raw,stockBook_(meta,raw));
+}
 function opsFingerprint_(payload){return txHash_(JSON.stringify(['OPERATIONS',payload.kind,payload.referenceId||'',payload.expectedRevision||'',payload.salesId||'',payload.distributor||'',payload.sourceType||'',payload.date,payload.reason,payload.amount===undefined?'':String(payload.amount),(Array.isArray(payload.items)?payload.items.slice(0,101):[]).map(function(i){return [i.key||'',i.productId||'',i.sourceType||'',i.distributorId||'',String(i.qty===undefined?'':i.qty),String(i.targetQty===undefined?'':i.targetQty),i.condition||'GOOD'];})]));}
 function saveOperationalChange_(payload){opsAdmin_();return txExecuteRequest_(payload,'OPERATIONS');}
 function opsPlan_(ctx,meta,payload,user,id,requestId){
@@ -58,6 +80,7 @@ function opsPlan_(ctx,meta,payload,user,id,requestId){
   if(['SALE_RETURN','INVOICE_VOID','PICKUP_CORRECT','DEPOSIT_CORRECT'].indexOf(kind)>=0){reference=opsReference_(kind,referenceId,ctx,meta,entries);if(payload.expectedRevision!==reference.revision)throw new Error('Referensi sudah berubah. Muat referensi kembali sebelum menyimpan.');if(reference.voided)throw new Error('Faktur sudah dibatalkan.');if(date<reference.date)throw new Error('Tanggal koreksi tidak boleh mendahului catatan asal.');salesId=reference.salesId;}
   var products=txTable_('PRODUCTS',raw.PRODUCTS,['product_id','product_name','status']).rows,distributors=book.distributors;
   var sales=salesId?txUnique_(txTable_('SALES',raw.SALES,['sales_id','full_name','status']).rows,function(s){return normalizeKey_(s.sales_id)===normalizeKey_(salesId);},'Sales'):null;
+  if(kind==='STOCK_COUNT'){var preview=opsCountPreview_(ctx,meta,payload,raw,book);if(payload.expectedRevision!==preview.revision)throw new Error('Saldo atau hitungan opname berubah. Periksa saldo dan hitung ulang sebelum menyimpan.');}
   if(kind==='RETURN_HELD'&&!sales)throw new Error('Pilih sales pengembali.');
   if(kind==='DEPOSIT_CORRECT')amount=txMoney_(payload.amount,'Nominal setoran baru')/100;
   else {

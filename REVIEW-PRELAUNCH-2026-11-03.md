@@ -1,3 +1,5 @@
+> **Pembaruan R2:** perbaikan enam temuan audit lanjutan dan tautan13file lengkap ada di [PERBAIKAN-PRIORITAS-PRELAUNCH.md](PERBAIKAN-PRIORITAS-PRELAUNCH.md). Bagian di bawah merekam paket/audit sebelumnya.
+
 # Audit kesiapan launch ulang — 3 November 2026
 
 Source diperiksa: **production5c69964**, release `KCH-AUDIT-2026-11-03`. Ini audit lanjutan setelah paket sebelumnya, bukan klaim seluruh kondisi Google telah diperiksa.

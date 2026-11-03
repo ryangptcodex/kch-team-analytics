@@ -5,7 +5,7 @@ function report(e,month='2026-10'){e.actor({role:'GUEST'});const r=e.call('getMo
 function returns(e,id,qty,extra={}){const r=e.ref('SALE_RETURN',id);return e.op('SALE_RETURN',{referenceId:id,expectedRevision:r.revision,items:[{key:r.items[0].key,qty,...extra}]});}
 test('stock receipts and opname are atomic, audited and idempotent without manufacturing sales',()=>{
  const e=fixture(),payload={requestId:'REQ-OPS-REPLAY-000001',distributor:'D1',items:[{productId:'P1',qty:50}]};assert.equal(e.op('STOCK_IN',payload).success,true);assert.equal(e.stock(),60);assert.equal(e.op('STOCK_IN',payload).replayed,true);assert.equal(e.stock(),60);assert.equal(report(e).summary.totalSales,0);
- const count=e.op('STOCK_COUNT',{distributor:'D1',items:[{productId:'P1',targetQty:3}]});assert.equal(count.success,true,count.message);assert.equal(e.stock(),3);assert.equal(e.stock('P1',3),5);assert.equal(e.rows('_KCH_OPERATIONS').length,3);assert.equal(e.op('STOCK_COUNT',{distributor:'D1',items:[{productId:'P1',targetQty:-1}]}).state,'FAILED');assert.equal(e.stock(),3);
+ const countInput={distributor:'D1',items:[{productId:'P1',targetQty:3}]},count=e.op('STOCK_COUNT',{...countInput,expectedRevision:e.call('getStockCountPreview',countInput).revision});assert.equal(count.success,true,count.message);assert.equal(e.stock(),3);assert.equal(e.stock('P1',3),5);assert.equal(e.rows('_KCH_OPERATIONS').length,3);assert.equal(e.op('STOCK_COUNT',{distributor:'D1',items:[{productId:'P1',targetQty:-1}]}).state,'FAILED');assert.equal(e.stock(),3);
 });
 test('held returns distinguish resellable and damaged goods without adding revenue',()=>{
  const e=fixture();assert.equal(e.pickup().success,true);assert.equal(e.stock(),5);assert.equal(e.held(),5);

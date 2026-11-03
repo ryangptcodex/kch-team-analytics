@@ -41,7 +41,7 @@
     }).withFailureHandler(function(err) {
       if (seq !== scoreState().setupSeq) return;
       scoreBusy(false); scoreText('scoreTotal', '—'); scoreText('scoreCategory', 'Gagal memuat'); scoreMessage(err.message || 'Gagal memuat Skor.'); scoreSummaryStatus('Rekap belum dapat dimuat. Tekan Muat ulang.');
-    }).getScoreSetup();
+    }).getScoreSetup(document.getElementById('scoreMonth').value||undefined);
   }
   function renderScoreMapping() {
     var setup = scoreState().setup; if (!setup || !setup.canManage) return;
@@ -145,10 +145,10 @@
       if (res.brandingEnabled) res.dailyBranding = scoreNormalizeDaily(res.dailyBranding, 'branding');
       state.report = res; scoreMessage(res.message);
       scoreText('scoreTotal', res.total === null ? '—' : res.total.toLocaleString('id-ID', { maximumFractionDigits: 0 }) + ' / 100');
-      scoreText('scoreCategory', res.category ? res.category + ' · ' + res.nextMonth : 'Pemetaan master perlu diperiksa');
+      scoreText('scoreCategory', res.category ? res.category + ' · ' + res.nextMonth : res.masterVerified===false?'Periode belum terverifikasi':'Pemetaan master perlu diperiksa');
       scoreText('scoreCalendar', res.workDaysPassed + ' dari ' + res.workDays + ' hari kerja · Minggu dikecualikan; libur mengikuti ' + (res.holidaySource || 'sheet HOLIDAYS yang belum tersedia') + '. Target tetap sebulan penuh.');
       document.getElementById('scoreRows').innerHTML = res.parameters.map(function(p, i) {
-        return '<tr><td>' + escapeHtml(p.name) + '</td><td>' + (i >= 3 ? p.actual.toLocaleString('id-ID') : formatRupiah(p.actual)) + '</td><td>' + (p.target===null?'—':i >= 3 ? p.target : formatRupiah(p.target)) + '</td><td>' + (p.weight * 100) + '%</td><td>' + (p.achievement * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '%</td><td>' + (p.points===null?'—':p.points.toLocaleString('id-ID', { maximumFractionDigits: 2 })) + '</td><td>' + (p.score===null?'—':p.score.toLocaleString('id-ID', { maximumFractionDigits: 2 })) + ' / ' + p.max + '</td></tr>';
+        return '<tr><td>' + escapeHtml(p.name) + '</td><td>' + (i >= 3 ? p.actual.toLocaleString('id-ID') : formatRupiah(p.actual)) + '</td><td>' + (p.target===null?'—':i >= 3 ? p.target : formatRupiah(p.target)) + '</td><td>' + (p.weight * 100) + '%</td><td>' + (p.achievement===null?'—':(p.achievement * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 })+'%') + '</td><td>' + (p.points===null?'—':p.points.toLocaleString('id-ID', { maximumFractionDigits: 2 })) + '</td><td>' + (p.score===null?'—':p.score.toLocaleString('id-ID', { maximumFractionDigits: 2 })) + ' / ' + p.max + '</td></tr>';
       }).join('');
       scoreText('scoreAASummary', 'AA: ' + res.totalAA.toLocaleString('id-ID') + ' / 400 · ' + res.enteredDays + ' hari sudah diinput. Tanda — berarti belum diinput, bukan angka nol.');
       document.getElementById('scoreDailyRows').innerHTML = res.dailyAA.map(function(d) {

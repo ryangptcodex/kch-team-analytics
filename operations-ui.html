@@ -1,7 +1,7 @@
 <section class="content-view" id="view-operasional">
   <div class="page-title-row"><div><h2>Stok Masuk, Retur &amp; Koreksi</h2><p class="text-muted">Catatan asal tetap tersimpan. Semua perubahan mempunyai alasan dan riwayat.</p></div><button type="button" class="btn btn-outline" onclick="openOperations()">Muat ulang</button></div>
   <div class="table-card operations-card" data-kch-write>
-    <form id="operationsForm" onsubmit="submitOperationalChange(event)">
+    <form id="operationsForm" oninput="invalidateStockCountPreview(event)" onsubmit="submitOperationalChange(event)">
       <fieldset id="operationsFields" class="operations-fields">
         <div class="operations-form-grid">
           <div class="form-group"><label for="operationKind">Jenis pencatatan</label><select id="operationKind" class="form-control" onchange="operationKindChanged()"><option value="STOCK_IN">Stok masuk gudang</option><option value="STOCK_COUNT">Koreksi stock opname</option><option value="RETURN_HELD">Retur pegangan sales</option><option value="SALE_RETURN">Retur penjualan</option><option value="INVOICE_VOID">Batalkan sisa faktur</option><option value="PICKUP_CORRECT">Koreksi / batalkan pengambilan</option><option value="DEPOSIT_CORRECT">Koreksi / batalkan setoran</option></select></div>
@@ -13,6 +13,7 @@
         <div id="operationReferenceGroup" hidden class="form-group"><label for="operationReference">Faktur / pengambilan / setoran asal</label><div class="operations-inline"><input id="operationReference" list="operationReferenceOptions" class="form-control" placeholder="Pilih dari daftar atau masukkan ID catatan" onchange="invalidateOperationReference()"><datalist id="operationReferenceOptions"></datalist><button type="button" class="btn btn-outline" onclick="loadOperationalReference()">Muat referensi</button></div><p id="operationReferenceInfo" class="text-muted" role="status"></p></div>
         <div id="operationAmountGroup" hidden class="form-group"><label for="operationAmount">Nominal setoran yang benar (Rp)</label><input id="operationAmount" type="number" min="0" step="0.01" class="form-control"><small class="text-muted">Isi 0 untuk membatalkan memo setoran. Tidak mengubah omzet atau stok.</small></div>
         <div id="operationItemsGroup"><div class="table-responsive"><table class="app-table"><thead><tr><th>Produk</th><th id="operationQuantityLabel">Jumlah</th><th>Kondisi</th><th></th></tr></thead><tbody id="operationItems"></tbody></table></div><button type="button" id="operationAddItem" class="btn btn-outline btn-sm" onclick="addOperationalItem()">Tambah produk</button></div>
+        <div id="operationCountGroup" hidden><button type="button" id="btnPreviewStockCount" class="btn btn-outline" onclick="previewStockCount()">Periksa saldo &amp; selisih opname</button><p id="operationCountPreview" class="text-muted" role="status">Periksa saldo sebelum menyimpan opname.</p></div>
         <p id="operationPolicy" class="text-muted"></p>
         <div class="form-group"><label for="operationReason">Keterangan / alasan</label><textarea id="operationReason" class="form-control" rows="2" minlength="3" maxlength="1000" required></textarea></div>
         <button id="btnSubmitOperation" class="btn btn-primary" type="submit">Simpan pencatatan</button>
