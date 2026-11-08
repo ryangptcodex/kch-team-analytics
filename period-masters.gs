@@ -51,7 +51,7 @@ function periodRead_(month){
   }
   var rows=KCH_PERIOD_CACHE_._rows.filter(function(r){return r.period===month;}),result={verified:false,tables:{},rows:rows},seen={};
   rows.forEach(function(r){var key=r.entity+':'+r.record_key;if(seen[key])throw new Error('Snapshot master periode terdaftar ganda.');seen[key]=true;if(!result.tables[r.entity])result.tables[r.entity]=[];result.tables[r.entity].push(JSON.parse(r.data_json));});
-  var stored=result.tables.RULES&&result.tables.RULES[0];result.policy=periodResolvePolicy_(stored);
+  var stored=result.tables.RULES&&result.tables.RULES[0];result.evaluationPolicy=stored?stored.evaluationPolicy:undefined;result.policy=periodResolvePolicy_(stored);
   var dates=(result.tables.HOLIDAYS||[]).map(function(h){return normalizeDateString_(h.date);}).sort(),validDates=dates.every(isValidCalendarDate_);
   result.calendarVerified=!!(validDates&&stored&&(stored.calendar?stored.calendar.verified===true&&stored.calendar.source==='HOLIDAYS'&&stored.calendar.count===dates.length&&stored.calendar.digest===txHash_(JSON.stringify(dates)):dates.length>0));
   result.verified=!!(result.tables.SALES&&result.tables.PRODUCTS&&result.policy&&result.calendarVerified);KCH_PERIOD_CACHE_[month]=result;return result;
@@ -60,7 +60,7 @@ function periodContext_(data,month){
   var base=data._periodBase||data;if(!base.meta[KCH_PERIOD_MASTERS_])return base;if(month>=scoreToday_().slice(0,7))return base;
   var snapshot=periodRead_(month);if(snapshot===null)return base;
   var next={};Object.keys(base).forEach(function(k){next[k]=base[k];});next._periodBase=base;next.masterVerified=snapshot.verified;next.period=month;
-  next.periodRules=snapshot.policy||periodCurrentPolicy_();next.periodCalendarVerified=snapshot.calendarVerified;next.periodHolidays=snapshot.tables.HOLIDAYS||[];
+  next.scoreEvaluationPolicy=snapshot.evaluationPolicy;next.periodRules=snapshot.policy||periodCurrentPolicy_();next.periodCalendarVerified=snapshot.calendarVerified;next.periodHolidays=snapshot.tables.HOLIDAYS||[];
   if(snapshot.tables.SALES&&snapshot.tables.PRODUCTS){next.sales=snapshot.tables.SALES;next.products=snapshot.tables.PRODUCTS;}
   else {
     // Retain captured invoice teams for actuals, but never certify guessed historical targets/payouts.
@@ -77,7 +77,7 @@ function periodSnapshotPlan_(meta,raw,month,user,source,replace,policy){
 
   var stamp=Utilities.formatDate(new Date(),TIMEZONE,'yyyy-MM-dd HH:mm:ss'),rows=[];
   ['SALES','PRODUCTS','PRICE_MASTER','HOLIDAYS'].forEach(function(name){var seen=Object.create(null);if(!raw[name])return;txTable_(name,raw[name],[],false).rows.forEach(function(item){var clean={};Object.keys(item).forEach(function(k){if(k.charAt(0)!=='_')clean[k]=item[k];});if(name==='SALES'){if(month<Utilities.formatDate(new Date(),TIMEZONE,'yyyy-MM')){clean.target_monthly=txMoney_(clean.target_monthly,'Target master historis')/100;if(getIndividualDailyTargetRate_(clean.team_name)>0&&clean.target_monthly<=0)throw new Error('Target historis sumber belum lengkap.');}else clean.target_monthly=getIndividualMonthlyTarget_(clean.team_name,clean.target_monthly);}var key=periodKey_(name,clean);if(!key||seen[key])throw new Error(name+': ID snapshot kosong/ganda.');seen[key]=true;var encoded=JSON.stringify(clean);if(encoded.length>45000)throw new Error('Master terlalu panjang untuk snapshot.');rows.push([month,name,key,encoded,source,user.email,stamp]);});});
-  var capturedPolicy=JSON.parse(JSON.stringify(policy||(month<Utilities.formatDate(new Date(),TIMEZONE,'yyyy-MM')?periodPolicyV1_():periodCurrentPolicy_())));capturedPolicy.calendar=periodCalendar_(raw);
+  var capturedPolicy=JSON.parse(JSON.stringify(policy||(month<Utilities.formatDate(new Date(),TIMEZONE,'yyyy-MM')?periodPolicyV1_():periodCurrentPolicy_())));capturedPolicy.calendar=periodCalendar_(raw);if(typeof scoreEvaluationVersion_==='function')capturedPolicy.evaluationPolicy=scoreEvaluationVersion_(month);
   rows.push([month,'RULES','POLICY',JSON.stringify(capturedPolicy),source,user.email,stamp]);
   var reused=Math.min(same.length,rows.length);for(var i=0;i<reused;i++)requests.push(txUpdate_(meta[KCH_PERIOD_MASTERS_].sheetId,same[i]._row,0,[rows[i]]));if(rows.length>reused)requests.push(txAppend_(meta[KCH_PERIOD_MASTERS_].sheetId,rows.slice(reused)));for(var j=reused;j<same.length;j++)requests.push(txUpdate_(meta[KCH_PERIOD_MASTERS_].sheetId,same[j]._row,0,[KCH_PERIOD_HEADERS_.map(function(){return '';})]));return requests;
 }
@@ -147,7 +147,7 @@ function periodVerificationPlan_(ctx,meta,payload,user,id,requestId){
   var sourceCtx={id:payload.sourceId,token:ctx.token},sourceMeta=txMetadata_(sourceCtx),names=['SALES','PRODUCTS','PRICE_MASTER','HOLIDAYS'].filter(function(n){return !!sourceMeta[n];}),raw=txRead_(sourceCtx,names);if(!raw.SALES||!raw.PRODUCTS)throw new Error('Master sumber belum lengkap.');
   raw[KCH_PERIOD_MASTERS_]=meta[KCH_PERIOD_MASTERS_]?txRead_(ctx,[KCH_PERIOD_MASTERS_])[KCH_PERIOD_MASTERS_]:[];
   var current=periodRead_(month);if(current&&current.verified)throw new Error('Master periode ini sudah diverifikasi dan dikunci.');
-  var sourcePolicy=null;if(sourceMeta[KCH_PERIOD_MASTERS_]){var sourceSnapshots=txTable_(KCH_PERIOD_MASTERS_,txRead_(sourceCtx,[KCH_PERIOD_MASTERS_])[KCH_PERIOD_MASTERS_],KCH_PERIOD_HEADERS_,true).rows.filter(function(r){return r.period===month&&r.entity==='RULES';});if(sourceSnapshots.length>1)throw new Error('Aturan sumber periode ganda.');if(sourceSnapshots.length){sourcePolicy=periodResolvePolicy_(JSON.parse(sourceSnapshots[0].data_json));if(!sourcePolicy)throw new Error('Versi aturan sumber periode belum didukung.');}}
+  var sourcePolicy=null;if(sourceMeta[KCH_PERIOD_MASTERS_]){var sourceSnapshots=txTable_(KCH_PERIOD_MASTERS_,txRead_(sourceCtx,[KCH_PERIOD_MASTERS_])[KCH_PERIOD_MASTERS_],KCH_PERIOD_HEADERS_,true).rows.filter(function(r){return r.period===month&&r.entity==='RULES';});if(sourceSnapshots.length>1)throw new Error('Aturan sumber periode ganda.');if(sourceSnapshots.length){var sourceRules=JSON.parse(sourceSnapshots[0].data_json);sourcePolicy=periodResolvePolicy_(sourceRules);if(!sourcePolicy)throw new Error('Versi aturan sumber periode belum didukung.');if(!scoreEvaluationRule_(month,sourceRules.evaluationPolicy).verified)throw new Error('Versi aturan evaluasi sumber belum didukung.');}}
   if(!periodCalendar_(raw).verified)throw new Error('Kalender sumber belum tersedia; periode belum dapat disahkan.');
   var requests=periodSnapshotPlan_(meta,raw,month,user,'ADMIN_VERIFIED:'+payload.sourceId,!!(current&&current.rows.length),sourcePolicy||periodPolicyV1_());healthLogRequest_(meta,requests,'VERIFY_CLOSED_PERIOD',month,{sourceId:payload.sourceId,reason:reason},user);
   return {requests:requests,result:{success:true,terminal:true,state:'COMMITTED',operation:'PERIOD_VERIFY',requestId:requestId,transactionId:id,totalSales:0,message:'Master periode disahkan dari sumber yang dipilih. Transaksi lama tetap.',stockUpdates:[]},plan:{operation:'PERIOD_VERIFY',month:month,sourceId:payload.sourceId}};

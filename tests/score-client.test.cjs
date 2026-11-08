@@ -125,3 +125,12 @@ test('chasing notes put deficits and three master-price alternatives on separate
  assert.match(html,/Fokus B: Masih kurang Rp 4\.934\.800\.<br>380 Box Komix Herbal Sachet/);
  assert.match(html,/, atau<br>494 Box Komix Tube/);assert.match(html,/, atau<br>294 Box Promag Herbal/);assert.match(html,/untuk skor maksimal\.<br>Komix Herbal Family dan Promag Herbal bisa dikombinasikan\./);assert.doesNotMatch(html,/<br><br>/);assert.match(html,/AA: Masih kurang 400 outlet lagi untuk skor maksimal/);
 });
+test('November category display distinguishes exactly80from nearby unrounded values',()=>{
+ const e=client();for(const [total,category,display]of [[80,'DISPENSASI LANJUT','80 / 100'],[80.000001,'AMAN','> 80 / 100'],[79.999999,'DISPENSASI LANJUT','< 80 / 100'],[70.000001,'DISPENSASI LANJUT','> 70 / 100']]){
+ e.setup.today='2026-11-25';e.node('scoreMonth').value='2026-11';e.c.loadScoreReport();e.requests.at(-1).success({...e.report,month:'2026-11',total,category,nextMonth:'Desember 2026',dailyAA:[{date:'2026-11-01',isWorkDay:true,count:null,revision:''}],evaluationRule:{text:'≤70 EVALUASI; >70 sampai80 DISPENSASI; >80 AMAN.'},evaluation:{phase:'ESTIMASI',verified:true,message:'Kategori masih estimasi sampai akhir bulan.'}});assert.equal(e.node('scoreTotal').textContent,display);assert.match(e.node('scoreCategory').textContent,/Estimasi/);assert.match(e.node('scoreEvaluationRule').textContent,/AMAN/);assert.match(e.node('scoreEvaluationStatus').textContent,/estimasi/);
+ }
+});
+test('unknown evaluation and future periods are not displayed as final decisions',()=>{
+ const e=client();e.c.loadScoreReport();e.requests.at(-1).success({...e.report,category:null,evaluation:{phase:'FINAL',verified:false,message:'Riwayat belum terverifikasi.'}});assert.equal(e.node('scoreCategory').textContent,'Evaluasi belum dapat dipastikan');assert.match(e.node('scoreEvaluationStatus').textContent,/belum terverifikasi/);
+ e.c.loadScoreReport();e.requests.at(-1).success({...e.report,category:'EVALUASI',evaluation:{phase:'BELUM_BERJALAN',verified:true,message:'Periode belum berjalan.'}});assert.equal(e.node('scoreCategory').textContent,'Periode belum berjalan');
+});

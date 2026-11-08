@@ -1,3 +1,5 @@
+> **Kategori mulai November2026 diperbarui:** lihat [PANDUAN-SKOR-NOVEMBER.md](PANDUAN-SKOR-NOVEMBER.md) untuk batas70/80, tindak lanjut dispensasi dan empat file lengkap terbaru. Penjelasan kategori pada paket awal di bawah berlaku untuk periode historis sebelumNovember. Rumus poin tetap.
+
 # Paket Skor — Motoris dan MMTW
 
 Dikembangkan di cabang **production**, 27 Oktober 2026. Paket ini menambah menu **Skor** tanpa mengganti fitur transaksi, edit transaksi, stok, login, atau absensi yang sudah ada. Pemasangan dilakukan pada proyek Apps Script yang terikat ke spreadsheet **KCH Analytics - UJI COBA**.

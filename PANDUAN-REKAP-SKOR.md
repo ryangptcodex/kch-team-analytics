@@ -1,3 +1,5 @@
+> **Kategori mulai November2026 diperbarui:** lihat [PANDUAN-SKOR-NOVEMBER.md](PANDUAN-SKOR-NOVEMBER.md) untuk batas70/80, tindak lanjut dispensasi dan empat file lengkap terbaru. Penjelasan kategori pada paket awal di bawah berlaku untuk periode historis sebelumNovember. Rumus poin tetap.
+
 # Rekap Skor Seluruh Tim dan catatan mengejar target
 
 Widget baru ditempatkan **di bawah tabel parameter Skor dan di atas widget Active Account (AA)**. Perhitungan Skor individual, target tiap tim, transaksi/edit/stok, AA, branding serta hak Admin/Tamu tetap dipertahankan.
