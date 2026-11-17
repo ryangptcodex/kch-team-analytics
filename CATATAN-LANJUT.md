@@ -1,5 +1,17 @@
 # Catatan melanjutkan proyek KCH Team Analytics
 
+### Checkpoint berhenti — 18 November 2026 WIB
+
+Pengguna berkata “okebro save dlu besok kita lanjutin lg”. Hentikan implementasi baru dan lanjutkan dari checkpoint ini ketika pengguna kembali.
+
+- Cabang **production**. Kode aplikasi terakhir **7617d6457fd5bf1f78b049c220bbb97d85b59d1d**, sudah dipush dan SHA remote dicocokkan. Checkpoint ini hanya catatan, tanpa perubahan aplikasi.
+- Juklak300 sudah diimplementasikan pada722090a: TNTPK Motoris maksimalRp5juta TV/bulan; TMXGF(MixagripFlu),TMXGE(MixagripFlu&Batuk),TMXTG(MextrilBatuk) masing-masingRp4juta/sales/bulan untukCanvasser; syaratharianMotoris PF A+B minimalRp400ribu. Berlaku mulaiNovember, Oktober tetaplama, TVharian/bulanan/Skor/triwulan konsisten, transaksi/omzetmentah/stok penuh.547tesNode dan browser terkait lulus. Aturan evaluasi tepat70/80 dan ketentuanHR baru belum diubah; jangan menganggap seluruh isi surat sudah diterapkan.
+- Sidebar putih/hijau dan tema utama hijau sudah dipublikasikan. User screenshotdesktop /exec terakhir menunjukkan tema hijau, sidebar dan tepi/shadow widget; jangan meminta pemasangan ulang seluruh paket atau menganggap tema belum tampak. Perubahan desain menyeluruh lama yang dibatalkan tetap dibatalkan.
+- Terakhir user mengeluhkan hover tidak naik meski sudahdeploy. Revisi7617d64 hanyaCSS: hover naik2px, shadow lebihgelap, perangkat sentuh tanpa hover tetapdiam; reducedmotion menghapus transisi saja (tetapnaik2px instan). Tesbrowser mereproduksi pengamanCSSlama yang mematikan gerak pada reducedmotion lalu membuktikan revisi baru. Penyebab persis pada perangkatuser belum dibaca langsung.
+- Tautan file terakhir yang diberikan: https://github.com/ryangptcodex/kch-team-analytics/blob/7617d6457fd5bf1f78b049c220bbb97d85b59d1d/css.html . Pemasangan/hasil hover revisi7617d64 **belum dikonfirmasi secara eksplisit**; “oke save” adalah permintaan jeda, bukan bukti perbaikan live sudah berhasil. Titik lanjut: tanyakan hasil hover setelah revisi terakhir bila relevan, tanpa mengulang instruksi seolah user belum pernahdeploy.
+- Preferensi wajib: kirim tautanGitHub filelengkap agar user bisaCopyraw, bukan filelokal/ZIP/potonganbaris. Untuk revisiCSS cukup satuHTML, Simpan→Versibaru deploymentProduction yangsama→refresh; tanpaA3/reset/saldoawal. Untuk juklak300 empatfile danA3aman mengikuti PANDUAN-JUKLAK-300-NOVEMBER.md, jangan mengulangnya tanpa alasan.
+- Agen tidak mengubahGoogle/spreadsheet/deployment. BuktiProductionV17 tanggal8November, stokfisik/Tamusesuai, monitorbersih/backupCOMPLETE tetap dipertahankan sebagai laporanuser. Janganreset/inisialisasi/terapkanulangsaldoawal, menambahtransaksifiktif, atau memulai fiturbaru saat jeda.
+
 ### Perbaikan hover yang tidak bergerak — 18 November 2026 WIB
 
 - User mengonfirmasi sudah deploy dan menunjukkan screenshotdesktop /exec, namun widget tidak naik. Jangan meminta ulang deploy seolah belum dilakukan. Kondisi actual perangkat belum dibaca langsung; screenshot menunjukkan tema/sidebar hijau dan tepi/shadow sudah tampak.
