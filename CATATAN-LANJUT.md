@@ -1,5 +1,11 @@
 # Catatan melanjutkan proyek KCH Team Analytics
 
+### Tepi widget dan bayangan hover — 18 November 2026 WIB
+
+- Pengguna meminta percobaan tepi widget lebih jelas dan bayangan hover agak lebih hitam. Hanya css.html ditambah24baris untuk kartu KPI/grafik/tabel/form/filter/absensi/dokumen/profil; border berwarna#c9d5cd, bayangan dasar ringan, hover hitam18%+10% dan border#a6b8ac. Ketebalan/geometri border dipertahankan agar isi dan layout tidak bergeser; tampilan garis dibuat lebih tegas lewat kontras.
+- Hover tidak menggeser widget (transformnone), efek lebihgelap hanya untukpointerfine+hover; pada touchscreen tetapbayanganringan. Hijau/isi/teks/rumus/JS/backend tetap. Tesbrowser20halaman/12perpindahanukuran/4grafik lulus; boundingbox sebelum/sesudahhover identik dan boxshadowberubah sesuai.
+- Screenshot normal/hover tersimpan di docs/widget-normal-2026-11-18.png dan docs/widget-hover-2026-11-18.png, datasimulasi. Pasang hanya css.html lengkap dariGitHubproduction, Simpan→Versibaru deploymentyangsama→refresh; tanpaA3/reset/saldoawal. Google tidak diubah agen.
+
 ### Warna utama seluruh webapp hijau — 18 November 2026 WIB
 
 - Pengguna memperluas lingkup warna: seluruh webapp mengikuti hijau sidebar, termasuk grafik, tombol, badge. Implementasi memakai#167342 dengan variasi terang/gelap; layout, teks, widget, data dan mekanisme tetap. Merah/oranye status, warna absensi yang dibedakan, dan logoGoogle tetap dipertahankan.

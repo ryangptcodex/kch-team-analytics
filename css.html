@@ -2899,4 +2899,28 @@
   .sidebar .quote-icon { color: #24804c; }
   .sidebar .quote-text { color: #465d4e; }
   .sidebar .version-tag { color: #64776b; }
+  /* Widget edges: stronger contrast without changing dimensions or position. */
+  :is(.kpi-card, .chart-card, .table-card, .attendance-card-widget,
+      .form-container-card, .filter-bar-card, .file-card, .sales-profile-card, .att-card) {
+    border-color: #c9d5cd;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .07);
+    transition: border-color .18s ease, box-shadow .18s ease;
+  }
+  :is(.kpi-card, .chart-card, .table-card, .attendance-card-widget,
+      .form-container-card, .filter-bar-card, .file-card, .sales-profile-card, .att-card):hover {
+    transform: none;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    :is(.kpi-card, .chart-card, .table-card, .attendance-card-widget,
+        .form-container-card, .filter-bar-card, .file-card, .sales-profile-card, .att-card):hover {
+      border-color: #a6b8ac;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, .18), 0 2px 6px rgba(0, 0, 0, .10);
+    }
+  }
+  @media (hover: none) {
+    :is(.kpi-card, .chart-card, .table-card, .attendance-card-widget,
+        .form-container-card, .filter-bar-card, .file-card, .sales-profile-card, .att-card):hover {
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .07);
+    }
+  }
 </style>
