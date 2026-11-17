@@ -1,5 +1,12 @@
 # Catatan melanjutkan proyek KCH Team Analytics
 
+### Warna utama seluruh webapp hijau — 18 November 2026 WIB
+
+- Pengguna memperluas lingkup warna: seluruh webapp mengikuti hijau sidebar, termasuk grafik, tombol, badge. Implementasi memakai#167342 dengan variasi terang/gelap; layout, teks, widget, data dan mekanisme tetap. Merah/oranye status, warna absensi yang dibedakan, dan logoGoogle tetap dipertahankan.
+- Hanya tiga file aplikasi direvisi: **css.html,auth-ui.html,js.html**. CSS/login hanya berbeda pada literalwarna; JS hanya warna inline/grafik dan paletdonat lima hijau yang juga dipakai legenda. Backend.gs tidakdiubah; nilai/label/filter dataset tidakdiubah.
+-547tesNode lulus/0gagal/0skip. Browserfoto/guest/incentive/evaluation/audit lulus; responsive20view/12perpindahan/4grafik lulus dengan assertionprimary/warnachart/legendhijau dan nilai dataset utuh. Screenshotdesktop memakai datasimulasi. Panduan PANDUAN-TEMA-HIJAU.md.
+- Pengiriman tetap via tautanGitHub production perfile sesuai preferensi pengguna. Pasang3HTML lengkap→Simpan→Versibaru deploymentProduction yangsama→refresh/exec; tanpaA3/reset/saldoawal. Google tidak diubah agen. Hijau adaptasi sidebar yang disetujui, bukan klaimHEXresmi webKalbe.
+
 ### Sidebar putih dengan aksen hijau — 18 November 2026 WIB
 
 - Pengguna memberikan contoh sidebar putih NexCRM dan mengoreksi warna KCH menjadi hijau. Instruksi eksplisit: hanya tampilan sidebar; teks, desain di luar sidebar, logika dan mekanisme lain jangan diubah. Implementasi aplikasi hanya menambahkan37baris CSS yang seluruh selectornya dibatasi `.sidebar`; tidak menyentuh variabeltema global, markup, JS atau backend.

@@ -848,8 +848,8 @@
       pointHoverRadius: 5,
       fill: true,
       tension: 0.35,
-      backgroundColor: 'rgba(37,99,235,0.08)',
-      borderColor: '#2563eb'
+      backgroundColor: 'rgba(22,115,66,0.08)',
+      borderColor: '#167342'
     });
 
     var salesTrendOptions = chartOptionsRupiah();
@@ -930,7 +930,7 @@
         '<td class="text-center"><span class="badge ' + (pct >= 100 ? 'badge-success' : pct >= 75 ? 'badge-primary' : pct >= 50 ? 'badge-warning' : 'badge-danger') + '">' + pctLabel + '</span></td>' +
         '<td style="min-width:160px;">' +
           '<div style="display:flex;align-items:center;gap:8px;">' +
-            '<div style="flex:1;height:7px;background:#f1f5f9;border-radius:10px;overflow:hidden;"><div style="height:100%;width:' + width + '%;background:#2563eb;border-radius:10px;"></div></div>' +
+            '<div style="flex:1;height:7px;background:#f1f5f9;border-radius:10px;overflow:hidden;"><div style="height:100%;width:' + width + '%;background:#167342;border-radius:10px;"></div></div>' +
             '<span style="font-size:10.5px;font-weight:700;color:#64748b;min-width:33px;text-align:right;">' + pctLabel + '</span>' +
           '</div>' +
         '</td>' +
@@ -961,12 +961,15 @@
         labels: labels,
         datasets: [
           { label: targetLabel, data: targets, backgroundColor: '#cbd5e1', borderRadius: 5 },
-          { label: achievedLabel, data: achieved, backgroundColor: '#2563eb', borderRadius: 5 }
+          { label: achievedLabel, data: achieved, backgroundColor: '#167342', borderRadius: 5 }
         ]
       },
       options: chartOptionsRupiah()
     });
   }
+
+  // Presentation palette only; chart values and server data remain unchanged.
+  function kchChartColor(index) { return ['#167342', '#43985e', '#91c7a1', '#285c3a', '#68aa7b'][index % 5]; }
 
   function renderTeamDonutChart(data) {
     var canvas = document.getElementById('teamDonutChart');
@@ -976,7 +979,7 @@
     var rows = (data || []).filter(function(item) { return !isNonTargetTeam(item.teamName); });
     var labels = rows.map(function(item) { return item.teamName || '-'; });
     var values = rows.map(function(item) { return parseCleanNumber(item.achieved); });
-    var colors = rows.map(function(item) { return item.color || '#2563eb'; });
+    var colors = rows.map(function(item, index) { return kchChartColor(index); });
     var total = values.reduce(function(sum, n) { return sum + n; }, 0);
     var centerPct = appState.dashboardData && appState.dashboardData.kpi ? Number(appState.dashboardData.kpi.achievementPct || 0) : 0;
 
@@ -990,8 +993,8 @@
 
     var legend = document.getElementById('teamPillLegend');
     if (legend) {
-      legend.innerHTML = rows.map(function(item) {
-        return '<span class="team-legend-tag" onclick="applySalesLeaderboardFilter(\'' + jsQuote(item.teamName) + '\')"><span class="team-legend-dot" style="background:' + (item.color || '#2563eb') + ';"></span>' + escapeHtml(item.teamName) + '</span>';
+      legend.innerHTML = rows.map(function(item, index) {
+        return '<span class="team-legend-tag" onclick="applySalesLeaderboardFilter(\'' + jsQuote(item.teamName) + '\')"><span class="team-legend-dot" style="background:' + colors[index] + ';"></span>' + escapeHtml(item.teamName) + '</span>';
       }).join('');
     }
   }
@@ -1004,7 +1007,7 @@
     var rows = data || [];
     var labels = rows.map(function(item) { return item.areaName || '-'; });
     var values = rows.map(function(item) { return parseCleanNumber(item.achieved); });
-    var colors = rows.map(function(item) { return item.color || '#2563eb'; });
+    var colors = rows.map(function(item, index) { return kchChartColor(index); });
     var total = values.reduce(function(sum, n) { return sum + n; }, 0);
     setText('areaDonutCenterPct', total > 0 ? '100%' : '0%');
 
@@ -1016,8 +1019,8 @@
 
     var legend = document.getElementById('areaPillLegend');
     if (legend) {
-      legend.innerHTML = rows.map(function(item) {
-        return '<span class="team-legend-tag"><span class="team-legend-dot" style="background:' + (item.color || '#2563eb') + ';"></span>' + escapeHtml(item.areaName || '-') + '</span>';
+      legend.innerHTML = rows.map(function(item, index) {
+        return '<span class="team-legend-tag"><span class="team-legend-dot" style="background:' + colors[index] + ';"></span>' + escapeHtml(item.areaName || '-') + '</span>';
       }).join('');
     }
   }
@@ -1349,7 +1352,7 @@
           '</div>'
         : '';
       return '<div class="activity-item today-plan-item">' +
-        '<div class="activity-icon-wrap" style="background:#eff6ff;color:#2563eb;"><i class="fa-solid fa-location-dot"></i></div>' +
+        '<div class="activity-icon-wrap" style="background:#f0f8f2;color:#167342;"><i class="fa-solid fa-location-dot"></i></div>' +
         '<div class="activity-content">' +
           '<div class="activity-title-row"><span>' + escapeHtml(plan.salesName || plan.salesId || '-') + ' <span class="badge badge-neutral">' + escapeHtml(plan.teamName || '-') + '</span></span><span class="activity-time">' + (plan.plannedTime ? '<i class="fa-regular fa-clock"></i> ' + escapeHtml(plan.plannedTime) : 'Jam belum diatur') + '</span></div>' +
           '<div class="activity-desc"><strong>' + escapeHtml(plan.destination || '-') + '</strong></div>' +
@@ -1489,7 +1492,7 @@
       var detailHtml = (meeting.decisions ? '<div class="activity-time" style="white-space:pre-line;margin-top:5px;"><strong>Keputusan:</strong> ' + escapeHtml(meeting.decisions) + '</div>' : '') +
         (meeting.followUp ? '<div class="activity-time" style="white-space:pre-line;margin-top:4px;"><strong>Tindak lanjut:</strong> ' + escapeHtml(meeting.followUp) + '</div>' : '');
       return '<div class="activity-item">' +
-        '<div class="activity-icon-wrap" style="background:#eff6ff;color:#2563eb;"><i class="fa-solid fa-people-group"></i></div>' +
+        '<div class="activity-icon-wrap" style="background:#f0f8f2;color:#167342;"><i class="fa-solid fa-people-group"></i></div>' +
         '<div class="activity-content">' +
           '<div class="activity-title-row"><strong>' + escapeHtml(meeting.title || 'Meeting Mingguan') + '</strong><span class="activity-time"><i class="fa-regular fa-calendar"></i> ' + escapeHtml(formatDateIndo(meeting.date || '')) + '</span></div>' +
           '<div class="activity-desc" style="white-space:pre-line;margin-top:5px;">' + escapeHtml(meeting.summary || '') + '</div>' +
@@ -2128,7 +2131,7 @@
     }
     el.innerHTML = rows.map(function(item) {
       return '<div class="activity-item clickable" onclick="openTransactionDetail(\'' + jsQuote(item.id || '') + '\')">' +
-        '<div class="activity-icon-wrap" style="background:#eff6ff;color:#2563eb;"><i class="fa-solid fa-receipt"></i></div>' +
+        '<div class="activity-icon-wrap" style="background:#f0f8f2;color:#167342;"><i class="fa-solid fa-receipt"></i></div>' +
         '<div class="activity-content">' +
           '<div class="activity-title-row"><span>' + escapeHtml(item.salesName || '-') + '</span><span class="activity-time">' + escapeHtml(formatDateIndo(item.date) || '-') + '</span></div>' +
           '<div class="activity-desc">' + escapeHtml(item.id || '-') + ' • ' + escapeHtml(item.teamName || '-') + ' • ' + formatRupiah(item.totalSales) + '</div>' +
@@ -3185,7 +3188,7 @@ function renderDriveFiles() {
       var isDrive = /drive\.google\.com|docs\.google\.com|googleusercontent\.com/i.test(url);
 
       var icon = 'fa-file-lines';
-      var iconStyle = 'background-color:#eff6ff;color:#2563eb;';
+      var iconStyle = 'background-color:#f0f8f2;color:#167342;';
       if (isPdf) {
         icon = 'fa-file-pdf';
         iconStyle = 'background-color:#fef2f2;color:#dc2626;';
@@ -3197,13 +3200,13 @@ function renderDriveFiles() {
         iconStyle = 'background-color:#ecfdf5;color:#16a34a;';
       } else if (blob.indexOf('word') > -1 || /\.docx?(?:$|[?#])/i.test(url)) {
         icon = 'fa-file-word';
-        iconStyle = 'background-color:#eff6ff;color:#2563eb;';
+        iconStyle = 'background-color:#f0f8f2;color:#167342;';
       } else if (blob.indexOf('powerpoint') > -1 || blob.indexOf('ppt') > -1 || /\.pptx?(?:$|[?#])/i.test(url)) {
         icon = 'fa-file-powerpoint';
         iconStyle = 'background-color:#fff7ed;color:#ea580c;';
       } else if (blob.indexOf('folder') > -1) {
         icon = 'fa-folder-open';
-        iconStyle = 'background-color:#eff6ff;color:#2563eb;';
+        iconStyle = 'background-color:#f0f8f2;color:#167342;';
       }
 
       var iconPrefix = icon === 'fa-google-drive' ? 'fa-brands' : 'fa-solid';
