@@ -2899,7 +2899,7 @@
   .sidebar .quote-icon { color: #24804c; }
   .sidebar .quote-text { color: #465d4e; }
   .sidebar .version-tag { color: #64776b; }
-  /* Widget edges and subtle hover lift; dimensions and document flow remain unchanged. */
+  /* Widget hover v2: lift does not depend on the primary pointer or motion setting. */
   :is(.kpi-card, .chart-card, .table-card, .attendance-card-widget,
       .form-container-card, .filter-bar-card, .file-card, .sales-profile-card, .att-card) {
     border-color: #c9d5cd;
@@ -2908,28 +2908,22 @@
   }
   :is(.kpi-card, .chart-card, .table-card, .attendance-card-widget,
       .form-container-card, .filter-bar-card, .file-card, .sales-profile-card, .att-card):hover {
-    transform: none;
+    transform: translateY(-2px);
+    border-color: #a6b8ac;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .18), 0 2px 6px rgba(0, 0, 0, .10);
   }
-  @media (hover: hover) and (pointer: fine) {
+  /* Suppress sticky hover only when no hover-capable device is present. */
+  @media (hover: none) and (any-hover: none) {
     :is(.kpi-card, .chart-card, .table-card, .attendance-card-widget,
         .form-container-card, .filter-bar-card, .file-card, .sales-profile-card, .att-card):hover {
-      transform: translateY(-2px);
-      border-color: #a6b8ac;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, .18), 0 2px 6px rgba(0, 0, 0, .10);
-    }
-  }
-  @media (hover: none) {
-    :is(.kpi-card, .chart-card, .table-card, .attendance-card-widget,
-        .form-container-card, .filter-bar-card, .file-card, .sales-profile-card, .att-card):hover {
+      transform: none;
+      border-color: #c9d5cd;
       box-shadow: 0 2px 6px rgba(0, 0, 0, .07);
     }
   }
   @media (prefers-reduced-motion: reduce) {
     :is(.kpi-card, .chart-card, .table-card, .attendance-card-widget,
-        .form-container-card, .filter-bar-card, .file-card, .sales-profile-card, .att-card),
-    :is(.kpi-card, .chart-card, .table-card, .attendance-card-widget,
-        .form-container-card, .filter-bar-card, .file-card, .sales-profile-card, .att-card):hover {
-      transform: none;
+        .form-container-card, .filter-bar-card, .file-card, .sales-profile-card, .att-card) {
       transition: none;
     }
   }

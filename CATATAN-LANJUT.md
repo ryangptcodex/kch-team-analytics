@@ -1,5 +1,12 @@
 # Catatan melanjutkan proyek KCH Team Analytics
 
+### Perbaikan hover yang tidak bergerak — 18 November 2026 WIB
+
+- User mengonfirmasi sudah deploy dan menunjukkan screenshotdesktop /exec, namun widget tidak naik. Jangan meminta ulang deploy seolah belum dilakukan. Kondisi actual perangkat belum dibaca langsung; screenshot menunjukkan tema/sidebar hijau dan tepi/shadow sudah tampak.
+- Ditemukan dan direproduksi kondisiCSSlama: prefers-reduced-motion:reduce menetapkan transformnone sehingga bayanganhover muncul tanpa gerak. Gatehover/pointerutama juga bisa meniadakan efek pada perangkat hybrid. Hanya css.html diperbaiki: aturan:hover langsungtranslateY(-2px); sentuh tanpa perangkathover (hovernone+anyhovernone) tetapdiam; reducedmotion hanya menghapus transisi sehingga perubahanposisi2px tetapinstant.
+- Tesbrowser mereproduksiCSSlama yangdiam di reducedmotion lalu mengujiCSSbaru naik2px pada kondisi sama, biasa naikhalus, dimensi/x tetap, keluarhover kembali, touchdiam, header/modal/grafik/data tetap. Tidak mengklaim pengaturanOSuser telah diperiksa. TautanfileGitHub commit spesifik dikirim agar sumberversi tidakrancu.
+- Tidak mengubahJS/backend/data/rumus/layout. Pasanghanya css.html lengkap lalu Simpan dan Versibaru deploymentyangsama; tanpaA3/reset/saldoawal. Google tidakdiubah agen.
+
 ### Gerakan hover widget 2px — 18 November 2026 WIB
 
 - Pengguna meminta widget naik sedikit saat kursor diarahkan. Hanya css.html diubah: translateY(-2px) dengan transisi180ms pada pointerfine yang mendukunghover; shadowtegas sebelumnya tetap. Dimensi dan aliranlayout tetap, tanpa ubahteks/isi/warna/JS/backend.
