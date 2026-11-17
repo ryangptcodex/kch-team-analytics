@@ -1,5 +1,13 @@
 # Catatan melanjutkan proyek KCH Team Analytics
 
+### Sidebar putih dengan aksen hijau — 18 November 2026 WIB
+
+- Pengguna memberikan contoh sidebar putih NexCRM dan mengoreksi warna KCH menjadi hijau. Instruksi eksplisit: hanya tampilan sidebar; teks, desain di luar sidebar, logika dan mekanisme lain jangan diubah. Implementasi aplikasi hanya menambahkan37baris CSS yang seluruh selectornya dibatasi `.sidebar`; tidak menyentuh variabeltema global, markup, JS atau backend.
+- Sidebar menjadi putih dengan teks gelap dan menuaktif hijau#167342, hover hijau muda, ikon sejajar, teks14px, fokuskeyboard, serta scrollbar tipis agar semua menu tetap terjangkau. Urutan/teks/menu dan footer yang sudah ada dipertahankan; tidak menambahkan widgetprofil tiruan dari referensi. Lebar255px dan mekanisme collapse/mobile tetap.
+- Google, kalbe.co.id dan kalbeconsumerhealth.com dicoba melaluiHTTPS tetapi ditolak403 oleh jaringan. Hal ini disampaikan kepada pengguna; warna merupakan adaptasi dari logo pada surat resmiKalbe yang telah diunggah, bukan klaimHEXpanduanmerek resmi yang terverifikasi dariweb. Jangan mengatakan pencarianGoogle berhasil.
+- Browser responsive lulus20view/12perpindahanukuran/4grafik; perbandingan computedstyle+geometri2919elemen di luar sidebar identik sebelum/sesudah. BrowserGuest danAudit lulus, termasuk role/session dan tampilanseluler. Screenshot sidebar di docs/sidebar-green-2026-11-18.png memakai data simulasi.
+- FileAppsScript yang perlu diganti hanya **css.html** lengkap dari tautanGitHub production. Simpan→Versibaru deploymentProduction yangsama→refresh; tanpaA3/reset/saldoawal. Preferensi tautanfileGitHub diteruskan dari instruksi pengguna sebelumnya. Panduan PANDUAN-SIDEBAR-HIJAU.md. Google belum diubah agen.
+
 ### Pengiriman melalui tautan GitHub — 18 November 2026 WIB
 
 - Pengguna meminta tautan file revisi langsung ke GitHub agar bisa Copy raw file. Publikasi revisi juklak300 ke cabang production diotorisasi untuk permintaan ini. Gunakan tautan blob/production untuk period-masters.gs, score.gs, incentives.gs dan incentive-client.html, bukan tautan file lokal.

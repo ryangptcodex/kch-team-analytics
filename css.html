@@ -2862,4 +2862,41 @@
     .operations-inline .form-control { min-width: 0; flex-basis: 100%; }
     .operations-pagination { font-size: 11px; gap: 6px; }
   }
+  /* KCH sidebar only: light surface and green accent. No global theme overrides. */
+  .sidebar {
+    --kch-nav-green: #167342;
+    --kch-nav-hover: #edf7f0;
+    background-color: #ffffff;
+    color: #263b30;
+    border-right: 1px solid #dfe8e1;
+  }
+  .sidebar .sidebar-header { border-bottom-color: #e7eee9; }
+  .sidebar .brand-logo-icon { background-color: #f1f8f3; box-shadow: none; border: 1px solid #dcecdf; }
+  .sidebar .brand-title { color: #176b3e; }
+  .sidebar .brand-subtitle { color: #5e7166; }
+  .sidebar .sidebar-nav { scrollbar-width: thin; scrollbar-color: #cadacf transparent; }
+  .sidebar .sidebar-nav::-webkit-scrollbar { display: block; width: 4px; }
+  .sidebar .sidebar-nav::-webkit-scrollbar-thumb { background-color: #cadacf; border-radius: 4px; }
+  .sidebar .nav-section-label { color: #63766a; font-size: 10px; letter-spacing: 1px; }
+  .sidebar .nav-item {
+    color: #354c3e;
+    font-size: 14px;
+    line-height: 1.45;
+    border-radius: 6px;
+    box-shadow: none;
+    flex-shrink: 0;
+    transition: background-color .15s ease, color .15s ease;
+  }
+  .sidebar .nav-item > i { width: 20px; flex: 0 0 20px; font-size: 15px; text-align: center; color: #607367; }
+  .sidebar .nav-item:hover { background-color: var(--kch-nav-hover); color: #155b36; }
+  .sidebar .nav-item:hover > i { color: #167342; }
+  .sidebar .nav-item.active { background-color: var(--kch-nav-green); color: #fff; font-weight: 600; box-shadow: none; }
+  .sidebar .nav-item.active > i { color: #fff; }
+  .sidebar .nav-item:focus-visible, .sidebar .btn-sidebar-close:focus-visible { outline: 2px solid #167342; outline-offset: 2px; }
+  .sidebar .btn-sidebar-close { color: #486552; }
+  .sidebar .sidebar-footer { background-color: #fff; border-top-color: #e7eee9; }
+  .sidebar .quote-card { background: #f2f7f3; border-color: #e0ebe3; box-shadow: none; }
+  .sidebar .quote-icon { color: #24804c; }
+  .sidebar .quote-text { color: #465d4e; }
+  .sidebar .version-tag { color: #64776b; }
 </style>
