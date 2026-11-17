@@ -1,5 +1,11 @@
 # Catatan melanjutkan proyek KCH Team Analytics
 
+### Gerakan hover widget 2px — 18 November 2026 WIB
+
+- Pengguna meminta widget naik sedikit saat kursor diarahkan. Hanya css.html diubah: translateY(-2px) dengan transisi180ms pada pointerfine yang mendukunghover; shadowtegas sebelumnya tetap. Dimensi dan aliranlayout tetap, tanpa ubahteks/isi/warna/JS/backend.
+- Tesbrowser membuktikan naik tepat2px tanpa gerak horizontal atau perubahanukuran. Pada touchscreen dan preferensi reducedmotion widget tetapdiam. Pemeriksaan20view, header/modal desktop-HP, grafik dan dataset lulus. Screenshothover diperbarui.
+- Pasang css.html lengkap dari tautanGitHubproduction, Simpan→Versibaru deploymentProduction yangsama→refresh. TanpaA3/reset/saldoawal. Google belum diubah agen.
+
 ### Tepi widget dan bayangan hover — 18 November 2026 WIB
 
 - Pengguna meminta percobaan tepi widget lebih jelas dan bayangan hover agak lebih hitam. Hanya css.html ditambah24baris untuk kartu KPI/grafik/tabel/form/filter/absensi/dokumen/profil; border berwarna#c9d5cd, bayangan dasar ringan, hover hitam18%+10% dan border#a6b8ac. Ketebalan/geometri border dipertahankan agar isi dan layout tidak bergeser; tampilan garis dibuat lebih tegas lewat kontras.
