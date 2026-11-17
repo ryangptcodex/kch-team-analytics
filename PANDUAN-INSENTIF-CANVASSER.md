@@ -1,5 +1,7 @@
 # Insentif MPR/Canvasser dan Junior/Asisten
 
+> Pembaruan mulai November 2026: TMXGF (Mixagrip Flu), TMXGE (Mixagrip Flu & Batuk), dan TMXTG (Mextril Batuk) masing-masing maksimal Rp4 juta TV per sales/bulan. Batas mengikuti tanggal bisnis dan berlaku pada TV harian, bulanan, Skor, dan triwulan. Baca [panduan juklak surat 300](PANDUAN-JUKLAK-300-NOVEMBER.md). Aturan Oktober tetap seperti sebelumnya.
+
 Aturan ini ditambahkan ke menu Insentif yang sudah ada. **Nama tim dalam master dan tampilan tetap**: MPR, Canvasser, Junior Canvasser dan Asisten MPR. Aturan Motoris/MMTW dipertahankan.
 
 ## Pemasangan delapan file lengkap di UJI COBA
@@ -28,8 +30,9 @@ Semua produk tetap boleh diinput sebagai penjualan. **Hanya kode loading berikut
 | Kode | Produk |
 | --- | --- |
 | LPRGR | Promag Herbal |
-| TMXTG | Mixgrip Tablet Box |
-| TMXGF, TMXGE | Mixagrip |
+| TMXTG | Mextril Batuk (kode dikonfirmasi 18 November 2026) |
+| TMXGF | Mixagrip Flu |
+| TMXGE | Mixagrip Flu & Batuk |
 | CKPXE | Kalpanax Salep |
 | TXONE | Xonce Tablet |
 | LETSB | Entrostop Herbal Anak |

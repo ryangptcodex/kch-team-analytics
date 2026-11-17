@@ -227,6 +227,32 @@ function getScoreReport_(month, salesId) {
   getCurrentUserInfo_(); assertOwnSales_(salesId); scoreMonth_(month);
   var data=scoreContext_(true);return scoreApplyEvaluation_(data,scoreBuildReport_(data,month,salesId));
 }
+// Aggregate each SKU/day before chronological cap allocation. Row order and same-day invoice splits cannot change TV.
+function scoreRecognizedDays_(rows,month,sales,mapping,policy,today,loadingOnly) {
+  var products=Object.create(null),days=Object.create(null),running=Object.create(null),senior=scoreBrandingTeam_(sales.team_name),rule=policy.tvRecognition;
+  mapping.products.forEach(function(p){products[p.productId]=p;});
+  rows.forEach(function(row){
+    if(normalizeKey_(row.sales_id)!==normalizeKey_(sales.sales_id))return;
+    var date=scoreDate_(row.transaction_date);if(date.slice(0,7)!==month||date>today)return;
+    var code=scoreCanonicalProductId_(row.product_id),p=products[code];if(!p)throw new Error('Kode produk transaksi '+row.product_id+' tidak ada di master PRODUCTS; periksa master sebelum menilai.');
+    var qty=txNumber_(row.quantity,'Jumlah transaksi');if(!Number.isSafeInteger(qty)||qty===0||(row._kch_adjustment===true?qty>0:qty<0))throw new Error('Jumlah transaksi tidak valid; periksa faktur '+(row.transaction_id||'')+'.');
+    var amount=row.subtotal_sales!==undefined&&row.subtotal_sales!==''?(row._kch_adjustment===true?reportMoney_:txMoney_)(row.subtotal_sales,'Subtotal transaksi'):txMoney_(row.selling_price,'Harga transaksi')*qty;
+    if(!Number.isSafeInteger(amount))throw new Error('Nilai transaksi terlalu besar.');
+    if(!days[date])days[date]={focusA:0,focusB:0,tv:0,rawValue:0,tablet:0,skus:Object.create(null)};
+    var day=days[date];if(p.group==='FOCUS_A')day.focusA+=amount;if(p.group==='FOCUS_B')day.focusB+=amount;
+    if(code==='LPRGN')day.tablet+=amount;
+    if(p.group==='EXCLUDE'||(loadingOnly&&senior&&policy.loading.indexOf(code)<0))return;
+    day.rawValue+=amount;day.skus[code]=(day.skus[code]||0)+amount;
+  });
+  Object.keys(days).sort().forEach(function(date){var day=days[date];Object.keys(day.skus).forEach(function(code){
+    var amount=day.skus[code],cap=null;
+    if(rule&&!senior&&code==='TNTPK')cap=rule.motorisCap;
+    if(rule&&senior&&rule.canvasserCodes.indexOf(code)>=0)cap=rule.canvasserCap;
+    var before=running[code]||0,after=before+amount;if(!Number.isSafeInteger(after))throw new Error('Akumulasi TV terlalu besar.');running[code]=after;
+    day.tv+=cap===null?amount:Math.min(after,cap)-Math.min(before,cap);
+  });['focusA','focusB','tv','rawValue','tablet'].forEach(function(k){if(!Number.isSafeInteger(day[k]))throw new Error('Total harian terlalu besar.');});delete day.skus;});
+  return days;
+}
 function scoreBuildReport_(data, month, salesId, prepared) {
   if(typeof periodContext_==='function'){var originalData=data;data=periodContext_(data,month);if(data!==originalData&&prepared)prepared={ledger:prepared.ledger,mapping:scoreMapping_(data),transactionsBySales:prepared.transactionsBySales};}
   var sales = scoreSales_(data, salesId), ledger = prepared ? prepared.ledger : scoreLedger_(data.events), mapping = prepared&&prepared.mapping ? prepared.mapping : scoreMapping_(data);
@@ -254,26 +280,12 @@ function scoreBuildReport_(data, month, salesId, prepared) {
     if (day.date <= today && count !== null) { totalBranding += count; if (!Number.isSafeInteger(totalBranding)) throw new Error('Total branding terlalu besar.'); }
     dailyBranding.push({ date: day.date, isWorkDay: day.isWorkDay, count: count, revision: event ? event.event_id : '', actor: event ? event.actor : '', updatedAt: event ? event.updatedAt : '' });
   });
-  var totals = [0, 0, 0, totalAA], products = Object.create(null);
-  mapping.products.forEach(function(p) { products[p.productId] = p; });
-  // No persisted report snapshot: committed transaction edits are reflected on reload.
-  if (mapping.ready) {
-    if (!data.meta.SALES_TRANSACTIONS) throw new Error('Sheet SALES_TRANSACTIONS tidak tersedia.');
-    var transactionRows = prepared ? (prepared.transactionsBySales[normalizeKey_(salesId)] || []) : txTable_('SALES_TRANSACTIONS', data.raw.SALES_TRANSACTIONS, ['sales_id', 'transaction_date', 'product_id', 'quantity', 'selling_price'], false).rows;
-    transactionRows.forEach(function(row) {
-      if (normalizeKey_(row.sales_id) !== normalizeKey_(salesId)) return;
-      var date = scoreDate_(row.transaction_date);
-      if (date.slice(0, 7) !== month || date > today) return;
-      var p = products[scoreCanonicalProductId_(row.product_id)];
-      if (!p) throw new Error('Kode produk transaksi ' + row.product_id + ' tidak ada di master PRODUCTS; periksa master sebelum menilai.');
-      var qty = txNumber_(row.quantity, 'Jumlah transaksi');
-      if (!Number.isSafeInteger(qty) || qty===0 || (row._kch_adjustment===true?qty>0:qty<0)) throw new Error('Jumlah transaksi tidak valid; periksa faktur ' + (row.transaction_id || '') + '.');
-      var amount = row.subtotal_sales !== undefined && row.subtotal_sales !== '' ? (row._kch_adjustment===true?reportMoney_:txMoney_)(row.subtotal_sales, 'Subtotal transaksi') : txMoney_(row.selling_price, 'Harga transaksi') * qty;
-      if (!Number.isSafeInteger(amount)) throw new Error('Nilai transaksi terlalu besar.');
-      if (p.group === 'FOCUS_A') totals[0] += amount;
-      if (p.group === 'FOCUS_B') totals[1] += amount;
-      if (p.group !== 'EXCLUDE') totals[2] += amount;
-    });
+  var totals=[0,0,0,totalAA],recognizedDays=Object.create(null),policy=periodTVPolicy_(periodPolicy_(data),month);
+  if(mapping.ready){
+    if(!data.meta.SALES_TRANSACTIONS)throw new Error('Sheet SALES_TRANSACTIONS tidak tersedia.');
+    var transactionRows=prepared?(prepared.transactionsBySales[normalizeKey_(salesId)]||[]):txTable_('SALES_TRANSACTIONS',data.raw.SALES_TRANSACTIONS,['sales_id','transaction_date','product_id','quantity','selling_price'],false).rows;
+    recognizedDays=scoreRecognizedDays_(transactionRows,month,sales,mapping,policy,today);
+    Object.keys(recognizedDays).forEach(function(d){var day=recognizedDays[d];totals[0]+=day.focusA;totals[1]+=day.focusB;totals[2]+=day.tv;});
   }
   for (var i = 0; i < 3; i++) { if (!Number.isSafeInteger(totals[i])) throw new Error('Total transaksi terlalu besar.'); totals[i] /= 100; }
   if (brandingEnabled) totals.push(totalBranding);
@@ -281,14 +293,14 @@ function scoreBuildReport_(data, month, salesId, prepared) {
   if(data.masterVerified===false){parameters.forEach(function(p){p.target=null;p.achievement=null;p.points=null;p.score=null;});total=null;}
   var months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
   var next = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 1));
-  return { success: true, policy:periodPolicy_(data),policySignature:periodPolicySignature_(periodPolicy_(data)), evaluationRule:scoreEvaluationRule_(month,data.scoreEvaluationPolicy), masterVerified:data.masterVerified!==false, mappingReady: mapping.ready, month: month, sales: { salesId: String(sales.sales_id), name: String(sales.full_name), team: String(sales.team_name) },
+  return { success: true, policy:policy,policySignature:periodPolicySignature_(policy),moneySignature:periodMoneySignature_(policy),tvRecognition:policy.tvRecognition||null, evaluationRule:scoreEvaluationRule_(month,data.scoreEvaluationPolicy), masterVerified:data.masterVerified!==false, mappingReady: mapping.ready, month: month, sales: { salesId: String(sales.sales_id), name: String(sales.full_name), team: String(sales.team_name) },
     parameters: parameters, total: mapping.ready ? total : null, category: mapping.ready && total!==null ? scoreCategory_(total,periodPolicy_(data),month,data.scoreEvaluationPolicy) : null,
     nextMonth: months[next.getUTCMonth()] + ' ' + next.getUTCFullYear(), holidaySource: holidayName || '', workDays: calendar.workDays,
     workDaysPassed: daily.filter(function(d) { return d.isWorkDay && d.date <= today; }).length,
     brandingEnabled: brandingEnabled, dailyBranding: dailyBranding, totalBranding: totalBranding,
     brandingEnteredDays: dailyBranding.filter(function(d) { return d.count !== null && d.date <= today; }).length,
     dailyAA: daily, totalAA: totalAA, enteredDays: daily.filter(function(d) { return d.count !== null && d.date <= today; }).length,
-    message: data.masterVerified===false?'Master periode belum diverifikasi; target/skor historis belum disahkan.':mapping.ready ? '' : 'Periksa master produk: ' + mapping.issues.join('; ') };
+    message: data.masterVerified===false?'Master periode belum diverifikasi; target/skor historis belum disahkan.':mapping.ready ? (policy.tvRecognition?'TV mengikuti batas kumulatif bulanan juklak November: Motoris Entrostop Tablet Rp5 juta; Canvasser Mixagrip Flu, Mixagrip Flu & Batuk, Mextril masing-masing Rp4 juta per SKU. Transaksi asli tetap penuh.':'') : 'Periksa master produk: ' + mapping.issues.join('; ') };
 }
 
 // Recap reads one shared spreadsheet snapshot, never one network request per sales.

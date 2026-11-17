@@ -28,9 +28,19 @@ function periodResolvePolicy_(stored){
     var numeric=JSON.stringify([p.dailyTargets,p.scoreField,p.scoreSenior,p.tariffsField,p.tariffsSenior,p.dailyField,p.dailySenior,p.monthlyLevels,p.quarterLevels,p.gate,p.reducedFactor,p.juniorFactor,p.quarterField,p.quarterSenior,p.categories]);
     // V1 numeric policy is fixed. Unsupported tariffs/formulas cannot be certified by changing JSON.
     var v=periodPolicyV1_();if(numeric!==JSON.stringify([v.dailyTargets,v.scoreField,v.scoreSenior,v.tariffsField,v.tariffsSenior,v.dailyField,v.dailySenior,v.monthlyLevels,v.quarterLevels,v.gate,v.reducedFactor,v.juniorFactor,v.quarterField,v.quarterSenior,v.categories]))return null;
+    if(stored.tvRecognition!==undefined){if(JSON.stringify(stored.tvRecognition)!==JSON.stringify(periodTVRule_('2026-11')))return null;p.tvRecognition=stored.tvRecognition;}
   }catch(err){return null;}return p;
 }
 function periodPolicy_(data){return data&&data.periodRules||periodCurrentPolicy_();}
+// Surat 300: separate, month-versioned TV recognition; old monetary policy remains immutable.
+function periodTVRule_(month) { return month>='2026-11'?{version:'KCH_TV_300_2026_11',motorisCap:500000000,canvasserCap:400000000,canvasserCodes:['TMXGF','TMXGE','TMXTG'],dailyFocusMinimum:40000000}:null; }
+function periodTVPolicy_(policy,month) {
+  var expected=periodTVRule_(month),stored=policy.tvRecognition;
+  if(stored!==undefined && JSON.stringify(stored)!==JSON.stringify(expected))throw new Error('Versi batas TV periode belum didukung.');
+  var result=JSON.parse(JSON.stringify(policy));if(expected)result.tvRecognition=expected;else delete result.tvRecognition;return result;
+}
+// A known TV recognition revision can cross a quarter without changing payout tariffs.
+function periodMoneySignature_(policy){var p=JSON.parse(JSON.stringify(policy));delete p.tvRecognition;return periodPolicySignature_(p);}
 function periodPolicySignature_(policy){
   var copy=JSON.parse(JSON.stringify(policy));copy.loading.sort();copy.pairs.sort(function(a,b){return JSON.stringify(a).localeCompare(JSON.stringify(b));});
   function canonical(value){if(Array.isArray(value))return value.map(canonical);if(value&&typeof value==='object'){var out={};Object.keys(value).sort().forEach(function(k){out[k]=canonical(value[k]);});return out;}return value;}
@@ -77,7 +87,7 @@ function periodSnapshotPlan_(meta,raw,month,user,source,replace,policy){
 
   var stamp=Utilities.formatDate(new Date(),TIMEZONE,'yyyy-MM-dd HH:mm:ss'),rows=[];
   ['SALES','PRODUCTS','PRICE_MASTER','HOLIDAYS'].forEach(function(name){var seen=Object.create(null);if(!raw[name])return;txTable_(name,raw[name],[],false).rows.forEach(function(item){var clean={};Object.keys(item).forEach(function(k){if(k.charAt(0)!=='_')clean[k]=item[k];});if(name==='SALES'){if(month<Utilities.formatDate(new Date(),TIMEZONE,'yyyy-MM')){clean.target_monthly=txMoney_(clean.target_monthly,'Target master historis')/100;if(getIndividualDailyTargetRate_(clean.team_name)>0&&clean.target_monthly<=0)throw new Error('Target historis sumber belum lengkap.');}else clean.target_monthly=getIndividualMonthlyTarget_(clean.team_name,clean.target_monthly);}var key=periodKey_(name,clean);if(!key||seen[key])throw new Error(name+': ID snapshot kosong/ganda.');seen[key]=true;var encoded=JSON.stringify(clean);if(encoded.length>45000)throw new Error('Master terlalu panjang untuk snapshot.');rows.push([month,name,key,encoded,source,user.email,stamp]);});});
-  var capturedPolicy=JSON.parse(JSON.stringify(policy||(month<Utilities.formatDate(new Date(),TIMEZONE,'yyyy-MM')?periodPolicyV1_():periodCurrentPolicy_())));capturedPolicy.calendar=periodCalendar_(raw);if(typeof scoreEvaluationVersion_==='function')capturedPolicy.evaluationPolicy=scoreEvaluationVersion_(month);
+  var capturedPolicy=JSON.parse(JSON.stringify(policy||(month<Utilities.formatDate(new Date(),TIMEZONE,'yyyy-MM')?periodPolicyV1_():periodCurrentPolicy_())));capturedPolicy=periodTVPolicy_(capturedPolicy,month);capturedPolicy.calendar=periodCalendar_(raw);if(typeof scoreEvaluationVersion_==='function')capturedPolicy.evaluationPolicy=scoreEvaluationVersion_(month);
   rows.push([month,'RULES','POLICY',JSON.stringify(capturedPolicy),source,user.email,stamp]);
   var reused=Math.min(same.length,rows.length);for(var i=0;i<reused;i++)requests.push(txUpdate_(meta[KCH_PERIOD_MASTERS_].sheetId,same[i]._row,0,[rows[i]]));if(rows.length>reused)requests.push(txAppend_(meta[KCH_PERIOD_MASTERS_].sheetId,rows.slice(reused)));for(var j=reused;j<same.length;j++)requests.push(txUpdate_(meta[KCH_PERIOD_MASTERS_].sheetId,same[j]._row,0,[KCH_PERIOD_HEADERS_.map(function(){return '';})]));return requests;
 }

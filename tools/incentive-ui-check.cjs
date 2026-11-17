@@ -10,7 +10,7 @@ for(const [i,pair]of c.KCH_INCENTIVE_PAIRS_.entries())e.rows('SALES').push([pair
 for(const id of c.KCH_CANVASSER_LOADING_)if(!e.rows('PRODUCTS').some(r=>r[0]===id))e.rows('PRODUCTS').push([id,'Loading '+id,'ACTIVE']);
 const amul=c.KCH_INCENTIVE_PAIRS_[1][0],nuzar=c.KCH_INCENTIVE_PAIRS_[1][1];
 function seniorTx(id,value,date='2026-10-02'){const row={transaction_id:'SEN-'+(++n),transaction_date:date,sales_id:amul,product_id:id,quantity:1,selling_price:value,subtotal_sales:value};e.rows('SALES_TRANSACTIONS').push(Array.from(c.TABLE_SCHEMAS.SALES_TRANSACTIONS,h=>row[h]??''));}
-seniorTx('LBMAV',6400000);seniorTx('LPRGR',8200000);seniorTx('TMXTG',65400000);seniorTx('P1',900000000);seniorTx('LPRGN',1000000);seniorTx('TMXTG',80000000,'2026-11-02');seniorTx('TMXTG',80000000,'2026-12-02');
+seniorTx('LBMAV',6400000);seniorTx('LPRGR',8200000);seniorTx('TMXTG',65400000);seniorTx('P1',900000000);seniorTx('LPRGN',1000000);seniorTx('LEXUA',80000000,'2026-11-02');seniorTx('LEXUA',80000000,'2026-12-02');
 for(const [method,count]of [['saveScoreAA',400],['saveScoreBranding',300]])c.kchApi('MOCK',method,[{requestId:'CAN-UI-'+method+'-00000000001',date:'2026-10-02',salesId:amul,count,expectedRevision:''}]);
 let html=fs.readFileSync(path.join(root,'index.html'),'utf8').replace(/<\?!= include_\('([^']+)'\); \?>/g,(_,n)=>fs.readFileSync(path.join(root,n+'.html'),'utf8')).replace(/<script\b[^>]*\bsrc=[^>]*>[\s\S]*?<\/script>/g,'').replace(/<link\b[^>]*>/g,'').replace(/<\?[\s\S]*?\?>/g,'null');
 html=html.replace(/<\/body>\s*<\/html>\s*$/,`<script>

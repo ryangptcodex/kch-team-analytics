@@ -1,5 +1,32 @@
 # Catatan melanjutkan proyek KCH Team Analytics
 
+### Pengiriman melalui tautan GitHub — 18 November 2026 WIB
+
+- Pengguna meminta tautan file revisi langsung ke GitHub agar bisa Copy raw file. Publikasi revisi juklak300 ke cabang production diotorisasi untuk permintaan ini. Gunakan tautan blob/production untuk period-masters.gs, score.gs, incentives.gs dan incentive-client.html, bukan tautan file lokal.
+- Remote production diperiksa sama dengan dasar3accd16 sebelum publikasi; tidak perlu force push. Revisi tampilan yang dibatalkan tidak termasuk paket. Panduan pemasangan memakai tautanGitHub perfile. Google/AppsScript belum diubah agen; pemasangan dan Versi baru deployment tetap dilakukan pengguna.
+
+### Pemetaan dikonfirmasi, juklak300 selesai lokal — 18 November 2026 WIB
+
+- Pengguna menjawab **TMXGF=MixagripFlu;TMXGE=MixagripFlu&Batuk;TMXTG=MextrilBatuk**. Pemetaan nama draft diganti bindingkode di aturanTV; tigaSKU masingmasing4juta/sales/bulan, MotorisTNTPK5juta, PFharianA+Bminimal400ribu. KetigaSKU sudahloading; tidak menambahproduk/master baru. PenamaanTMXTGlama di panduan dikoreksi tanpa mengubahmasterGoogle.
+- Empatfileaplikasi: period-masters.gs,score.gs,incentives.gs,incentive-client.html. Skor/harian/bulanan/triwulan dan outputsheet memakaiTVdibatasi; transaksi/omzetmentah/stok penuh. EfektifmulaiNov, Oktober tetapaturanlama; Q4 menjumlahkanTVmasingmasingbulan. Renameproduk tidak menghindaricap. Junior tetap70%hasilSenior. Evaluasi70/80 danketentuanHR belumdiubah.
+-547tesNode lulus(529lama+18baru), browserSkor/Insentif/evaluasi/Tamu/suiteTVbaru lulus. Nativeharian/bulanan/triwulan dibandingkanlangsung denganreportweb. Tesquartertarif lama kini memakaiLEXUA yangtidakdibatasi untukNov/Des; capTMXTG diuji terpisah. Tidakmenurunkanassertion tarif.
+- Draft digantikan **PANDUAN-JUKLAK-300-NOVEMBER.md**, berisiempatfilelengkap danlangkah Simpan→A3aman(snapshotaturan+laporanturunan)→Versibaru deploymentProduction yangsama→refresh/exec. Tidakreset/initializer/saldoawal/transaksifiktif. Kode masihlokal, belumpush/commit/pasangGoogle olehagen. BuktiProductionV17/monitor/backup sebelumnya tetapberlaku sebagaibuktiuser, bukan verifikasirevisibaru.
+
+### Draft juklak surat300 — 18 November 2026 WIB, menunggu kode SKU Canvasser
+
+- Pengguna meminta memahami PDF300/CCDM-AEO/X/2026 lalu mengonfirmasi capbulanan: setelah5jutaEntrostopTablet habis, tambahan tidak masukTV termasukharian; contoh4,8juta+500ribu hanya200ribu. Selanjutnya pengguna berkata “oke bro kerjakan”. Penjualan/omzetmentah/stok tetap penuh.
+- Implementasi lokal empatfile: period-masters.gs,score.gs,incentives.gs,incentive-client.html. VersiTVterpisah mulaiNov; MotorisTNTPK5juta, syaratharianPFA+B400ribu; mesin cap perSKU/sales/bulan mengikuti tanggal, dipakaiSkor/insentifharian/bulanan/triwulan; tarif/faktor/Junior/evaluasi70/80 tidakdiubah. UI menampilkantransaksi/TV/selisih tanpa merombaklayout.
+- **Belumsiappasang**: kodeMixagripFlu,Flu&Batuk,Mextril belumdikonfirmasi. Pertanyaanasync sudahdikirim. DraftmatcherCanvasser berdasarkannamaeksplisit belumfinal; janganmenganggapkodefixturesebagaiidentitasProduction. Setelahjawaban, selesaikanbindingkodestabil+regresirenamemaster sebelumrilis. Janganmenebak atau mengubahdaftarloadingdiamdiam.
+-543tesNode lulus/0gagal/0skip; browserincentive/score/evaluation/guest/audit dan suitebarutv-recognition lulus. TesGoogle tiruan, bukanverifikasikatalogProduction. Belumcommit/push/pasangGoogle/reset/saldoawal. Draft ini telah diselesaikan pada checkpoint pemetaan di atas; panduan final PANDUAN-JUKLAK-300-NOVEMBER.md.
+
+### Pemeriksaan kelanjutan — 17 November 2026 WIB
+
+- Source terbaru remote `production` diperiksa pada `3accd16`; lingkungan awal masih checkpoint `uji-login` lama, lalu checkout lokal dipindah ke `production`. Perbaikan absensi, rekonsiliasi/opname, serta Admin/Tamu sudah tersedia; tidak diimplementasikan ulang.
+- Pengguna menyebut deployment terakhir V17 tanggal8November2026 dan checkKchTransactionSetup pernah lolos tanpa missing sheet/PENDING. Pertahankan bukti ini beserta konfirmasi stok fisik/Tamu dan backup/monitor pada catatan terbaru; agen tidak memeriksa Google secara langsung.
+- Eksekusi saat ini:529tesNode lulus/0gagal/0skip; browser photo,guest,audit,stock,evaluation semuanya lulus;19fileGS lolosparse dan manifestvalid. Tidak ada kegagalan baru yang teramati pada cakupan ini.
+- Tidak mengubah kode aplikasi/dataGoogle, reset, saldoawal, transaksi fiktif, restore atau deployment. Hanya menambahkan laporan `REVIEW-KELANJUTAN-2026-11-17.md` dan checkpoint ini.
+- Tidak ada paket AppsScript baru akibat pemeriksaan. Pemasangan empat file revisi SkorNovember dari checkpoint8November tetap belum dapat dipastikan hanya dari nomorV17; jika sudah terpasang, jangan meminta ulang. Aturan jam absensi sudah disepakati dalam catatan berikutnya, jangan mengarang/meminta ulang cutoff.
+
 Disimpan 25 Oktober 2026, waktu Jakarta. Ini ringkasan keputusan dan progres, bukan transkrip lengkap chat.
 
 ## Tujuan dan keputusan

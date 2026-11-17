@@ -51,7 +51,7 @@ function incentiveBuildReport_(data, month, salesId, shared) {
   var sales = txUnique_(data.sales,function(s){return normalizeKey_(s.sales_id)===normalizeKey_(salesId);},'Sales');
   if (incentiveJunior_(sales)) return incentiveJuniorReport_(data,month,sales,shared);
   if (!incentiveEligible_(sales)) throw new Error('Juklak insentif tim ini belum ditetapkan.');
-  var policy=periodPolicy_(data);var senior = incentiveSenior_(sales); if (senior) incentiveLoadingReady_(data);
+  var policy=periodTVPolicy_(periodPolicy_(data),month);var senior = incentiveSenior_(sales); if (senior) incentiveLoadingReady_(data);
   var mapping = shared&&!data._periodBase ? shared.mapping : scoreMapping_(data);
   if (!mapping.ready) throw new Error('Periksa master produk: ' + mapping.issues.join('; '));
   if (!data.meta.SALES_TRANSACTIONS) throw new Error('Sheet SALES_TRANSACTIONS tidak tersedia.');
@@ -64,31 +64,16 @@ function incentiveBuildReport_(data, month, salesId, shared) {
     var monthlyPrepared={ledger:prepared.ledger,mapping:scoreMapping_(monthlyData),transactionsBySales:Object.create(null)},monthlyPolicy=periodPolicy_(monthlyData);monthlyPrepared.transactionsBySales[normalizeKey_(salesId)]=senior?rows.filter(function(r){return monthlyPolicy.loading.indexOf(scoreCanonicalProductId_(r.product_id))>=0;}):rows;
     return scoreBuildReport_(monthlyData,m,salesId,monthlyPrepared);
   });
-  var report = reports[quarter.months.indexOf(month)], today = scoreToday_(), values = Object.create(null), tablets = Object.create(null), products = Object.create(null);
-  mapping.products.forEach(function(p) { products[p.productId] = p; });
-  // scoreBuildReport_ validates the same rows/amounts first. Aggregate invoices by day,
-  // not one incentive per invoice, and exclude only Promag Tablet invoice lines.
-  rows.forEach(function(row) {
-    var date = scoreDate_(row.transaction_date);
-    if (date.slice(0, 7) !== month || date > today) return;
-    var code = scoreCanonicalProductId_(row.product_id);
-    if (senior ? policy.loading.indexOf(code)<0 && code!=='LPRGN' : products[code].group==='EXCLUDE') return;
-    var qty = txNumber_(row.quantity,'Jumlah transaksi');
-    if (!Number.isSafeInteger(qty) || qty===0 || (row._kch_adjustment===true?qty>0:qty<0)) throw new Error('Jumlah transaksi tidak valid; periksa faktur '+(row.transaction_id||''));
-    var amount = row.subtotal_sales !== undefined && row.subtotal_sales !== '' ? (row._kch_adjustment===true?reportMoney_:txMoney_)(row.subtotal_sales, 'Subtotal transaksi') : txMoney_(row.selling_price, 'Harga transaksi') * txNumber_(row.quantity, 'Jumlah transaksi');
-    var bucket = senior && code==='LPRGN' ? tablets : values;
-    bucket[date] = (bucket[date] || 0) + amount;
-    if (!Number.isSafeInteger(bucket[date])) throw new Error('Total harian terlalu besar.');
-  });
+  var report=reports[quarter.months.indexOf(month)],today=scoreToday_(),recognized=scoreRecognizedDays_(rows,month,sales,mapping,policy,today,true);
   var daily = report.dailyAA.map(function(day) {
-    var future = day.date > today, value = values[day.date] || 0;
+    var future=day.date>today,recognizedDay=recognized[day.date]||{tv:0,rawValue:0,tablet:0,focusA:0,focusB:0},value=recognizedDay.tv,focusValue=recognizedDay.focusA+recognizedDay.focusB,focusEligible=senior||!policy.tvRecognition||focusValue>=policy.tvRecognition.dailyFocusMinimum;
     var sunday = new Date(day.date + 'T00:00:00Z').getUTCDay() === 0;
-    return { date: day.date, isWorkDay: day.isWorkDay, value: value / 100, tabletValue:(tablets[day.date]||0)/100,
-      amount: future ? null : (report.holidaySource && day.isWorkDay ? (senior ? incentiveCanvasserDailyRate_(value,tablets[day.date]||0,policy) : incentiveDailyRate_(value,policy)) : 0),
-      status: future ? 'Belum berjalan' : !day.isWorkDay ? (sunday ? 'Minggu' : 'Libur') : !report.holidaySource ? 'Kalender libur belum tersedia' : value ? 'Hari kerja · berdasarkan transaksi' : 'Belum ada penjualan' };
+    return { date: day.date, isWorkDay: day.isWorkDay, value:value/100,rawValue:recognizedDay.rawValue/100,excludedValue:(recognizedDay.rawValue-value)/100,focusValue:focusValue/100,focusEligible:focusEligible,tabletValue:recognizedDay.tablet/100,
+      amount: future ? null : (report.holidaySource && day.isWorkDay ? (senior ? incentiveCanvasserDailyRate_(value,recognizedDay.tablet,policy) : focusEligible?incentiveDailyRate_(value,policy):0) : 0),
+      status: future ? 'Belum berjalan' : !day.isWorkDay ? (sunday ? 'Minggu' : 'Libur') : !report.holidaySource ? 'Kalender libur belum tersedia' : !focusEligible?'PF A + PF B belum mencapai Rp400.000':value ? 'Hari kerja · berdasarkan TV diperhitungkan' : 'Belum ada penjualan' };
   });
   var dailyTotal = report.holidaySource ? daily.reduce(function(sum, d) { return sum + (d.amount || 0); }, 0) : null;
-  var quarterVerified=reports.every(function(r){return r.masterVerified!==false&&r.policySignature===report.policySignature;});
+  var quarterVerified=reports.every(function(r){return r.masterVerified!==false&&r.moneySignature===report.moneySignature;});
   var quarterMonths = reports.map(function(r) { var p = r.parameters[2]; return { month: r.month, masterVerified:r.masterVerified!==false, actual: p.actual, target: p.target, achievement: p.achievement, reached: r.masterVerified!==false && (typeof reportMoney_==='function'?reportMoney_:txMoney_)(p.actual, 'Total Value') >= txMoney_(p.target, 'Target') }; });
   var quarterActual = quarterMonths.reduce(function(sum, m) { return sum + (typeof reportMoney_==='function'?reportMoney_:txMoney_)(m.actual, 'Total Value'); }, 0);
   if (!Number.isSafeInteger(quarterActual)) throw new Error('Akumulasi triwulan terlalu besar.');
@@ -104,7 +89,7 @@ function incentiveBuildReport_(data, month, salesId, shared) {
   var monthSubtotal = dailyScheduledTotal === null ? null : dailyScheduledTotal + monthly.scheduledTotal;
   return { success: true, masterVerified:report.masterVerified!==false, isJunior:false, allocationFactor:1, policy:senior?'LOADING':'ALL_NON_TABLET', month: month, today: today, sales: report.sales, monthlyClosed: today > monthEnd,
     workDays: report.workDays, holidaySource: report.holidaySource,
-    daily: daily, dailyScheduledTotal: dailyScheduledTotal, dailyTotal: dailyTotal, paidDays: daily.filter(function(d) { return d.amount > 0; }).length,
+    tvRecognition:policy.tvRecognition||null,daily: daily, dailyScheduledTotal: dailyScheduledTotal, dailyTotal: dailyTotal, paidDays: daily.filter(function(d) { return d.amount > 0; }).length,
     monthly: monthly, monthSubtotal: monthSubtotal, payoutFactor: monthly.payoutFactor,
     monthTotal: monthSubtotal === null ? null : monthSubtotal * monthly.payoutFactor,
     quarter: { masterVerified:quarterVerified, number: quarter.number, year: quarter.year, months: quarterMonths, end: quarter.end, closed: today > quarter.end,
