@@ -241,7 +241,7 @@ function saveSalesCredentials_(payload) {
     var values = {auth_type:'PASSWORD',username:username,password_hash:hash,password_salt:salt,password_iterations:iterations,session_version:Utilities.getUuid().replace(/-/g, '')};
     if (!current) {
       var cells = new Array(sheet.getLastColumn()).fill('');
-      ['', '', String(profile.sales_id), 'SALES', status, now, now].forEach(function(value,index) { cells[index] = value; });
+      ['', '', String(profile.sales_id), 'SALES', 'INACTIVE', now, now].forEach(function(value,index) { cells[index] = value; });
       Object.keys(values).forEach(function(key) { cells[cols[key]-1] = String(values[key]); });
       sheet.getRange(row,3).setNumberFormat('@');
       Object.keys(values).forEach(function(key) { sheet.getRange(row,cols[key]).setNumberFormat('@'); });
@@ -251,9 +251,12 @@ function saveSalesCredentials_(payload) {
       SpreadsheetApp.flush();
       Object.keys(values).forEach(function(key) { sheet.getRange(row,cols[key]).setNumberFormat('@').setValue(values[key]); });
       sheet.getRange(row,7).setValue(now);
-      SpreadsheetApp.flush();
-      sheet.getRange(row,5).setValue(status);
     }
+    var passwordCell = password ? sheet.getRange(row,cols.password) : null;
+    if (passwordCell) passwordCell.setNumberFormat('@').setRichTextValue(SpreadsheetApp.newRichTextValue().setText(password).build());
+    SpreadsheetApp.flush();
+    if (passwordCell && passwordCell.getDisplayValues()[0][0] !== password) throw new Error('Password Sales belum terkonfirmasi tersimpan. Simpan ulang; akun sementara nonaktif.');
+    sheet.getRange(row,5).setValue(status);
     SpreadsheetApp.flush();
     return {success:true,message:'Akun Sales berhasil disimpan.'};
   } finally { lock.releaseLock(); }

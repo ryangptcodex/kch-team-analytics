@@ -14,7 +14,7 @@ Sales dapat menginput transaksi, absensi dengan foto, foto kunjungan, dan rencan
 1. Gunakan satu revisi yang sama untuk seluruh file Script `.gs` dan HTML `.html` dari root paket. Jika proyek sudah persis di `dc29eb7`, cukup ganti file aplikasi yang berubah sesuai daftar perubahan GitHub. Di editor, ganti isi backend `Code` atau `Kode` yang sudah ada. Folder `tests`, `tools`, `docs`, dan `config` tidak perlu disalin ke editor.
 2. Simpan dan buat versi baru pada deployment **UJI COBA** yang sudah digunakan. Ikuti konfigurasi Firebase dan prosedur deployment uji yang ada. Pengujian akun Sales dan Admin cabang dapat dilakukan di profil browser terpisah melalui URL uji `/exec`.
 3. Setelah uji penerimaan, pasang revisi yang sama pada deployment Production yang sudah digunakan. Gunakan proyek dan spreadsheet Production yang benar. Sebarkan URL deployment yang sudah diperbarui.
-4. Pembaruan kode ini tidak memerlukan menjalankan inisialisasi database, saldo awal stok, repair, atau pembaruan sheet. Panel akun memakai `ACCESS_USERS` dan mempertahankan baris lama. Saat kredensial Sales baru disimpan, aplikasi menyimpan hash PBKDF2 dan salt. Password Sales tidak dapat ditampilkan kembali.
+4. Pembaruan kode ini tidak memerlukan menjalankan inisialisasi database, saldo awal stok, repair, atau pembaruan sheet. Panel akun memakai `ACCESS_USERS` dan mempertahankan baris lama. Login Sales memakai hash PBKDF2 dan salt. Saat Admin utama menyimpan password baru, salinan teksnya juga disimpan di kolom `password` pada `ACCESS_USERS`. Password yang sebelumnya disimpan hanya sebagai hash perlu diatur ulang oleh Admin utama agar kolom terisi. Siapa pun yang dapat membaca spreadsheet atau cadangannya dapat melihat password yang disimpan sebagai teks.
 
 ## Mengelola akun
 
