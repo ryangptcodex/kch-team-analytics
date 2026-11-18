@@ -145,3 +145,12 @@ test('November TV cap note is shown alongside Bejo and Komix quantities in team 
  assert.match(html,/30 Box Komix Herbal Sachet Original/);
  assert.match(html,/batas kumulatif bulanan/);
 });
+
+test('team recap category displays only the category label when the score is provisional',()=>{
+ const e=client(), response=summaryResponse('2026-11');
+ response.rows[0].evaluation={phase:'ESTIMASI',verified:true,message:'Kategori bulan berjalan masih estimasi sampai akhir bulan.'};
+ e.loadSummary('2026-11');e.requests[0].success(response);
+ const html=e.node('scoreSummaryRows').innerHTML;
+ assert.match(html,/<td>EVALUASI<\/td><\/tr>/);
+ assert.doesNotMatch(html,/estimasi/i);
+});
