@@ -358,6 +358,7 @@ function kchApi(token, method, args) {
     getSalesTransactionRequestStatus: getSalesTransactionRequestStatus_,
     getSalesTransactionForEdit: getSalesTransactionForEdit_, editSalesTransaction: editSalesTransaction_,
     getTransactionsPaginated: getTransactionsPaginated_, getTransactionDetail: getTransactionDetail_,
+    exportOfficeReport: function(input) { return exportOfficeReport_(input); },
     getAllTransactionsForExport: getAllTransactionsForExport_, getMonthlyTeamReport: getMonthlyTeamReport_,
     logClientActivity: logClientActivity_
   };
@@ -385,7 +386,7 @@ function kchApi(token, method, args) {
     if (user.role === 'GUEST' && guestReads.indexOf(method) < 0) throw new Error('ACCESS_DENIED: Akun Tamu hanya boleh melihat data.');
     var salesMethods = ['getAuthProfile','getSyncStatus','getInitialAppMetadata','getDashboardMetrics','getAttendanceByDate','getVisitPhotosByDate',
       'getTodayPlans','getSalesPhotoEvidence','getSalesPhotoEvidenceBatch','getStockPickupData','getStockPickupEvidence','getSalesCashDepositEvidence',
-      'getTransactionsPaginated','getTransactionDetail','getAllTransactionsForExport','getMonthlyTeamReport','getScoreSetup','getScoreReport',
+      'getTransactionsPaginated','getTransactionDetail','getAllTransactionsForExport','exportOfficeReport','getMonthlyTeamReport','getScoreSetup','getScoreReport',
       'getMonthlyArchives','getMonthlyArchiveTable','saveTodayPlan','archiveTodayPlan','getIncentiveSetup','getIncentiveReport','saveSalesPhotoUpload','saveSalesTransaction','getSalesTransactionRequestStatus',
       'getSalesTransactionForEdit','editSalesTransaction'];
     var accountMethods = ['listAccessUsers','saveAccessUser','saveGuestCredentials','saveSalesCredentials','saveBranchAdmin'];

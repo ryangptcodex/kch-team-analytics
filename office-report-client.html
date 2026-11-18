@@ -1,0 +1,63 @@
+<script>
+  function openOfficeExport() {
+    var panel = document.getElementById('officeExportPanel');
+    var sales = document.getElementById('officeExportSales');
+    var distributors = document.getElementById('officeExportDist');
+    var today = getLocalDateInputValue();
+    var monday = new Date(today + 'T12:00:00Z');
+    monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay()+6)%7);
+    sales.replaceChildren(new Option('Pilih sales',''));
+    (appState.attendanceSales || []).forEach(function(row) {
+      sales.add(new Option(row.full_name + ' · ' + row.team_name,row.sales_id));
+    });
+    if (appState.user && appState.user.salesId && sales.options.length === 2) sales.selectedIndex=1;
+    distributors.replaceChildren(new Option('Pilih distributor',''));
+    (appState.distributors || []).forEach(function(row) {
+      distributors.add(new Option(row.name,row.id));
+    });
+    document.getElementById('officeExportMonth').value=today.slice(0,7);
+    document.getElementById('officeExportWeek').value=monday.toISOString().slice(0,10);
+    document.getElementById('officeExportStatus').textContent='';
+    showOfficeExportFields();
+    panel.hidden=false;
+    sales.focus();
+  }
+  function showOfficeExportFields() {
+    var weekly=document.getElementById('officeExportKind').value==='rssh';
+    ['Month','Week','Dist'].forEach(function(field) {
+      var hidden=field==='Month'?weekly:!weekly;
+      document.getElementById('officeExport'+field+'Label').hidden=hidden;
+      document.getElementById('officeExport'+field).required=!hidden;
+    });
+  }
+  function downloadOfficeExport(event) {
+    event.preventDefault();
+    var button=document.getElementById('officeExportSubmit');
+    if (button.disabled) return;
+    var status=document.getElementById('officeExportStatus');
+    var kind=document.getElementById('officeExportKind').value;
+    var input={kind:kind,salesId:document.getElementById('officeExportSales').value,
+      period:document.getElementById(kind==='rssh'?'officeExportWeek':'officeExportMonth').value,
+      distributorId:document.getElementById('officeExportDist').value};
+    button.disabled=true;
+    status.textContent='Sedang membuat laporan Excel…';
+    function failed(err) {
+      button.disabled=false;
+      status.textContent=err.message || 'Laporan gagal dibuat.';
+    }
+    kchRun().withSuccessHandler(function(result) {
+      try {
+        if (!result || !result.success || !result.data) throw new Error('Laporan belum lengkap.');
+        var bytes=Uint8Array.from(atob(result.data),function(ch){return ch.charCodeAt(0);});
+        var url=URL.createObjectURL(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+        var link=document.createElement('a');
+        link.href=url; link.download=result.name;
+        document.body.appendChild(link);
+        link.click();link.remove();
+        setTimeout(function(){URL.revokeObjectURL(url);},30000);
+        button.disabled=false;
+        status.textContent='Laporan Excel siap diunduh.';
+      } catch (err) { failed(err); }
+    }).withFailureHandler(failed).exportOfficeReport(input);
+  }
+</script>

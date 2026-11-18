@@ -1020,8 +1020,24 @@
             </div>
             <div style="display: flex; gap: 8px;">
               <button type="button" class="btn btn-outline btn-sm" onclick="exportTransactionsToCSV()"><i class="fa-solid fa-file-excel text-success"></i> Unduh CSV</button>
+              <button type="button" class="btn btn-outline btn-sm" data-kch-write onclick="openOfficeExport()">Unduh Excel Kantor</button>
               <button type="button" class="btn btn-outline btn-sm" onclick="printTransactionsReport()"><i class="fa-solid fa-print"></i> Cetak Laporan</button>
             </div>
+          </div>
+
+          <div id="officeExportPanel" class="table-card" data-kch-write hidden style="padding:16px;margin-bottom:16px">
+            <form onsubmit="downloadOfficeExport(event)">
+              <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:end">
+                <label>Format<select class="form-control" id="officeExportKind" onchange="showOfficeExportFields()"><option value="incentive">Form Incentive</option><option value="rssh">RSSH biasa</option></select></label>
+                <label>Sales<select class="form-control" id="officeExportSales" required></select></label>
+                <label id="officeExportMonthLabel">Bulan<input class="form-control" type="month" id="officeExportMonth"></label>
+                <label id="officeExportWeekLabel" hidden>Senin awal minggu<input class="form-control" type="date" id="officeExportWeek"></label>
+                <label id="officeExportDistLabel" hidden>Distributor<select class="form-control" id="officeExportDist"></select></label>
+                <button class="btn btn-primary" id="officeExportSubmit" type="submit">Unduh .xlsx</button>
+                <button class="btn btn-secondary" type="button" onclick="document.getElementById('officeExportPanel').hidden=true">Tutup</button>
+              </div>
+              <p role="status" id="officeExportStatus"></p>
+            </form>
           </div>
 
           <div class="table-card">
@@ -1617,5 +1633,6 @@
   <?!= include_('operations-client'); ?>
   <?!= include_('auth-client'); ?>
 
+<?!= include_('office-report-client'); ?>
 </body>
 </html>
