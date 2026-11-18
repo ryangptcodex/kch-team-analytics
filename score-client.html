@@ -76,7 +76,6 @@
     if(modern&&(rounded===70||rounded===80)&&value!==rounded)text=(value<rounded?'< ':'> ')+text;
     return text;
   }
-  function scoreEvaluationPhase(evaluation){if(!evaluation)return '';return !evaluation.verified?'Menunggu verifikasi':evaluation.phase==='FINAL'?'Final':evaluation.phase==='ESTIMASI'?'Estimasi':'Belum berjalan';}
   function renderScoreTeamSummary(res) {
     scoreText('scoreSummaryPeriod', 'Periode penilaian: ' + res.month + ' · ' + res.rows.length + ' sales');
     if (!res.rows.length) { scoreSummaryStatus('Belum ada profil sales yang masuk penilaian.'); return; }
@@ -194,12 +193,19 @@
       try {
       res.dailyAA = scoreNormalizeDaily(res.dailyAA, 'AA');
       if (res.brandingEnabled) res.dailyBranding = scoreNormalizeDaily(res.dailyBranding, 'branding');
-      state.report = res; scoreMessage(res.message);
+      state.report = res; scoreMessage(res.total == null ? res.message : '');
       renderScoreRmApproval(state.setup.canManage ? res.rmApproval : null);
       scoreText('scoreTotal', res.total === null ? '—' : scoreDisplayTotal(res.total,res.month,0) + ' / 100');
-      scoreText('scoreEvaluationRule',res.evaluationRule?res.evaluationRule.text:'');scoreText('scoreEvaluationStatus',res.evaluation?res.evaluation.message:'');
-      scoreText('scoreCategory',res.evaluation&&res.evaluation.phase==='BELUM_BERJALAN'?'Periode belum berjalan':res.category?res.category+' · '+res.nextMonth+(res.evaluation&&res.month>='2026-11'&&res.evaluation.phase!=='FINAL'?' · '+scoreEvaluationPhase(res.evaluation):''):res.masterVerified===false?'Periode belum terverifikasi':res.evaluation&&!res.evaluation.verified?'Evaluasi belum dapat dipastikan':'Pemetaan master perlu diperiksa');
-      scoreText('scoreCalendar', res.workDaysPassed + ' dari ' + res.workDays + ' hari kerja · Minggu dikecualikan; libur mengikuti ' + (res.holidaySource || 'sheet HOLIDAYS yang belum tersedia') + '. Target tetap sebulan penuh.');
+      scoreText('scoreEvaluationRule', res.month >= '2026-11'
+        ? 'Mulai November 2026: <70 EVALUASI; 70–80 DISPENSASI LANJUT; >80 AMAN. Setelah dispensasi, skor akhir bulan berikutnya harus di atas 80. Dua bulan berturut-turut pada zona dispensasi maka tim dipastikan EVALUASI.'
+        : res.evaluationRule ? res.evaluationRule.text : '');
+      scoreText('scoreEvaluationStatus', res.evaluation && !res.evaluation.verified ? res.evaluation.message : '');
+      var category = res.evaluation && res.evaluation.phase === 'BELUM_BERJALAN' ? 'Periode belum berjalan' :
+        res.category || (res.masterVerified === false ? 'Periode belum terverifikasi' :
+          res.evaluation && !res.evaluation.verified ? 'Evaluasi belum dapat dipastikan' : 'Pemetaan master perlu diperiksa');
+      scoreText('scoreCategory', category);
+      scoreText('scoreCalendar', res.workDaysPassed + ' dari ' + res.workDays + ' hari kerja · Minggu dikecualikan, ' +
+        (res.holidaySource ? 'libur mengikuti tanggal merah kalender.' : 'data tanggal merah belum tersedia.') + ' Target tetap sebulan penuh.');
       document.getElementById('scoreRows').innerHTML = res.parameters.map(function(p, i) {
         return '<tr><td>' + escapeHtml(p.name) + '</td><td>' + (i >= 3 ? p.actual.toLocaleString('id-ID') : formatRupiah(p.actual)) + '</td><td>' + (p.target===null?'—':i >= 3 ? p.target : formatRupiah(p.target)) + '</td><td>' + (p.weight * 100) + '%</td><td>' + (p.achievement===null?'—':(p.achievement * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 })+'%') + '</td><td>' + (p.points===null?'—':p.points.toLocaleString('id-ID', { maximumFractionDigits: 2 })) + '</td><td>' + (p.score===null?'—':p.score.toLocaleString('id-ID', { maximumFractionDigits: 2 })) + ' / ' + p.max + '</td></tr>';
       }).join('');

@@ -21,13 +21,13 @@ function client(){
 }
 test('render uses backend unrounded category even when displayed total rounds to 40',()=>{
   const e=client();e.c.loadScoreReport();e.requests[0].success(e.report);
-  assert.equal(e.node('scoreTotal').textContent,'40 / 100');assert.equal(e.node('scoreCategory').textContent,'EVALUASI · November 2026');
+  assert.equal(e.node('scoreTotal').textContent,'40 / 100');assert.equal(e.node('scoreCategory').textContent,'EVALUASI');
   assert.equal(e.node('scoreAACount').value,'');assert.match(e.node('scoreAASummary').textContent,/belum diinput/);
 });
 test('period changes and failures clear old totals; late previous response cannot replace new report',()=>{
   const e=client();e.c.loadScoreReport();const older=e.requests[0];e.node('scoreMonth').value='2026-09';e.c.loadScoreReport();
   e.requests[1].success({...e.report,month:'2026-09',total:65,category:'LANJUT BULAN BERIKUTNYA',nextMonth:'Oktober 2026'});
-  older.success(e.report);assert.equal(e.node('scoreTotal').textContent,'65 / 100');assert.match(e.node('scoreCategory').textContent,/Oktober/);
+  older.success(e.report);assert.equal(e.node('scoreTotal').textContent,'65 / 100');assert.equal(e.node('scoreCategory').textContent,'LANJUT BULAN BERIKUTNYA');
   e.c.loadScoreReport();assert.equal(e.node('scoreTotal').textContent,'Sedang memuat data');e.requests[2].failure({message:'Read failed'});assert.equal(e.node('scoreCategory').textContent,'Gagal memuat');assert.equal(e.c.scoreState().report,null);
 });
 test('AA rejects blank, negative and decimal input before RPC; explicit zero is accepted',()=>{
@@ -127,7 +127,7 @@ test('chasing notes put deficits and three master-price alternatives on separate
 });
 test('November category display distinguishes exactly80from nearby unrounded values',()=>{
  const e=client();for(const [total,category,display]of [[80,'DISPENSASI LANJUT','80 / 100'],[80.000001,'AMAN','> 80 / 100'],[79.999999,'DISPENSASI LANJUT','< 80 / 100'],[70.000001,'DISPENSASI LANJUT','> 70 / 100']]){
- e.setup.today='2026-11-25';e.node('scoreMonth').value='2026-11';e.c.loadScoreReport();e.requests.at(-1).success({...e.report,month:'2026-11',total,category,nextMonth:'Desember 2026',dailyAA:[{date:'2026-11-01',isWorkDay:true,count:null,revision:''}],evaluationRule:{text:'≤70 EVALUASI; >70 sampai80 DISPENSASI; >80 AMAN.'},evaluation:{phase:'ESTIMASI',verified:true,message:'Kategori masih estimasi sampai akhir bulan.'}});assert.equal(e.node('scoreTotal').textContent,display);assert.match(e.node('scoreCategory').textContent,/Estimasi/);assert.match(e.node('scoreEvaluationRule').textContent,/AMAN/);assert.match(e.node('scoreEvaluationStatus').textContent,/estimasi/);
+ e.setup.today='2026-11-25';e.node('scoreMonth').value='2026-11';e.c.loadScoreReport();e.requests.at(-1).success({...e.report,month:'2026-11',total,category,nextMonth:'Desember 2026',dailyAA:[{date:'2026-11-01',isWorkDay:true,count:null,revision:''}],evaluationRule:{text:'≤70 EVALUASI; >70 sampai80 DISPENSASI; >80 AMAN.'},evaluation:{phase:'ESTIMASI',verified:true,message:'Kategori masih estimasi sampai akhir bulan.'}});assert.equal(e.node('scoreTotal').textContent,display);assert.equal(e.node('scoreCategory').textContent,category);assert.match(e.node('scoreEvaluationRule').textContent,/AMAN/);assert.equal(e.node('scoreEvaluationStatus').textContent,'');
  }
 });
 test('unknown evaluation and future periods are not displayed as final decisions',()=>{
@@ -153,4 +153,17 @@ test('team recap category displays only the category label when the score is pro
  const html=e.node('scoreSummaryRows').innerHTML;
  assert.match(html,/<td>EVALUASI<\/td><\/tr>/);
  assert.doesNotMatch(html,/estimasi/i);
+});
+
+test('individual November score shows the requested concise summary',()=>{
+ const e=client(); e.node('scoreMonth').value='2026-11'; e.c.loadScoreReport();
+ e.requests.at(-1).success({...e.report,month:'2026-11',total:8.83,category:'EVALUASI',
+  message:'TV mengikuti batas kumulatif',workDaysPassed:15,workDays:25,holidaySource:'HOLIDAYS',
+  evaluation:{phase:'ESTIMASI',verified:true,message:'Kategori masih estimasi'}});
+ assert.equal(e.node('scoreTotal').textContent,'8,83 / 100');
+ assert.equal(e.node('scoreCategory').textContent,'EVALUASI');
+ assert.equal(e.node('scoreMessage').textContent,'');
+ assert.equal(e.node('scoreEvaluationStatus').textContent,'');
+ assert.equal(e.node('scoreCalendar').textContent,'15 dari 25 hari kerja · Minggu dikecualikan, libur mengikuti tanggal merah kalender. Target tetap sebulan penuh.');
+ assert.match(e.node('scoreEvaluationRule').textContent,/zona dispensasi maka tim dipastikan EVALUASI\.$/);
 });
