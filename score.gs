@@ -162,13 +162,13 @@ function scoreParameters_(actuals,teamName,policy){
   policy=policy||periodCurrentPolicy_();var rules=scoreBrandingTeam_(teamName)?policy.scoreSenior:policy.scoreField;
   return rules.map(function(r,i){var achievement=actuals[i]/r[1],points=r[2]*achievement*100;return {name:r[0],actual:actuals[i],target:r[1],weight:r[2],max:r[3],achievement:achievement,points:points,score:Math.max(0,Math.min(points,r[3]))};});
 }
-function scoreCategory_(total,policy,month,storedEvaluation){if(month&&month>='2026-11'){var rule=scoreEvaluationRule_(month,storedEvaluation);if(!rule.verified)return null;return total<=70?'EVALUASI':total<=80?'DISPENSASI LANJUT':'AMAN';}var rules=(policy||periodCurrentPolicy_()).categories;return rules.filter(function(r){return r[0]===null||total<r[0];})[0][1];}
+function scoreCategory_(total,policy,month,storedEvaluation){if(month&&month>='2026-11'){var rule=scoreEvaluationRule_(month,storedEvaluation);if(!rule.verified)return null;return total<rule.evaluationMax?'EVALUASI':total<=rule.dispensationMax?'DISPENSASI LANJUT':'AMAN';}var rules=(policy||periodCurrentPolicy_()).categories;return rules.filter(function(r){return r[0]===null||total<r[0];})[0][1];}
 // Evaluation decisions are versioned separately from the monetary incentive juklak.
 function scoreEvaluationVersion_(month){return month>='2026-11'?'KCH_EVAL_2026_11_V1':'KCH_EVAL_LEGACY_V1';}
 function scoreEvaluationRule_(month,stored){
   var id=scoreEvaluationVersion_(month),verified=stored===undefined||stored===id;
-  return {id:stored===undefined?id:stored,verified:verified,effectiveFrom:'2026-11',evaluationMax:70,dispensationMax:80,followUpMinimum:80,
-    text:month>='2026-11'?'Mulai November 2026: ≤70 EVALUASI; >70 sampai 80 DISPENSASI LANJUT; >80 AMAN. Setelah dispensasi, minimal 80 pada akhir bulan berikutnya. Tepat 80 masih DISPENSASI, tetapi memenuhi minimum tindak lanjut. Keputusan kepegawaian tetap oleh Admin.':'Kategori periode sebelum November mengikuti aturan historisnya.'};
+  return {id:stored===undefined?id:stored,verified:verified,effectiveFrom:'2026-11',evaluationMax:70,dispensationMax:80,followUpMinimum:80,followUpExclusive:true,
+    text:month>='2026-11'?'Mulai November 2026: <70 EVALUASI; 70–80 DISPENSASI LANJUT; >80 AMAN. Setelah dispensasi, skor akhir bulan berikutnya harus di atas 80. Dua bulan berturut-turut pada zona dispensasi masuk EVALUASI. Keputusan kepegawaian tetap oleh Admin.':'Kategori periode sebelum November mengikuti aturan historisnya.'};
 }
 function scoreMonthOffset_(month,offset){var d=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7))-1+offset,1));return d.toISOString().slice(0,7);}
 function scoreEvaluationPrepared_(data){
@@ -183,7 +183,7 @@ function scoreApplyEvaluation_(data,report,prepared){
   function decide(raw,depth){
     var month=raw.month,key=normalizeKey_(salesId)+':'+month;if(cache[key])return cache[key];
     var phase=month<current?'FINAL':month===current?'ESTIMASI':'BELUM_BERJALAN',rule=raw.evaluationRule||scoreEvaluationRule_(month),category=raw.category;
-    var result={month:month,total:raw.total,category:category,baseCategory:category,ruleId:rule.id,verified:raw.masterVerified!==false&&raw.mappingReady&&raw.total!==null&&rule.verified,eligible:true,phase:phase,onProbation:false,previousMonth:null,previousCategory:null,previousTotal:null,followUpMinimum:80,followUpStatus:'TIDAK_ADA',message:''};
+    var result={month:month,total:raw.total,category:category,baseCategory:category,ruleId:rule.id,verified:raw.masterVerified!==false&&raw.mappingReady&&raw.total!==null&&rule.verified,eligible:true,phase:phase,onProbation:false,previousMonth:null,previousCategory:null,previousTotal:null,followUpMinimum:rule.followUpMinimum,followUpExclusive:true,followUpStatus:'TIDAK_ADA',message:''};
     if(!result.verified){result.category=null;result.message=rule.verified?'Status evaluasi belum dapat dipastikan karena sumber Skor belum valid.':'Versi aturan evaluasi periode ini belum dikenali; kategori belum dapat disahkan.';return cache[key]=result;}
     if(month<'2026-11')return cache[key]=result;
     var previousMonth=scoreMonthOffset_(month,-1),previous=null;
@@ -206,19 +206,19 @@ function scoreApplyEvaluation_(data,report,prepared){
     }
     if(result.onProbation===true){
       if(phase==='FINAL'){
-        result.followUpStatus=raw.total<80?'TIDAK_TERPENUHI':'TERPENUHI';
-        if(raw.total<80)result.category='EVALUASI';
-        result.message='Bulan '+previousMonth+' mendapat dispensasi. '+(raw.total<80?'Skor akhir '+month+' di bawah 80: EVALUASI.':'Minimum 80 pada akhir '+month+' terpenuhi.');
-      }else {result.followUpStatus='MENUNGGU_AKHIR_BULAN';result.message='Dalam pemantauan setelah dispensasi '+previousMonth+'. Wajib minimal 80 pada akhir '+month+'; keputusan akhir belum dibuat.';}
+        var passed=raw.total>rule.followUpMinimum;
+        result.followUpStatus=passed?'TERPENUHI':'TIDAK_TERPENUHI';
+        if(!passed)result.category='EVALUASI';
+        result.message='Bulan '+previousMonth+' mendapat dispensasi. '+(passed?'Skor akhir '+month+' di atas 80: AMAN.':'Skor akhir '+month+' masih 80 atau kurang: EVALUASI.');
+      }else {result.followUpStatus='MENUNGGU_AKHIR_BULAN';result.message='Dalam pemantauan setelah dispensasi '+previousMonth+'. Wajib di atas 80 pada akhir '+month+'; keputusan akhir belum dibuat.';}
     }else if(result.onProbation===null){
       result.followUpStatus=previousMonth>=current?'MENUNGGU_BULAN_SEBELUMNYA':'RIWAYAT_BELUM_TERVERIFIKASI';
       result.message=previousMonth>=current?'Bulan sebelumnya belum selesai; tindak lanjut dispensasi belum dapat ditetapkan.':'Riwayat evaluasi '+previousMonth+' belum dapat diverifikasi; tindak lanjut belum dipastikan.';
-      if(phase==='FINAL'&&category==='DISPENSASI LANJUT'&&raw.total<80){result.category=null;result.verified=false;}
+      if(phase==='FINAL'&&category==='DISPENSASI LANJUT'){result.category=null;result.verified=false;}
     }
     if(phase==='ESTIMASI')result.message=(result.message?result.message+' ':'')+'Kategori bulan berjalan masih estimasi sampai akhir bulan.';
     if(phase==='BELUM_BERJALAN')result.message='Periode belum berjalan. Kategori dan tindak lanjut belum final.';
-    if(result.category==='DISPENSASI LANJUT')result.message+=(result.message?' ':'')+'Jika kategori akhir DISPENSASI, minimal 80 pada bulan '+scoreMonthOffset_(month,1)+'.';
-    if(raw.total===80)result.message+=(result.message?' ':'')+'Tepat 80 memenuhi minimum tindak lanjut, tetapi kategorinya tetap DISPENSASI.';
+    if(result.category==='DISPENSASI LANJUT')result.message+=(result.message?' ':'')+'Jika kategori akhir DISPENSASI, target di atas 80 pada bulan '+scoreMonthOffset_(month,1)+'.';
     return cache[key]=result;
   }
   var outcome=decide(report,0);report.category=outcome.category;report.evaluation=outcome;return report;

@@ -7,11 +7,11 @@ function seed(e,month,points,options={}){
 }
 function report(e,month){return e.call('getScoreReport',month,'S1');}
 test('November categories use exact unrounded thresholds, including zero,70,80and fractions',()=>{
- const e=auditSystem();for(const [value,category]of [[0,'EVALUASI'],[1,'EVALUASI'],[70,'EVALUASI'],[70.000001,'DISPENSASI LANJUT'],[70.5,'DISPENSASI LANJUT'],[79.999999,'DISPENSASI LANJUT'],[80,'DISPENSASI LANJUT'],[80.000001,'AMAN'],[100,'AMAN']])assert.equal(e.c.scoreCategory_(value,e.c.periodPolicyV1_(),'2026-11'),category,String(value));
+ const e=auditSystem();for(const [value,category]of [[0,'EVALUASI'],[1,'EVALUASI'],[70,'DISPENSASI LANJUT'],[70.000001,'DISPENSASI LANJUT'],[70.5,'DISPENSASI LANJUT'],[79.999999,'DISPENSASI LANJUT'],[80,'DISPENSASI LANJUT'],[80.000001,'AMAN'],[100,'AMAN']])assert.equal(e.c.scoreCategory_(value,e.c.periodPolicyV1_(),'2026-11'),category,String(value));
  assert.equal(e.c.scoreCategory_(50,e.c.periodPolicyV1_(),'2026-10'),'DISPENSASI LANJUT');assert.equal(e.c.scoreCategory_(80,e.c.periodPolicyV1_(),'2026-10'),'LANJUT BULAN BERIKUTNYA');
 });
 test('real November point totals use new categories without changing parameters or money policy',()=>{
- for(const [points,category]of [[70,'EVALUASI'],[70.5,'DISPENSASI LANJUT'],[75,'DISPENSASI LANJUT'],[80,'DISPENSASI LANJUT'],[80.5,'AMAN']]){const e=auditSystem();seed(e,'2026-11',points);e.clock('2026-11-08 18:30:00');const r=report(e,'2026-11');assert.equal(r.total,points);assert.equal(r.category,category);assert.equal(r.evaluation.phase,'ESTIMASI');assert.equal(r.evaluation.onProbation,false);assert.equal(r.policy.categories[0][0],40);}
+ for(const [points,category]of [[70,'DISPENSASI LANJUT'],[70.5,'DISPENSASI LANJUT'],[75,'DISPENSASI LANJUT'],[80,'DISPENSASI LANJUT'],[80.5,'AMAN']]){const e=auditSystem();seed(e,'2026-11',points);e.clock('2026-11-08 18:30:00');const r=report(e,'2026-11');assert.equal(r.total,points);assert.equal(r.category,category);assert.equal(r.evaluation.phase,'ESTIMASI');assert.equal(r.evaluation.onProbation,false);assert.equal(r.policy.categories[0][0],40);}
 });
 test('dispensation from legacy October does not retrospectively start the new November follow-up',()=>{
  const e=auditSystem();seed(e,'2026-10',50);seed(e,'2026-11',75);e.clock('2026-12-01 00:00:01');assert.equal(report(e,'2026-10').category,'DISPENSASI LANJUT');const r=report(e,'2026-11');assert.equal(r.category,'DISPENSASI LANJUT');assert.equal(r.evaluation.onProbation,false);assert.equal(r.evaluation.phase,'FINAL');
@@ -20,9 +20,16 @@ test('below80after November dispensation becomes EVALUASI only after the next mo
  const e=auditSystem();seed(e,'2026-11',75);seed(e,'2026-12',75);e.clock('2026-12-20 12:00:00');let r=report(e,'2026-12');assert.equal(r.category,'DISPENSASI LANJUT');assert.equal(r.evaluation.onProbation,true);assert.equal(r.evaluation.followUpStatus,'MENUNGGU_AKHIR_BULAN');
  e.clock('2027-01-01 00:00:01');r=report(e,'2026-12');assert.equal(r.total,75);assert.equal(r.evaluation.baseCategory,'DISPENSASI LANJUT');assert.equal(r.category,'EVALUASI');assert.equal(r.evaluation.followUpStatus,'TIDAK_TERPENUHI');assert.equal(r.evaluation.previousMonth,'2026-11');assert.equal(r.evaluation.phase,'FINAL');
 });
-test('exact80satisfies follow-up but stays DISPENSASI and carries its next target across the year',()=>{
- const e=auditSystem();seed(e,'2026-11',75);seed(e,'2026-12',80);seed(e,'2027-01',75);e.clock('2027-01-15 12:00:00');const december=report(e,'2026-12');assert.equal(december.category,'DISPENSASI LANJUT');assert.equal(december.evaluation.followUpStatus,'TERPENUHI');assert.match(december.evaluation.message,/Tepat 80/);assert.match(december.evaluation.message,/2027-01/);
- const january=report(e,'2027-01');assert.equal(january.evaluation.onProbation,true);assert.equal(january.evaluation.phase,'ESTIMASI');e.clock('2027-02-01 00:00:01');assert.equal(report(e,'2027-01').category,'EVALUASI');
+test('75 followed by exactly 80 is evaluated at month close',()=>{
+ const e=auditSystem();seed(e,'2026-11',75);seed(e,'2026-12',80);
+ e.clock('2026-12-20 12:00:00');let december=report(e,'2026-12');
+ assert.equal(december.category,'DISPENSASI LANJUT');
+ assert.equal(december.evaluation.followUpStatus,'MENUNGGU_AKHIR_BULAN');
+ e.clock('2027-01-01 00:00:01');december=report(e,'2026-12');
+ assert.equal(december.evaluation.baseCategory,'DISPENSASI LANJUT');
+ assert.equal(december.category,'EVALUASI');
+ assert.equal(december.evaluation.followUpStatus,'TIDAK_TERPENUHI');
+ assert.match(december.evaluation.message,/80 atau kurang/);
 });
 test('above80after dispensation is AMAN and ends the following-month probation',()=>{
  const e=auditSystem();seed(e,'2026-11',75);seed(e,'2026-12',85);seed(e,'2027-01',75);e.clock('2027-02-01 00:00:01');const december=report(e,'2026-12');assert.equal(december.category,'AMAN');assert.equal(december.evaluation.followUpStatus,'TERPENUHI');assert.equal(report(e,'2027-01').category,'DISPENSASI LANJUT');assert.equal(report(e,'2027-01').evaluation.onProbation,false);
@@ -34,7 +41,8 @@ test('unverified prior history cannot cause either an invented dismissal or a fi
  const e=auditSystem();seed(e,'2026-11',75,{capture:false});seed(e,'2026-12',75);e.clock('2027-01-01 00:00:01');const r=report(e,'2026-12');assert.equal(r.total,75);assert.equal(r.masterVerified,true);assert.equal(r.category,null);assert.equal(r.evaluation.verified,false);assert.equal(r.evaluation.onProbation,null);assert.equal(r.evaluation.followUpStatus,'RIWAYAT_BELUM_TERVERIFIKASI');assert.match(r.evaluation.message,/belum/);
 });
 test('final categories that cannot be altered by missing previous history remain usable',()=>{
- for(const [points,category]of [[70,'EVALUASI'],[80,'DISPENSASI LANJUT'],[85,'AMAN']]){const e=auditSystem();seed(e,'2026-12',points);e.clock('2027-01-01 00:00:01');const r=report(e,'2026-12');assert.equal(r.category,category);assert.equal(r.evaluation.verified,true);assert.equal(r.evaluation.followUpStatus,'RIWAYAT_BELUM_TERVERIFIKASI');}
+ for(const [points,category]of [[69,'EVALUASI'],[85,'AMAN']]){const e=auditSystem();seed(e,'2026-12',points);e.clock('2027-01-01 00:00:01');const r=report(e,'2026-12');assert.equal(r.category,category);assert.equal(r.evaluation.verified,true);assert.equal(r.evaluation.followUpStatus,'RIWAYAT_BELUM_TERVERIFIKASI');}
+ const e=auditSystem();seed(e,'2026-12',80);e.clock('2027-01-01 00:00:01');assert.equal(report(e,'2026-12').category,null);
 });
 test('future month never invents a completed previous-month outcome',()=>{
  const e=auditSystem();seed(e,'2026-11',75);seed(e,'2026-12',75);e.clock('2026-11-08 18:30:00');const r=report(e,'2026-12');assert.equal(r.evaluation.phase,'BELUM_BERJALAN');assert.equal(r.evaluation.onProbation,null);assert.equal(r.evaluation.followUpStatus,'MENUNGGU_BULAN_SEBELUMNYA');
