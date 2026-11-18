@@ -69,3 +69,46 @@ test('historical follow-up uses frozen catalogs even when the current product ca
 test('source verification cannot silently replace an unsupported evaluation policy with the current one',()=>{
  const e=auditSystem();seed(e,'2026-11',75);const hs=e.rows(e.c.KCH_PERIOD_MASTERS_)[0],row=e.rows(e.c.KCH_PERIOD_MASTERS_).find((r,i)=>i&&r[hs.indexOf('period')]==='2026-11'&&r[hs.indexOf('entity')]==='RULES'),rules=JSON.parse(row[hs.indexOf('data_json')]);delete rules.calendar;rules.evaluationPolicy='FUTURE_UNSUPPORTED_EVALUATION';row[hs.indexOf('data_json')]=JSON.stringify(rules);const b=e.call('createOperationalBackup','REQ-EVAL-UNKNOWN-BACKUP-01'),source=e.objects(e.c.KCH_BACKUPS_).find(r=>r.backup_id===b.backupId);e.clock('2026-12-05 12:00:00');const r=e.call('savePeriodVerification',{requestId:'REQ-EVAL-UNKNOWN-VERIFY-01',month:'2026-11',sourceId:source.spreadsheet_id,confirmation:'VERIFIKASI 2026-11',reason:'Sumber versi evaluasi tidak dikenal'});assert.equal(r.state,'FAILED');assert.match(r.message,/Versi aturan evaluasi sumber/);assert.equal(JSON.parse(row[hs.indexOf('data_json')]).evaluationPolicy,'FUTURE_UNSUPPORTED_EVALUATION');
 });
+
+test('Admin records HO receipt against a final evaluation, with calendar deadlines and replay protection',()=>{
+ const e=auditSystem();
+ seed(e,'2026-11',65);
+ e.clock('2026-12-11 12:00:00');
+ let r=report(e,'2026-11');
+ assert.equal(r.rmApproval.deadline,'2026-12-11');
+ assert.equal(r.rmApproval.lastWorkDate,'2026-12-15');
+ assert.equal(r.rmApproval.status,'MENUNGGU_APPROVAL');
+ const input={month:'2026-11',salesId:'S1',receivedDate:'2026-12-11',expectedRevision:''};
+ const result=e.call('saveScoreRmApproval',input);
+ assert.equal(result.approval.status,'TEPAT_WAKTU');
+ assert.equal(e.call('saveScoreRmApproval',input).approval.revision,result.approval.revision);
+ assert.equal(e.objects('_KCH_RM_APPROVALS').length,1);
+ e.clock('2026-12-13 12:00:00');
+ assert.throws(()=>e.call('saveScoreRmApproval',{...input,receivedDate:'2026-12-12'}),/telah berubah/);
+ assert.throws(()=>e.call('saveScoreRmApproval',{...input,receivedDate:'2026-12-14'}),/sampai hari ini/);
+ e.call('saveScoreRmApproval',{...input,receivedDate:'2026-12-12',expectedRevision:result.approval.revision});
+ r=report(e,'2026-11');
+ assert.equal(r.rmApproval.status,'LEWAT_TENGGAT');
+ assert.equal(r.rmApproval.receivedDate,'2026-12-12');
+ assert.equal(e.objects('_KCH_RM_APPROVALS').length,2);
+ assert.equal(e.objects('SALES').find(row=>row.sales_id==='S1').status,'ACTIVE');
+ e.actor({role:'GUEST'});
+ assert.equal(report(e,'2026-11').rmApproval,undefined);
+ assert.throws(()=>e.call('saveScoreRmApproval',input),/ACCESS_DENIED/);
+ e.actor({role:'SALES',salesId:'S1'});
+ assert.equal(report(e,'2026-11').rmApproval,undefined);
+ assert.throws(()=>e.call('saveScoreRmApproval',input),/ACCESS_DENIED/);
+});
+
+test('after a year boundary an evaluation with no receipt shows overdue, while a safe score has no approval form',()=>{
+ const e=auditSystem();
+ seed(e,'2026-12',65);
+ e.clock('2027-01-12 09:00:00');
+ const r=report(e,'2026-12');
+ assert.equal(r.rmApproval.deadline,'2027-01-11');
+ assert.equal(r.rmApproval.lastWorkDate,'2027-01-15');
+ assert.equal(r.rmApproval.status,'LEWAT_TENGGAT');
+ const safe=auditSystem();seed(safe,'2026-11',85);safe.clock('2026-12-12 09:00:00');
+ assert.equal(report(safe,'2026-11').rmApproval,undefined);
+ assert.throws(()=>safe.call('saveScoreRmApproval',{month:'2026-11',salesId:'S1',receivedDate:'2026-12-11',expectedRevision:''}),/Evaluasi yang sudah final/);
+});

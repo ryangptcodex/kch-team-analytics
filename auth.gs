@@ -334,6 +334,7 @@ function kchApi(token, method, args) {
     getScoreSetup: function(month) { return getScoreSetup_(month); },
     getScoreReport: function(month, salesId) { return getScoreReport_(month, salesId); },
     saveScoreBranding: function(input) { return saveScoreBranding_(input); },
+    saveScoreRmApproval: function(input) { return saveScoreRmApproval_(input); },
     saveScoreAA: function(input) { return saveScoreAA_(input); },
     saveSalesCashDeposit: saveSalesCashDeposit_, getSalesCashDepositEvidence: getSalesCashDepositEvidence_, getSalesPhotoEvidence: getSalesPhotoEvidence_,
     getStockPickupData: getStockPickupData_, saveStockPickup: saveStockPickup_, getStockPickupEvidence: getStockPickupEvidence_,
@@ -391,7 +392,7 @@ function kchApi(token, method, args) {
       'getSalesTransactionForEdit','editSalesTransaction'];
     var accountMethods = ['listAccessUsers','saveAccessUser','saveGuestCredentials','saveSalesCredentials','saveBranchAdmin'];
     if (accountMethods.indexOf(method) >= 0) requirePrimaryAdmin_();
-    var adminOnly = ['getStockCountPreview','inspectOperationalRequest','getOperationalHealth','createOperationalBackup','prepareBackupRestore','saveBackupRestore','createRecoveryCopy','recoverAbandonedReservation','getHistoricalMasterSources','savePeriodVerification','getMasterEditor','saveMasterRecord','saveOperationalChange','getOperationsReference','saveSalesCashDeposit', 'saveStockPickup', 'saveScoreBranding', 'saveMyProfile', 'saveScoreAA', 'listAccessUsers', 'saveAccessUser', 'saveGuestCredentials',
+    var adminOnly = ['getStockCountPreview','inspectOperationalRequest','getOperationalHealth','createOperationalBackup','prepareBackupRestore','saveBackupRestore','createRecoveryCopy','recoverAbandonedReservation','getHistoricalMasterSources','savePeriodVerification','getMasterEditor','saveMasterRecord','saveOperationalChange','getOperationsReference','saveSalesCashDeposit', 'saveStockPickup', 'saveScoreBranding', 'saveScoreRmApproval', 'saveMyProfile', 'saveScoreAA', 'listAccessUsers', 'saveAccessUser', 'saveGuestCredentials',
       'saveWeeklyMeeting', 'archiveWeeklyMeeting', 'saveKchNewsArticle', 'archiveKchNewsArticle'];
     if (adminOnly.indexOf(method) >= 0 && user.role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin yang boleh melakukan operasi ini.');
     if (user.role === 'SALES' && salesMethods.indexOf(method) < 0) throw new Error('ACCESS_DENIED: Operasi tidak tersedia untuk Sales.');

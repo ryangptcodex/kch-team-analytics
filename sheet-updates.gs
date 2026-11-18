@@ -66,6 +66,7 @@ function kchSheetSchemas_() {
   schemas.WEEKLY_MEETINGS = WEEKLY_MEETING_HEADERS.slice();
   schemas.ACCESS_USERS = KCH_ACCESS_HEADERS_.concat(['display_name'], KCH_GUEST_ACCESS_HEADERS_);
   schemas[KCH_SCORE_EVENTS_] = KCH_SCORE_HEADERS_.slice();
+  if (typeof KCH_RM_APPROVAL_SHEET_ !== 'undefined') schemas[KCH_RM_APPROVAL_SHEET_] = KCH_RM_APPROVAL_HEADERS_.slice();
   schemas[KCH_TX_REQUEST_SHEET_] = KCH_TX_REQUEST_HEADERS_.slice();
   schemas[KCH_TX_EDIT_SHEET_] = KCH_TX_EDIT_HEADERS_.slice();
   schemas[KCH_LAUNCH_SHEET_] = KCH_LAUNCH_HEADERS_.slice();

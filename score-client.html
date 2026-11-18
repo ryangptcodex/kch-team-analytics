@@ -19,6 +19,7 @@
     scoreSummaryStatus('Sedang memuat data', true);
     var seq = ++state.setupSeq;
     ++state.seq; state.report = null; state.setup = null;
+    renderScoreRmApproval(null);
     scoreText('scoreTotal', 'Sedang memuat data'); scoreText('scoreCategory', 'Sedang memuat data');scoreText('scoreEvaluationRule','');scoreText('scoreEvaluationStatus','');
     setHtml('scoreRows', '<tr><td colspan="7"><span class="widget-loading">Sedang memuat data</span></td></tr>'); setHtml('scoreDailyRows', '<tr><td colspan="4"><span class="widget-loading">Sedang memuat data</span></td></tr>');
     document.getElementById('scoreBrandingCard').hidden = true;
@@ -125,8 +126,48 @@
       return Object.assign({}, row, { count: count, revision: row.revision || '' });
     });
   }
+  function renderScoreRmApproval(approval) {
+    var form=document.getElementById('scoreRmApproval');
+    if (!form) return;
+    form.hidden=!approval;
+    if (!approval) return;
+    var date=document.getElementById('scoreRmDate');
+    date.value=approval.receivedDate || '';
+    date.min=approval.earliestDate;
+    date.max=approval.today;
+    document.getElementById('scoreRmSave').disabled=false;
+    var status=approval.status==='TEPAT_WAKTU' ? 'Diterima HO tepat waktu.' :
+      approval.status==='LEWAT_TENGGAT' ? (approval.receivedDate ? 'Diterima melewati tenggat. ' : 'Belum tercatat sampai tenggat. ') +
+        'Hari kerja terakhir sesuai Juklak '+approval.lastWorkDate+'.' : 'Menunggu approval diterima HO.';
+    scoreText('scoreRmStatus','Batas diterima HO '+approval.deadline+' · '+status);
+    scoreText('scoreRmMessage','');
+  }
+
+  function saveScoreRmApproval(event) {
+    event.preventDefault();
+    var report=scoreState().report, button=document.getElementById('scoreRmSave');
+    if (!report || !report.rmApproval || button.disabled) return;
+    button.disabled=true;
+    scoreText('scoreRmMessage','Sedang menyimpan…');
+    function failed(err) {
+      if (scoreState().report!==report) return;
+      button.disabled=false;
+      scoreText('scoreRmMessage',err.message || 'Tanggal gagal disimpan.');
+    }
+    kchRun().withSuccessHandler(function(result) {
+      if (scoreState().report!==report) return;
+      if (!result || !result.success || !result.approval) { failed({}); return; }
+      report.rmApproval=result.approval;
+      renderScoreRmApproval(result.approval);
+      scoreText('scoreRmMessage','Tanggal penerimaan HO tersimpan.');
+    }).withFailureHandler(failed).saveScoreRmApproval({
+      month:report.month,salesId:report.sales.salesId,receivedDate:document.getElementById('scoreRmDate').value,
+      expectedRevision:report.rmApproval.revision
+    });
+  }
   function scoreReportFailure(message) {
     scoreState().report = null;
+    renderScoreRmApproval(null);
     scoreMessage(message || 'Gagal memuat rincian Skor. Tekan Muat ulang.');
     ['scoreRows', 'scoreDailyRows', 'scoreBrandingDailyRows'].forEach(function(id) {
       setHtml(id, '<tr><td colspan="7" class="text-muted">Data belum berhasil ditampilkan. Tekan Muat ulang.</td></tr>');
@@ -138,6 +179,7 @@
     var month = document.getElementById('scoreMonth').value, salesId = document.getElementById('scoreSales').value;
     loadScoreTeamSummary(month);
     var seq = ++state.seq; state.report = null;
+    renderScoreRmApproval(null);
     document.getElementById('scoreBrandingCard').hidden = true;
     document.getElementById('scoreBrandingSave').disabled = true;
     scoreText('scoreTotal', 'Sedang memuat data'); scoreText('scoreCategory', 'Sedang memuat data'); scoreText('scoreCalendar', '');scoreText('scoreEvaluationRule','');scoreText('scoreEvaluationStatus','');
@@ -152,6 +194,7 @@
       res.dailyAA = scoreNormalizeDaily(res.dailyAA, 'AA');
       if (res.brandingEnabled) res.dailyBranding = scoreNormalizeDaily(res.dailyBranding, 'branding');
       state.report = res; scoreMessage(res.message);
+      renderScoreRmApproval(state.setup.canManage ? res.rmApproval : null);
       scoreText('scoreTotal', res.total === null ? '—' : scoreDisplayTotal(res.total,res.month,0) + ' / 100');
       scoreText('scoreEvaluationRule',res.evaluationRule?res.evaluationRule.text:'');scoreText('scoreEvaluationStatus',res.evaluation?res.evaluation.message:'');
       scoreText('scoreCategory',res.evaluation&&res.evaluation.phase==='BELUM_BERJALAN'?'Periode belum berjalan':res.category?res.category+' · '+res.nextMonth+(res.evaluation&&res.month>='2026-11'&&res.evaluation.phase!=='FINAL'?' · '+scoreEvaluationPhase(res.evaluation):''):res.masterVerified===false?'Periode belum terverifikasi':res.evaluation&&!res.evaluation.verified?'Evaluasi belum dapat dipastikan':'Pemetaan master perlu diperiksa');

@@ -223,9 +223,61 @@ function scoreApplyEvaluation_(data,report,prepared){
   }
   var outcome=decide(report,0);report.category=outcome.category;report.evaluation=outcome;return report;
 }
+var KCH_RM_APPROVAL_SHEET_ = '_KCH_RM_APPROVALS';
+var KCH_RM_APPROVAL_HEADERS_ = ['score_month','sales_id','received_by_ho','recorded_by','recorded_at','revision'];
+
 function getScoreReport_(month, salesId) {
-  getCurrentUserInfo_(); assertOwnSales_(salesId); scoreMonth_(month);
-  var data=scoreContext_(true);return scoreApplyEvaluation_(data,scoreBuildReport_(data,month,salesId));
+  var user=getCurrentUserInfo_(); assertOwnSales_(salesId); scoreMonth_(month);
+  var data=scoreContext_(true), report=scoreApplyEvaluation_(data,scoreBuildReport_(data,month,salesId));
+  if (user.role==='ADMIN' && scoreRmApplicable_(report)) {
+    report.rmApproval=scoreRmView_(report,scoreRmRecord_(data.ctx,data.meta,month,report.sales.salesId));
+  }
+  return report;
+}
+
+function scoreRmApplicable_(report) {
+  return report.month >= '2026-11' && report.category === 'EVALUASI' && report.evaluation.verified && report.evaluation.phase === 'FINAL';
+}
+
+function scoreRmRecord_(ctx,meta,month,salesId) {
+  if (!meta[KCH_RM_APPROVAL_SHEET_]) return null;
+  var raw=txRead_(ctx,[KCH_RM_APPROVAL_SHEET_])[KCH_RM_APPROVAL_SHEET_];
+  var rows=txTable_(KCH_RM_APPROVAL_SHEET_,raw,KCH_RM_APPROVAL_HEADERS_,true).rows;
+  for (var i=rows.length-1;i>=0;i--) {
+    if (rows[i].score_month===month && normalizeKey_(rows[i].sales_id)===normalizeKey_(salesId)) return rows[i];
+  }
+  return null;
+}
+
+function scoreRmView_(report,record) {
+  var actionMonth=scoreMonthOffset_(report.month,1), deadline=actionMonth+'-11';
+  var received=record ? String(record.received_by_ho) : '';
+  var overdue=received ? received>deadline : scoreToday_()>deadline;
+  return {receivedDate:received,revision:record ? String(record.revision) : '', earliestDate:actionMonth+'-01',
+    deadline:deadline,lastWorkDate:actionMonth+'-15',today:scoreToday_(),
+    status:overdue?'LEWAT_TENGGAT':received?'TEPAT_WAKTU':'MENUNGGU_APPROVAL'};
+}
+
+function saveScoreRmApproval_(input) {
+  var user=scoreAdmin_();
+  input=input || {};
+  var month=scoreMonth_(input.month), salesId=input.salesId, received=input.receivedDate;
+  if (typeof salesId!=='string' || !salesId.trim() || !isValidCalendarDate_(received) ||
+      received<scoreMonthOffset_(month,1)+'-01' || received>scoreToday_()) throw new Error('Tanggal penerimaan HO harus dari awal bulan tindak lanjut sampai hari ini.');
+  var lock=LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    var data=scoreContext_(true), report=scoreApplyEvaluation_(data,scoreBuildReport_(data,month,salesId));
+    if (!scoreRmApplicable_(report)) throw new Error('Approval RM hanya bisa dicatat untuk skor Evaluasi yang sudah final.');
+    var id=String(report.sales.salesId), record=scoreRmRecord_(data.ctx,data.meta,month,id);
+    if (record && record.received_by_ho===received) return {success:true,approval:scoreRmView_(report,record)};
+    if (input.expectedRevision!==(record ? String(record.revision) : '')) throw new Error('Catatan approval telah berubah. Muat ulang Skor sebelum menyimpan.');
+    var requests=[];
+    var sheet=data.meta[KCH_RM_APPROVAL_SHEET_] || txAddSheet_(data.meta,requests,KCH_RM_APPROVAL_SHEET_,KCH_RM_APPROVAL_HEADERS_,true);
+    var revision=Utilities.getUuid();
+    requests.push(txAppend_(sheet.sheetId,[[month,id,received,user.email,Utilities.formatDate(new Date(),TIMEZONE,'yyyy-MM-dd HH:mm:ss'),revision]]));
+    txBatch_(data.ctx,requests);
+    return {success:true,approval:scoreRmView_(report,{received_by_ho:received,revision:revision})};
+  } finally { lock.releaseLock(); }
 }
 // Aggregate each SKU/day before chronological cap allocation. Row order and same-day invoice splits cannot change TV.
 function scoreRecognizedDays_(rows,month,sales,mapping,policy,today,loadingOnly) {

@@ -60,3 +60,9 @@ Pemeriksaan bulan sebelumnya memakai snapshot tim/produk/kalender masing-masing 
 - FileAppsScript diperiksa sintaks dan whitespace. Hash empat source lengkap: `docs/score-evaluation-source-sha256.txt`.
 
 Seluruh pengujian memakai simulasi Google. Screenshot pengguna sebelumnya sudah mengonfirmasi R2Production`/exec`, backup harianCOMPLETE dan monitor tanpa masalah; konfirmasi itu tidak membuktikan revisi evaluasi ini sudah terpasang. Langkah terakhir tetap pemasangan oleh pengguna lalu pemeriksaan layar Skor di`/exec`.
+
+## Catatan penerimaan approval RM
+
+Admin memilih sales dan bulan di menu **Skor**. Untuk hasil **Evaluasi** yang sudah final, formulir **Approval RM** mencatat tanggal approval diterima HO (DST). Hasil yang belum final atau belum terverifikasi belum memiliki formulir. Catatan tersedia untuk Admin.
+
+Tenggat jatuh pada tanggal 11 bulan berikutnya. Penerimaan pada tanggal 11 masih tepat waktu. Jika tanggal penerimaan melewati tenggat atau belum ada catatan setelah tenggat, panel menampilkan tanggal 15 sebagai hari kerja terakhir menurut Juklak. Koreksi tanggal disimpan sebagai catatan baru. Panel tidak mengubah akun, profil, maupun pembayaran.
