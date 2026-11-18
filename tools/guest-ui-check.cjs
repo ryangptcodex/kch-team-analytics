@@ -9,16 +9,18 @@ const ctx={id:'test-book',token:'TEST_ONLY_OAUTH'},meta=c.txMetadata_(ctx),req=[
 const headers=Array.from(c.KCH_ACCESS_HEADERS_).concat(['display_name'],Array.from(c.KCH_GUEST_ACCESS_HEADERS_));
 const sheet=c.txAddSheet_(meta,req,'ACCESS_USERS',headers,false);
 req.push(c.txAppend_(sheet.sheetId,[['mhmdryyan7@gmail.com','admin-uid','','ADMIN','ACTIVE','','','Admin'],['juniortlkchlse@gmail.com','','','GUEST','ACTIVE','','stamp','','PASSWORD','tamu',hash,salt,'1000','b'.repeat(32)]]));c.txBatch_(ctx,req);
-c.verifyFirebaseIdentity_=()=>({uid:'admin-uid',email:'mhmdryyan7@gmail.com',name:'Admin'});
+c.verifyFirebaseIdentity_=token=>token==='BRANCH'
+  ? {uid:'branch-uid',email:'supervisor@example.test',name:'Supervisor'}
+  : {uid:'admin-uid',email:'mhmdryyan7@gmail.com',name:'Admin'};
 let html=fs.readFileSync(path.join(root,'index.html'),'utf8').replace(/<\?!= include_\('([^']+)'\); \?>/g,(_,n)=>fs.readFileSync(path.join(root,n+'.html'),'utf8')).replace(/<script\b[^>]*\bsrc=[^>]*>[\s\S]*?<\/script>/g,'').replace(/<link\b[^>]*>/g,'').replace(/<\?[\s\S]*?\?>/g,m=>m.includes('JSON.stringify')?'{}':'');
 html=html.replace(/<\/body>\s*<\/html>\s*$/,`<script>
-window.KCH_FIREBASE_CONFIG={};var authListener;var restored=localStorage.getItem('TEST_FIREBASE_ADMIN')?{uid:'admin-uid',getIdToken:()=>Promise.resolve('MOCK')}:null;var testAuth={currentUser:restored,setPersistence:mode=>mode==='LOCAL'?Promise.resolve():Promise.reject(new Error('Expected LOCAL')),onAuthStateChanged(fn){authListener=fn;fn(this.currentUser);},signInWithPopup(){localStorage.setItem('TEST_FIREBASE_ADMIN','yes');this.currentUser={uid:'admin-uid',getIdToken:()=>Promise.resolve('MOCK')};authListener(this.currentUser);return Promise.resolve({user:this.currentUser});},signOut(){localStorage.removeItem('TEST_FIREBASE_ADMIN');this.currentUser=null;authListener(null);return Promise.resolve();}};
+window.KCH_FIREBASE_CONFIG={};var authListener;var restored=localStorage.getItem('TEST_FIREBASE_ADMIN')?{uid:'admin-uid',getIdToken:()=>Promise.resolve('MOCK')}:null;var testAuth={currentUser:restored,setPersistence:mode=>mode==='LOCAL'?Promise.resolve():Promise.reject(new Error('Expected LOCAL')),onAuthStateChanged(fn){authListener=fn;fn(this.currentUser);},signInWithPopup(){localStorage.setItem('TEST_FIREBASE_ADMIN','yes');this.currentUser=window.testBranchLogin?{uid:'branch-uid',getIdToken:()=>Promise.resolve('BRANCH')}:{uid:'admin-uid',getIdToken:()=>Promise.resolve('MOCK')};authListener(this.currentUser);return Promise.resolve({user:this.currentUser});},signOut(){localStorage.removeItem('TEST_FIREBASE_ADMIN');this.currentUser=null;authListener(null);return Promise.resolve();}};
 function authFactory(){return testAuth;}authFactory.Auth={Persistence:{LOCAL:'LOCAL'}};window.firebase={initializeApp(){},auth:authFactory};window.firebase.auth.GoogleAuthProvider=function(){this.setCustomParameters=function(){};};
 window.google={script:{run:new Proxy({}, {get(target,key){let ok=()=>{},bad=()=>{};const runner=new Proxy({}, {get(t,k){if(k==='withSuccessHandler')return fn=>{ok=fn;return runner;};if(k==='withFailureHandler')return fn=>{bad=fn;return runner;};return (...args)=>window.testBackend(k,args).then(ok).catch(err=>bad(new Error(err.message)));}});return runner[key];}})}};
 </script></body></html>`);
 (async()=>{const server=http.createServer((req,res)=>{res.setHeader('content-type','text/html');res.end(html)});await new Promise(r=>server.listen(0,'127.0.0.1',r));const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox'],headless:true});
 try{const p=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];p.on('pageerror',x=>errors.push(x.message));await p.exposeFunction('testBackend',(method,args)=>{
- if(method==='kchApi')return c.kchApi(...args);if(method==='kchGuestLogin')return c.kchGuestLogin(...args);if(method==='kchGuestLogout')return c.kchGuestLogout(...args);throw Error('unexpected RPC');
+ if(method==='kchApi')return c.kchApi(...args);if(method==='kchGuestLogin')return c.kchGuestLogin(...args);if(method==='kchSalesLogin')return c.kchSalesLogin(...args);if(method==='kchGuestLogout')return c.kchGuestLogout(...args);throw Error('unexpected RPC');
 });
 const before=JSON.stringify(['SALES','PRODUCTS','SALES_TRANSACTIONS','INVENTORY','ACTIVITY_LOGS'].map(n=>e.rows(n)));
 await p.goto('http://127.0.0.1:'+server.address().port);await p.waitForFunction(()=>!document.querySelector('#kchGoogleLogin').disabled);
@@ -41,5 +43,36 @@ await p.reload();await p.waitForFunction(()=>!document.querySelector('#kchGoogle
 // Native credential revocation locks the UI on its next RPC, without Firebase.
 e.rows('ACCESS_USERS')[2][4]='INACTIVE';await p.evaluate(()=>kchRun().getAuthProfile());await p.waitForFunction(()=>document.body.classList.contains('kch-locked'));assert.equal(await p.evaluate(()=>kchGuestToken),'');assert.equal(await p.evaluate(()=>appState.user),null);
 for(const width of [1440,390,320]){await p.setViewportSize({width,height:1000});await p.waitForTimeout(150);const size=await p.evaluate(()=>({width:innerWidth,body:document.documentElement.scrollWidth}));assert.ok(size.body<=size.width,JSON.stringify(size));}
-assert.deepEqual(errors,[]);console.log('PASS: native username/password guest login without Google; wrong-password/clear input; real session/RPC read-only; scores/all-team reads; logout revocation; admin Google + credential management; guest/admin/guest; inactive session clears UI; 1440/390/320.');
+// Create the accounts in the primary Admin UI, then sign in through both routes.
+await p.locator('#kchGoogleLogin').click();
+await p.waitForFunction(()=>appState.user?.canManageAccounts&&!appState.isLoadingMetadata);
+await p.evaluate(()=>openKchAccessPanel());
+await p.waitForFunction(()=>!document.querySelector('#kchSaveTeamAdmin').disabled);
+await p.locator('#kchTeamSales').selectOption('S1');
+await p.locator('#kchTeamSalesUsername').fill('sales-one');
+await p.locator('#kchTeamSalesPassword').fill('sales-test-password');
+await p.locator('#kchSaveTeamSales').click();
+await p.waitForFunction(()=>!document.querySelector('#kchSaveTeamSales').disabled&&document.querySelector('#kchAccessRows').textContent.includes('sales-one'));
+await p.locator('#kchTeamAdminEmail').fill('supervisor@example.test');
+await p.locator('#kchSaveTeamAdmin').click();
+await p.waitForFunction(()=>!document.querySelector('#kchSaveTeamAdmin').disabled&&document.querySelector('#kchAccessRows').textContent.includes('supervisor@example.test'));
+await p.evaluate(()=>signOutKch());
+await p.locator('#kchSalesLoginToggle').click();
+await p.locator('#kchGuestUsername').fill('sales-one');
+await p.locator('#kchGuestPassword').fill('sales-test-password');
+await p.locator('#kchGuestLoginSubmit').click();
+await p.waitForFunction(()=>appState.user?.role==='SALES'&&!appState.isLoadingMetadata&&!appState.isLoadingDashboard);
+assert.deepEqual(await p.evaluate(()=>appState.sales.map(s=>s.sales_id)),['S1']);
+assert.equal(await p.locator('#nav-input-tx').isVisible(),true);
+assert.equal(await p.locator('#nav-operasional').isVisible(),false);
+assert.equal(await p.locator('#userDropdownMenu').getByText('Kelola akun').count(),0);
+await p.evaluate(()=>switchView('skor'));
+assert.equal(await p.locator('#scoreTeamSummaryCard').isVisible(),false);
+await p.evaluate(()=>signOutKch());
+await p.evaluate(()=>{window.testBranchLogin=true;});
+await p.locator('#kchGoogleLogin').click();
+await p.waitForFunction(()=>appState.user?.role==='ADMIN'&&!appState.user.canManageAccounts&&!appState.isLoadingMetadata);
+assert.equal(await p.locator('#nav-master-admin').isVisible(),true);
+assert.equal(await p.locator('#userDropdownMenu').getByText('Kelola akun').count(),0);
+assert.deepEqual(errors,[]);console.log('PASS: native username/password guest login without Google; wrong-password/clear input; real session/RPC read-only; scores/all-team reads; logout revocation; admin Google + credential management; guest/admin/guest; inactive session clears UI; 1440/390/320; primary Admin creates Sales and branch Admin; role-scoped Sales and Google branch Admin UI.');
 }finally{await browser.close();server.close()}})().catch(e=>{console.error(e);process.exitCode=1});

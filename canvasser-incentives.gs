@@ -24,7 +24,7 @@ function incentiveLoadingReady_(data) {
 }
 function incentiveCanvasserDailyRate_(loadingCents,tabletCents,policy){var rule=(policy||periodCurrentPolicy_()).dailySenior;return loadingCents>=rule.loading||(loadingCents>=rule.mixedLoading&&tabletCents>=rule.tablet)?rule.amount:0;}
 function incentiveJuniorReport_(data, month, junior, shared) {
-  var senior = incentiveSourceSales_(data, junior), base = incentiveBuildReport_(data, month, senior.sales_id, shared);
+  var senior = incentiveSourceSales_(data, junior), base = incentiveCalculateReport_(data, month, senior.sales_id, shared);
   var r = JSON.parse(JSON.stringify(base));
   r.sales = {salesId:String(junior.sales_id),name:String(junior.full_name),team:String(junior.team_name)};
   r.isJunior = true; r.allocationFactor = periodPolicy_(data).juniorFactor; r.referenceSales = base.sales;

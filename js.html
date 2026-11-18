@@ -282,6 +282,7 @@
 
   function switchView(viewName) {
     if (['master-admin','monitor-admin'].indexOf(viewName)>=0 && (!appState.user||appState.user.role!=='ADMIN')) {showToast('Fitur ini khusus Admin.','error');return;}
+    if (appState.user && appState.user.role === 'SALES' && ['operasional','weekly-meeting','kch-news'].indexOf(viewName)>=0) return;
     if (viewName === 'dokumen' && (!appState.user || appState.user.role !== 'ADMIN')) { showToast('Dokumen internal hanya tersedia untuk Admin.', 'error'); return; }
     if (appState.user && appState.user.role === 'GUEST' && viewName === 'input-tx') { showToast('Akun Tamu hanya boleh melihat data.', 'error'); return; }
     appState.currentView = viewName;
@@ -3308,7 +3309,7 @@ function renderDriveFiles() {
   }
 
   function logClientActivity(action, targetRef, details) {
-    if (appState.user && appState.user.role === 'GUEST') return;
+    if (appState.user && appState.user.role !== 'ADMIN') return;
     try {
       kchRun().logClientActivity(action, targetRef, details, appState.user && appState.user.username ? appState.user.username : 'ryan');
     } catch (e) {}

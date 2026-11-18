@@ -4,6 +4,8 @@
   var kchFirebaseAuth = null;
   var kchGuestToken = '';
   var kchGuestLoginPending = false;
+  var kchPasswordRole = 'GUEST';
+  var kchTeamAccounts = [];
   var kchAuthGeneration = 0;
   var kchAccessLoadVersion = 0;
   var kchSigningOut = false;
@@ -24,6 +26,7 @@
   function resetKchSessionUi() {
     if(typeof stopAuditSync==='function')stopAuditSync();
     kchAccessLoadVersion++;
+    kchTeamAccounts = [];
     document.body.classList.remove('kch-readonly');
     if (appState.txSearchTimer) clearTimeout(appState.txSearchTimer);
     Object.keys(appState.charts || {}).forEach(function(name) {
@@ -60,8 +63,14 @@
         function fail(err) {
           if (generation !== kchAuthGeneration) return;
           var message = err && err.message ? err.message : 'Permintaan gagal.';
-          if (/AUTH_REQUIRED:|ACCESS_DENIED:/.test(message)) {
-            if (kchGuestToken && /AUTH_REQUIRED:/.test(message)) { kchGuestToken = ''; kchAuthGeneration++; resetKchSessionUi(); showKchAuthError(message); return; }
+          if (/AUTH_REQUIRED:/.test(message) || (!appState.user && /ACCESS_DENIED:/.test(message))) {
+            if (/AUTH_REQUIRED:/.test(message) && appState.user) {
+              var passwordSession = !!kchGuestToken;
+              kchGuestToken = ''; kchAuthGeneration++; resetKchSessionUi();
+              if (passwordSession) showKchAuthError(message);
+              else kchGoogleAccessFailure(new Error(message));
+              return;
+            }
             showKchAuthError(message);
           }
           failure(err || new Error(message));
@@ -82,7 +91,7 @@
   function initKchAuthentication() {
     captureKchInitialUi();
     if (!window.firebase || !window.KCH_FIREBASE_CONFIG) {
-      showKchAuthError('Login Google belum dapat dimuat. Tamu dapat menggunakan username dan password.');
+      showKchAuthError('Login Google belum dapat dimuat. Sales dan Tamu dapat menggunakan username dan password.');
       return;
     }
     firebase.initializeApp(window.KCH_FIREBASE_CONFIG);
@@ -93,14 +102,14 @@
     kchFirebaseAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(function() {
       document.getElementById('kchGoogleLogin').disabled = false;
       kchFirebaseAuth.onAuthStateChanged(handleKchAuthState);
-    }).catch(function(err) { showKchAuthError('Login Google belum siap. Tamu dapat menggunakan username dan password. ' + err.message); });
+    }).catch(function(err) { showKchAuthError('Login Google belum siap. Sales dan Tamu dapat menggunakan username dan password. ' + err.message); });
   }
 
   function handleKchAuthState(user) {
     if (kchSigningOut || kchGuestToken || kchGuestLoginPending) return;
     kchAuthGeneration++;
     resetKchSessionUi();
-    if (!user) { showKchAuthError('Silakan masuk sebagai Tamu atau gunakan Google khusus Admin.'); return; }
+    if (!user) { showKchAuthError('Silakan masuk sebagai Sales, Tamu, atau Admin.'); return; }
     showKchAuthError('Memeriksa akses akun…');
     kchRun().withSuccessHandler(function(result) {
       if (!result || !result.user || result.user.role !== 'ADMIN') { kchGoogleAccessFailure(new Error('ACCESS_DENIED: Login Google khusus Admin.')); return; }
@@ -130,30 +139,36 @@
     initApp();
   }
 
-  function toggleKchGuestLogin() {
+  function toggleKchGuestLogin(role) {
+    role = role || 'GUEST';
     var form = document.getElementById('kchGuestLoginForm');
-    form.hidden = !form.hidden;
-    document.getElementById('kchGuestLoginToggle').setAttribute('aria-expanded', String(!form.hidden));
+    form.hidden = !form.hidden && kchPasswordRole === role;
+    kchPasswordRole = role;
+    document.getElementById('kchGuestLoginToggle').setAttribute('aria-expanded', String(!form.hidden && role === 'GUEST'));
+    document.getElementById('kchSalesLoginToggle').setAttribute('aria-expanded', String(!form.hidden && role === 'SALES'));
+    document.getElementById('kchPasswordUsernameLabel').textContent = role === 'SALES' ? 'Username Sales' : 'Username Tamu';
+    document.getElementById('kchGuestPassword').value = '';
     if (!form.hidden) document.getElementById('kchGuestUsername').focus();
   }
 
   function signInKchGuest(event) {
     event.preventDefault();
     if (kchGuestLoginPending || kchSigningOut) return;
+    var role = kchPasswordRole;
     var username = document.getElementById('kchGuestUsername').value.trim();
     var password = document.getElementById('kchGuestPassword').value;
     var button = document.getElementById('kchGuestLoginSubmit');
     var generation = ++kchAuthGeneration;
     kchGuestLoginPending = true; button.disabled = true;
     document.getElementById('kchGuestPassword').value = '';
-    showKchAuthError('Memeriksa akun Tamu…');
-    google.script.run.withSuccessHandler(function(result) {
+    showKchAuthError('Memeriksa akun…');
+    var runner = google.script.run.withSuccessHandler(function(result) {
       if (generation !== kchAuthGeneration) {
         if (result && result.token) google.script.run.withFailureHandler(function() {}).kchGuestLogout(result.token);
         return;
       }
-      if (!result || !result.success || !result.token || !result.user || result.user.role !== 'GUEST') { kchGuestLoginPending = false; button.disabled = false; showKchAuthError('Login Tamu gagal. Silakan coba lagi.'); return; }
-      function enterGuest() {
+      if (!result || !result.success || !result.token || !result.user || result.user.role !== role) { kchGuestLoginPending = false; button.disabled = false; showKchAuthError('Login gagal. Silakan coba lagi.'); return; }
+      function enterPasswordSession() {
         if (generation !== kchAuthGeneration) { google.script.run.withFailureHandler(function() {}).kchGuestLogout(result.token); return; }
         kchGuestLoginPending = false; button.disabled = false;
         resetKchSessionUi(); kchGuestToken = result.token;
@@ -162,18 +177,20 @@
       // A Guest refresh must never restore an admin identity left by a pending
       // Firebase restoration in this tab. Wait for its local signout first.
       if (kchFirebaseAuth && kchFirebaseAuth.currentUser) {
-        Promise.resolve().then(function() { if (generation !== kchAuthGeneration) return; return kchFirebaseAuth.signOut(); }).then(enterGuest).catch(function() {
+        Promise.resolve().then(function() { if (generation !== kchAuthGeneration) return; return kchFirebaseAuth.signOut(); }).then(enterPasswordSession).catch(function() {
           google.script.run.withFailureHandler(function() {}).kchGuestLogout(result.token);
           if (generation !== kchAuthGeneration) return;
           kchGuestLoginPending = false; button.disabled = false;
-          showKchAuthError('Sesi Google belum berhasil dibersihkan. Coba masuk Tamu lagi.');
+          showKchAuthError('Sesi Google belum berhasil dibersihkan. Coba masuk lagi.');
         });
-      } else enterGuest();
+      } else enterPasswordSession();
     }).withFailureHandler(function(err) {
       if (generation !== kchAuthGeneration) return;
       kchGuestLoginPending = false; button.disabled = false;
-      showKchAuthError(err.message || 'Login Tamu gagal. Silakan coba lagi.');
-    }).kchGuestLogin(username, password);
+      showKchAuthError(err.message || 'Login gagal. Silakan coba lagi.');
+    });
+    if (role === 'SALES') runner.kchSalesLogin(username,password);
+    else runner.kchGuestLogin(username,password);
   }
 
   function signInKchGoogle() {
@@ -246,13 +263,14 @@
     if (roleLabel) roleLabel.textContent = user.role === 'ADMIN' ? 'TEAM LEADER' : user.role === 'GUEST' ? 'Tamu' : 'Sales';
     var menu = document.getElementById('userDropdownMenu');
     if (!menu || document.getElementById('kchLogoutAction')) return;
-    if (user.role !== 'GUEST') {
+    document.querySelectorAll('[data-kch-hide-sales]').forEach(function(el) { el.hidden = user.role === 'SALES'; });
+    if (user.role === 'ADMIN') {
     var profile = document.createElement('button');
     profile.type = 'button'; profile.className = 'dropdown-menu-item';
     profile.textContent = 'Edit profil'; profile.onclick = openKchProfile;
     menu.appendChild(profile);
     }
-    if (user.role === 'ADMIN') {
+    if (user.canManageAccounts === true) {
       var access = document.createElement('button');
       access.type = 'button'; access.className = 'dropdown-menu-item';
       access.textContent = 'Kelola akun'; access.onclick = openKchAccessPanel;
@@ -312,11 +330,12 @@
     var save = document.getElementById('kchSaveAccess');
     var message = document.getElementById('kchAccessMessage');
     save.disabled = true;
+    ['kchSaveTeamSales','kchSaveTeamAdmin'].forEach(function(id) { var button = document.getElementById(id); if (button) button.disabled = true; });
     document.getElementById('kchAccessRows').replaceChildren();
     message.textContent = 'Sedang memuat data';
     kchRun().withSuccessHandler(function(result) {
       if (version !== kchAccessLoadVersion) return;
-      if (!result || !result.success || !Array.isArray(result.users) || result.users.length !== 2 ||
+      if (!result || !result.success || !Array.isArray(result.users) ||
           result.users.filter(function(u) { return u.role === 'GUEST'; }).length !== 1) {
         message.textContent = 'Daftar akun tidak lengkap. Muat ulang sebelum mengubah status.'; return;
       }
@@ -329,11 +348,23 @@
       var body = document.getElementById('kchAccessRows');
       result.users.forEach(function(user) {
         var row = document.createElement('tr');
-        [user.role === 'GUEST' ? (user.username || 'Belum diatur') : user.email, user.role === 'GUEST' ? 'Tamu · hanya lihat' : 'Admin · akses penuh', user.status].forEach(function(value) {
+        var accountName = user.role === 'GUEST' ? (user.username || 'Belum diatur') : user.role === 'SALES' ? user.username + ' · ' + user.salesId : user.email;
+        var roleLabel = {GUEST:'Tamu',SALES:'Sales',BRANCH_ADMIN:'Admin cabang',ADMIN:'Admin utama'};
+        [accountName, roleLabel[user.role], user.status].forEach(function(value) {
           var cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
         });
+        if (user.role === 'BRANCH_ADMIN' || user.role === 'SALES') {
+          var actions = document.createElement('td'), edit = document.createElement('button');
+          edit.type = 'button'; edit.className = 'btn btn-outline btn-sm'; edit.textContent = 'Ubah';
+          edit.onclick = function() {
+            if (user.role === 'SALES') { document.getElementById('kchTeamSales').value = user.salesId; selectKchSalesAccount(); }
+            else { document.getElementById('kchTeamAdminEmail').value = user.email; document.getElementById('kchTeamAdminStatus').value = user.status; }
+          };
+          actions.appendChild(edit); row.appendChild(actions);
+        }
         body.appendChild(row);
       });
+      populateKchTeamAccounts(result);
       save.disabled = false;
       if (!guest.passwordRecorded) { message.textContent = 'Password belum tersimpan sebagai teks di ACCESS_USERS. Isi kembali password Tamu di kolom Password baru lalu Simpan akses.'; return; }
       message.textContent = 'Google hanya untuk Admin. Atur username/password Tamu di sini. Kosongkan password untuk mempertahankannya; minimal 12 karakter jika diganti.';
@@ -341,6 +372,55 @@
       if (version !== kchAccessLoadVersion) return;
       message.textContent = 'Gagal memuat akun: ' + err.message;
     }).listAccessUsers();
+  }
+
+  function populateKchTeamAccounts(result) {
+    var select = document.getElementById('kchTeamSales');
+    if (!select) return;
+    kchTeamAccounts = result.users.filter(function(user) { return user.role === 'SALES'; });
+    var previous = select.value, profiles = new Map();
+    (result.sales || []).forEach(function(sale) { profiles.set(sale.salesId,sale.name); });
+    kchTeamAccounts.forEach(function(account) {
+      if (!profiles.has(account.salesId)) profiles.set(account.salesId,account.salesId + ' · profil tidak aktif');
+    });
+    select.replaceChildren();
+    var empty = document.createElement('option'); empty.value = ''; empty.textContent = 'Pilih profil Sales'; select.appendChild(empty);
+    profiles.forEach(function(name,id) {
+      var option = document.createElement('option'); option.value = id; option.textContent = name + ' (' + id + ')'; select.appendChild(option);
+    });
+    select.value = profiles.has(previous) ? previous : '';
+    selectKchSalesAccount();
+    document.getElementById('kchSaveTeamAdmin').disabled = false;
+  }
+
+  function selectKchSalesAccount() {
+    var id = document.getElementById('kchTeamSales').value;
+    var account = kchTeamAccounts.find(function(user) { return user.salesId.toUpperCase() === id.toUpperCase(); });
+    document.getElementById('kchTeamSalesUsername').value = account ? account.username : '';
+    var password = document.getElementById('kchTeamSalesPassword');
+    password.value = ''; password.required = !account || !account.configured;
+    document.getElementById('kchTeamSalesStatus').value = account ? account.status : 'ACTIVE';
+    document.getElementById('kchSaveTeamSales').disabled = !id;
+  }
+
+  function saveKchTeamAccount(event,role) {
+    event.preventDefault();
+    var sales = role === 'SALES';
+    var button = document.getElementById(sales ? 'kchSaveTeamSales' : 'kchSaveTeamAdmin');
+    var message = document.getElementById('kchTeamAccountMessage');
+    if (button.disabled) return;
+    button.disabled = true;
+    var password = document.getElementById('kchTeamSalesPassword');
+    var runner = kchRun().withSuccessHandler(function(result) {
+      if (!result || !result.success) { button.disabled = false; message.textContent = 'Akun gagal disimpan.'; return; }
+      if (sales) password.value = '';
+      message.textContent = result.message;
+      loadKchAccessUsers();
+    }).withFailureHandler(function(err) {
+      button.disabled = false; message.textContent = err.message;
+    });
+    if (sales) runner.saveSalesCredentials({salesId:document.getElementById('kchTeamSales').value,username:document.getElementById('kchTeamSalesUsername').value,password:password.value,status:document.getElementById('kchTeamSalesStatus').value});
+    else runner.saveBranchAdmin({email:document.getElementById('kchTeamAdminEmail').value,status:document.getElementById('kchTeamAdminStatus').value});
   }
 
   function saveKchAccess(event) {

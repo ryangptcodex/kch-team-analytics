@@ -153,17 +153,33 @@ function archiveRun_(ss, scheduled) {
   }catch(err){PropertiesService.getScriptProperties().setProperty('KCH_ARCHIVE_ERROR_MONTH',archiveMonth_());if(control){control.getRange('B8').setValue('Arsip gagal / perlu diperiksa');control.getRange('B11').setValue(err.message+(err.apiMessage?'\nRincian Google: '+err.apiMessage:'')+(backupUrl?'\nSalinan lengkap: '+backupUrl:'')+([400,403,404].indexOf(err.httpStatus)>=0?'\nPermintaan ditolak Google; pemindahan aktivitas tidak diterapkan. Perbaiki penyebab lalu jalankan setupArsipBulanan lagi.':'\nHentikan input bila hasil belum pasti; jangan hapus jurnal PENDING.'));}throw err;}
   finally{KCH_ARCHIVE_RUN_MONTH_=previousRunMonth;lock.releaseLock();}
 }
+var KCH_SALES_ARCHIVE_TABLES_ = ['SALES_TRANSACTIONS','ATTENDANCE','VISIT_PHOTOS','SALES_STOCK_MOVEMENTS','STOCK_PICKUPS','SALES_CASH_DEPOSITS','TODAY_PLAN','MONTHLY_TEAM_REPORT'];
+function ownSalesArchiveRows_(rows,user) {
+  return rows.filter(function(row) {
+    if (KCH_SALES_ARCHIVE_TABLES_.indexOf(row.sheet_name)<0) return false;
+    var headers=JSON.parse(row.headers_json), values=JSON.parse(row.values_json);
+    return normalizeKey_(values[headers.indexOf('sales_id')]) === normalizeKey_(user.salesId);
+  });
+}
 function getMonthlyArchives_() {
-  var user=getCurrentUserInfo_();if(['ADMIN','GUEST'].indexOf(user.role)<0)throw new Error('ACCESS_DENIED');
+  var user=getCurrentUserInfo_(), index=archiveIndex_();
+  if (user.role==='SALES') {
+    var months=Object.create(null);
+    index.forEach(function(row) { if(row.status==='COMPLETED') months[row.month]={month:row.month,cutoff:row.cutoff_wib,rows:0}; });
+    ownSalesArchiveRows_(archiveAllRows_(),user).forEach(function(row) { if(months[row.month]) months[row.month].rows++; });
+    return {success:true,canOpenSnapshot:false,months:Object.keys(months).sort().reverse().map(function(m){return months[m];}).filter(function(m){return m.rows>0;}),tables:KCH_SALES_ARCHIVE_TABLES_.slice()};
+  }
   var groups=Object.create(null);
-  archiveIndex_().forEach(function(row){if(row.status!=='COMPLETED')return;if(!groups[row.month]){groups[row.month]={month:row.month,cutoff:row.cutoff_wib,rows:0};if(user.role==='ADMIN')groups[row.month].snapshotUrl=row.snapshot_url;}groups[row.month].rows+=Number(row.row_count)||0;});
+  index.forEach(function(row){if(row.status!=='COMPLETED')return;if(!groups[row.month]){groups[row.month]={month:row.month,cutoff:row.cutoff_wib,rows:0};if(user.role==='ADMIN')groups[row.month].snapshotUrl=row.snapshot_url;}groups[row.month].rows+=Number(row.row_count)||0;});
   return {success:true,canOpenSnapshot:user.role==='ADMIN',months:Object.keys(groups).sort().reverse().map(function(m){return groups[m];}),tables:Object.keys(KCH_ARCHIVE_DATES_).filter(function(n){return user.role==='ADMIN'||['ACTIVITY_LOGS','SKOR_EVENTS'].indexOf(n)<0;})};
 }
 function getMonthlyArchiveTable_(month,name,page) {
   var setup=getMonthlyArchives_();
   if (!setup.months.some(function(row){return row.month===month;})||setup.tables.indexOf(name)<0)throw new Error('Arsip tidak tersedia atau tidak diizinkan.');
   page=Number(page||1);if(!Number.isSafeInteger(page)||page<1)throw new Error('Halaman tidak valid.');
-  var stored=archiveAllRows_().filter(function(row){return row.month===month&&row.sheet_name===name;}),headers=stored.length?JSON.parse(stored[0].headers_json):[];
+  var user=getCurrentUserInfo_(), stored=archiveAllRows_().filter(function(row){return row.month===month&&row.sheet_name===name;});
+  if (user.role==='SALES') stored=ownSalesArchiveRows_(stored,user);
+  var headers=stored.length?JSON.parse(stored[0].headers_json):[];
   var rows=stored.map(function(row){var hs=JSON.parse(row.headers_json),vs=JSON.parse(row.values_json);return headers.map(function(h){var i=hs.indexOf(h);return i<0?'':vs[i];});});
   // Hide private Drive IDs and actor tokens from the generic viewer.
   var columns=headers.map(function(h,i){return {h:h,i:i};}).filter(function(c){return ['photo_file_id','actor_uid'].indexOf(c.h)<0 && (getCurrentUserInfo_().role==='ADMIN' || !kchGuestPrivateField_(c.h));});

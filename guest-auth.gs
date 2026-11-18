@@ -1,4 +1,4 @@
-// Password authentication is exclusively for the single read-only Guest account.
+// Password authentication for Guest and individually scoped Sales accounts.
 var KCH_GUEST_ACCESS_HEADERS_ = ['auth_type', 'username', 'password_hash', 'password_salt', 'password_iterations', 'session_version', 'password'];
 var KCH_GUEST_PASSWORD_ITERATIONS_ = 600000;
 var KCH_GUEST_SESSION_MS_ = 8 * 60 * 60 * 1000;
@@ -30,7 +30,11 @@ function guestCredential_() {
 }
 
 function guestCredentialReady_(c) {
-  return c && c.auth_type === 'PASSWORD' && c.role === 'GUEST' && c.status === 'ACTIVE' &&
+  return c && c.role === 'GUEST' && passwordCredentialReady_(c);
+}
+
+function passwordCredentialReady_(c) {
+  return c.auth_type === 'PASSWORD' && c.status === 'ACTIVE' &&
     /^[a-z0-9][a-z0-9._-]{2,39}$/.test(c.username) && /^[a-f0-9]{64}$/.test(c.password_hash) &&
     /^[a-f0-9]{64}$/.test(c.password_salt) && Number(c.password_iterations) === KCH_GUEST_PASSWORD_ITERATIONS_ && /^[a-f0-9]{32}$/.test(c.session_version);
 }
@@ -56,33 +60,35 @@ function guestIdentity_(username) { return { uid: 'kch-guest-password', email: '
 
 // Slots count failed and currently-running logins. Verified success returns its
 // own slot, preserving failures and reserving capacity before expensive hashing.
-function guestRateState_(props,now) {
+function guestRateState_(props,now,key) {
   var rate;
-  try { rate=JSON.parse(props.getProperty('KCH_GUEST_RATE') || 'null'); }
-  catch(err){throw new Error('Pembatas login Tamu perlu diperiksa Admin.');}
+  try { rate=JSON.parse(props.getProperty(key) || 'null'); }
+  catch(err){throw new Error('Pembatas login perlu diperiksa Admin.');}
   if(rate && rate.version===2){
-    if(!Number.isSafeInteger(rate.count) || rate.count<0 || rate.count>20 || typeof rate.until!=='number' || !Number.isFinite(rate.until) || typeof rate.window!=='string' || !/^[a-f0-9]{32}$/.test(rate.window))throw new Error('Pembatas login Tamu perlu diperiksa Admin.');
+    if(!Number.isSafeInteger(rate.count) || rate.count<0 || rate.count>20 || typeof rate.until!=='number' || !Number.isFinite(rate.until) || typeof rate.window!=='string' || !/^[a-f0-9]{32}$/.test(rate.window))throw new Error('Pembatas login perlu diperiksa Admin.');
     if(now<rate.until)return rate;
   }
   // The old version counted successes too. Start the corrected budget once,
   // without touching passwords, account status or existing Guest sessions.
   return {version:2,count:0,until:now+10*60*1000,window:Utilities.getUuid().replace(/-/g,'')};
 }
-function guestRateSlot_() {
+function guestRateSlot_(key) {
+  key = key || 'KCH_GUEST_RATE';
   var lock = LockService.getScriptLock(); lock.waitLock(10000);
   try {
-    var props=PropertiesService.getScriptProperties(),rate=guestRateState_(props,Date.now());
-    if(rate.count>=20)throw new Error('Terlalu banyak percobaan login Tamu. Coba lagi dalam 10 menit.');
-    rate.count++;props.setProperty('KCH_GUEST_RATE',JSON.stringify(rate));
+    var props=PropertiesService.getScriptProperties(),rate=guestRateState_(props,Date.now(),key);
+    if(rate.count>=20)throw new Error('Terlalu banyak percobaan login. Coba lagi dalam 10 menit.');
+    rate.count++;props.setProperty(key,JSON.stringify(rate));
     return rate.window;
   } finally { lock.releaseLock(); }
 }
 // Called only after credential recheck/session creation, with the shared lock held.
-function guestRateSuccess_(window,props) {
-  var rate=guestRateState_(props,Date.now());
+function guestRateSuccess_(window,props,key) {
+  key = key || 'KCH_GUEST_RATE';
+  var rate=guestRateState_(props,Date.now(),key);
   if(rate.window!==window)return;
   if(rate.count>0)rate.count--;
-  props.setProperty('KCH_GUEST_RATE',JSON.stringify(rate));
+  props.setProperty(key,JSON.stringify(rate));
 }
 
 // Deliberate public unauthenticated entry point. Never returns account hashes/salts.
@@ -127,12 +133,13 @@ function resolveGuestSession_(token) {
 }
 function kchGuestLogout(token) {
   if (typeof token === 'string' && /^KCHG_[a-f0-9]{64}$/.test(token)) PropertiesService.getScriptProperties().deleteProperty('KCH_GUEST_SESSION_' + KCH_GUEST_SHA256_(token));
+  if (typeof token === 'string' && /^KCHS_[a-f0-9]{64}$/.test(token)) PropertiesService.getScriptProperties().deleteProperty(salesSessionKey_(token));
   return { success: true };
 }
 
 // Admin-only RPC; old Google-guest row is retained as the single account record.
 function saveGuestCredentials_(payload) {
-  if (getCurrentUserInfo_().role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin yang boleh mengelola akun.');
+  requirePrimaryAdmin_();
   payload = payload || {};
   var username = String(payload.username || '').trim().toLowerCase(), password = payload.password;
   if (!/^[a-z0-9][a-z0-9._-]{2,39}$/.test(username)) throw new Error('Username: 3–40 huruf kecil, angka, titik, garis bawah atau tanda hubung.');
@@ -148,6 +155,7 @@ function saveGuestCredentials_(payload) {
   var lock = LockService.getScriptLock(); lock.waitLock(10000);
   try {
     var current = guestCredential_();
+    if (salesCredentials_(getAccessSheet_(false)).some(function(c) { return c.username === username; })) throw new Error('Username sudah dipakai akun Sales.');
     if ((current ? guestRevision_(current) : '') !== revision) throw new Error('Akun Tamu berubah. Muat ulang dan simpan lagi.');
     var sheet = getAccessSheet_(true), rows = accessRows_(sheet), index = -1;
     rows.forEach(function(row, i) { if (String(row[0]).trim().toLowerCase() === KCH_GUEST_EMAIL_) index = i; });
@@ -166,4 +174,134 @@ function saveGuestCredentials_(payload) {
     sheet.getRange(rowNumber, 7).setValue(now); SpreadsheetApp.flush();
     return { success: true, message: 'Akun Tamu berhasil disimpan.' };
   } finally { lock.releaseLock(); }
+}
+
+var KCH_SALES_SESSION_PREFIX_ = 'KCH_SALES_SESSION_';
+var KCH_SALES_RATE_KEY_ = 'KCH_SALES_RATE';
+
+function salesCredentials_(sheet) {
+  if (!sheet) return [];
+  var cols = guestAccessColumns_(sheet, false), count = sheet.getLastRow() - 1;
+  if (!cols.auth_type || count < 1) return [];
+  return sheet.getRange(2, 1, count, sheet.getLastColumn()).getDisplayValues().map(function(row, i) {
+    return {
+      number: i + 2, salesId: row[2], role: normalizeKey_(row[3]), status: normalizeKey_(row[4]),
+      auth_type: row[cols.auth_type - 1], username: row[cols.username - 1] || '',
+      password_hash: row[cols.password_hash - 1] || '', password_salt: row[cols.password_salt - 1] || '',
+      password_iterations: row[cols.password_iterations - 1] || '', session_version: row[cols.session_version - 1] || ''
+    };
+  }).filter(function(c) { return c.role === 'SALES' && c.auth_type === 'PASSWORD'; });
+}
+
+function salesCredential_(accounts, salesId) {
+  var matches = accounts.filter(function(c) { return normalizeKey_(c.salesId) === normalizeKey_(salesId); });
+  if (matches.length > 1) throw new Error('Konfigurasi akun Sales ganda. Hubungi Admin utama.');
+  return matches[0];
+}
+
+function salesCredentialRevision_(c) {
+  return KCH_GUEST_SHA256_(JSON.stringify([normalizeKey_(c.salesId), guestRevision_(c)]));
+}
+
+function nativeSalesProfile_(id) {
+  var matches = getActiveSheetData_('SALES').rows.filter(function(row) { return normalizeKey_(row.sales_id) === normalizeKey_(id); });
+  if (matches.length !== 1 || !txActive_(matches[0]) || !normalizeKey_(id)) return null;
+  return matches[0];
+}
+
+function salesIdentity_(account) {
+  var profile = nativeSalesProfile_(account.salesId);
+  if (!profile) throw new Error('AUTH_REQUIRED: Profil Sales tidak aktif. Hubungi Admin utama.');
+  var id = String(profile.sales_id), actor = 'sales:' + normalizeKey_(id).toLowerCase();
+  var name = String(profile.full_name || id);
+  return {uid:actor,email:actor,username:account.username,role:'SALES',salesId:id,teamName:String(profile.team_name || ''),fullName:name,shortName:name.split(/\s+/)[0]};
+}
+
+function saveSalesCredentials_(payload) {
+  requirePrimaryAdmin_();
+  payload = payload || {};
+  var id = String(payload.salesId || '').trim(), username = String(payload.username || '').trim().toLowerCase();
+  var password = payload.password, status = normalizeKey_(payload.status);
+  if (!id || !/^[a-z0-9][a-z0-9._-]{2,39}$/.test(username)) throw new Error('Pilih Sales dan gunakan username 3–40 karakter (huruf, angka, titik, garis bawah atau tanda hubung).');
+  if (['ACTIVE','INACTIVE'].indexOf(status) < 0) throw new Error('Status tidak valid.');
+  if (typeof password !== 'string' || (password && (password.length < 12 || password.length > 128))) throw new Error('Password harus 12–128 karakter.');
+  var previous = salesCredential_(salesCredentials_(getAccessSheet_(false)), id);
+  if (!password && (!previous || !previous.password_hash || !previous.password_salt)) throw new Error('Isi password untuk akun Sales baru.');
+  var salt = password ? Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '') : previous.password_salt;
+  var hash = password ? guestPasswordHash_(password, salt, KCH_GUEST_PASSWORD_ITERATIONS_) : previous.password_hash;
+  var iterations = password ? KCH_GUEST_PASSWORD_ITERATIONS_ : previous.password_iterations;
+  var lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    var sheet = getAccessSheet_(true), accounts = salesCredentials_(sheet), current = salesCredential_(accounts,id), guest = guestCredential_();
+    if ((current ? salesCredentialRevision_(current) : '') !== (previous ? salesCredentialRevision_(previous) : '')) throw new Error('Akun berubah. Muat ulang dan simpan lagi.');
+    if (accounts.some(function(c) { return c !== current && c.username === username; }) || (guest && guest.username === username)) throw new Error('Username sudah dipakai.');
+    var profile = nativeSalesProfile_(id);
+    if ((!current || status === 'ACTIVE') && !profile) throw new Error('Profil Sales tidak aktif, ganda atau tidak ditemukan.');
+    var cols = guestAccessColumns_(sheet, true), now = new Date(), row = current ? current.number : sheet.getLastRow() + 1;
+    var values = {auth_type:'PASSWORD',username:username,password_hash:hash,password_salt:salt,password_iterations:iterations,session_version:Utilities.getUuid().replace(/-/g, '')};
+    if (!current) {
+      var cells = new Array(sheet.getLastColumn()).fill('');
+      ['', '', String(profile.sales_id), 'SALES', status, now, now].forEach(function(value,index) { cells[index] = value; });
+      Object.keys(values).forEach(function(key) { cells[cols[key]-1] = String(values[key]); });
+      sheet.getRange(row,3).setNumberFormat('@');
+      Object.keys(values).forEach(function(key) { sheet.getRange(row,cols[key]).setNumberFormat('@'); });
+      sheet.getRange(row,1,1,cells.length).setValues([nativeLiteralRow_(cells)]);
+    } else {
+      sheet.getRange(row,5).setValue('INACTIVE');
+      SpreadsheetApp.flush();
+      Object.keys(values).forEach(function(key) { sheet.getRange(row,cols[key]).setNumberFormat('@').setValue(values[key]); });
+      sheet.getRange(row,7).setValue(now);
+      SpreadsheetApp.flush();
+      sheet.getRange(row,5).setValue(status);
+    }
+    SpreadsheetApp.flush();
+    return {success:true,message:'Akun Sales berhasil disimpan.'};
+  } finally { lock.releaseLock(); }
+}
+
+function salesSessionKey_(token) { return KCH_SALES_SESSION_PREFIX_ + KCH_GUEST_SHA256_(token); }
+
+function kchSalesLogin(username,password) {
+  var window = guestRateSlot_(KCH_SALES_RATE_KEY_);
+  var denied = 'Username atau password Sales salah, atau akun belum aktif.';
+  if (typeof username !== 'string' || typeof password !== 'string' || username.length > 80 || password.length < 12 || password.length > 128) throw new Error(denied);
+  username = username.trim().toLowerCase();
+  var accounts = salesCredentials_(getAccessSheet_(false)), matches = accounts.filter(function(c) { return c.username === username; });
+  var c = matches.length === 1 ? salesCredential_(accounts,matches[0].salesId) : null;
+  if (!salesCredentialReady_(c) || !guestEqual_(guestPasswordHash_(password,c.password_salt,Number(c.password_iterations)),c.password_hash)) throw new Error(denied);
+  var lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    var latest = salesCredential_(salesCredentials_(getAccessSheet_(false)),c.salesId);
+    var revision = salesCredentialRevision_(c);
+    if (!salesCredentialReady_(latest) || salesCredentialRevision_(latest) !== revision) throw new Error(denied);
+    var user = salesIdentity_(latest);
+    var props = PropertiesService.getScriptProperties(), now = Date.now(), all = props.getProperties(), sessions = [];
+    Object.keys(all).forEach(function(key) {
+      if (key.indexOf(KCH_SALES_SESSION_PREFIX_) !== 0) return;
+      var entry;
+      try { entry = JSON.parse(all[key]); } catch (err) { entry = null; }
+      if (!entry || !(entry.expires > now) || (entry.salesId === user.salesId && entry.revision !== revision)) props.deleteProperty(key);
+      else sessions.push({key:key,expires:entry.expires});
+    });
+    sessions.sort(function(a,b) { return a.expires-b.expires; });
+    while (sessions.length >= 200) props.deleteProperty(sessions.shift().key);
+    var token = 'KCHS_' + Utilities.getUuid().replace(/-/g,'') + Utilities.getUuid().replace(/-/g,'');
+    props.setProperty(salesSessionKey_(token),JSON.stringify({salesId:user.salesId,revision:revision,expires:now+KCH_GUEST_SESSION_MS_}));
+    guestRateSuccess_(window,props,KCH_SALES_RATE_KEY_);
+    return {success:true,token:token,user:user};
+  } finally { lock.releaseLock(); }
+}
+
+function salesCredentialReady_(c) {
+  return c && c.role === 'SALES' && passwordCredentialReady_(c);
+}
+
+function resolveSalesSession_(token) {
+  if (!/^KCHS_[a-f0-9]{64}$/.test(token)) throw new Error('AUTH_REQUIRED: Silakan masuk kembali.');
+  var props = PropertiesService.getScriptProperties(), key = salesSessionKey_(token), session;
+  try { session = JSON.parse(props.getProperty(key) || 'null'); } catch (err) { session = null; }
+  if (!session || !(session.expires > Date.now())) throw new Error('AUTH_REQUIRED: Sesi Sales berakhir. Silakan masuk kembali.');
+  var credential = salesCredential_(salesCredentials_(getAccessSheet_(false)),session.salesId);
+  if (!salesCredentialReady_(credential) || session.revision !== salesCredentialRevision_(credential)) throw new Error('AUTH_REQUIRED: Akses Sales berubah. Silakan masuk kembali.');
+  return salesIdentity_(credential);
 }

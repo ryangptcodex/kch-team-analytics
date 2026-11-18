@@ -52,3 +52,22 @@ test('updater expands existing incentive schemas, preserves an empty custom head
  sync();const rows=e.rows('INSENTIF_BULANAN'),h=rows[0];assert.equal(h.at(-1),'custom_header');const jr=rows.find(r=>r[0]==='2026-10'&&r[1]===e.junior);assert.equal(jr[h.indexOf('combined_paid')],1099000);assert.equal(jr[h.indexOf('focus_a_target')],'');assert.equal(jr[h.indexOf('senior_sales_id')],e.senior);
  const first=JSON.stringify(rows);sync();assert.equal(JSON.stringify(e.rows('INSENTIF_BULANAN')),first);assert.equal(c.KCH_REQUEST_USER_,null);
 });
+
+
+test('Sales Junior sees the same personal payouts without the paired Senior identity or figures', () => {
+  const e = fixture();
+  const [senior,junior] = e.context.KCH_INCENTIVE_PAIRS_[0];
+  e.tx('TMXTG',80000000,'2026-10-02',senior);
+  const full = e.report('2026-10',junior);
+  e.actor({role:'SALES',salesId:junior});
+  const own = e.report('2026-10',junior);
+  assert.equal(own.privateJunior,true);
+  assert.equal(own.sales.salesId,junior);
+  assert.equal(own.monthTotal,full.monthTotal);
+  assert.equal(own.dailyTotal,full.dailyTotal);
+  assert.equal(own.quarter.amount,full.quarter.amount);
+  for (const key of ['referenceSales','referenceQuarter','referenceMonthTotal','referenceGateChecks']) assert.equal(own[key],undefined);
+  assert.equal(own.daily[0].referenceValue,undefined);
+  assert.equal(own.monthly.parameters[0].reference,undefined);
+  assert.throws(()=>e.report('2026-10',senior),/ACCESS_DENIED/);
+});

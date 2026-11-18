@@ -1,6 +1,6 @@
 <style>
   body.kch-locked > :not(#kchAuthScreen):not(script):not(style) { display:none !important; }
-  #kchAuthScreen[hidden] { display:none !important; }
+  [data-kch-hide-sales][hidden], #kchAuthScreen[hidden] { display:none !important; }
   #kchAuthScreen { min-height:100vh; min-height:100svh; width:100%; display:grid; place-items:center; padding:40px 28px; position:relative; isolation:isolate; background:radial-gradient(ellipse at 6% 100%,#e1f1e6 0,transparent 55%),radial-gradient(ellipse at 95% 15%,var(--primary-light, #f0f8f2) 0,transparent 54%),var(--bg-main, #f8fafc); color:var(--text-body, #334155); font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
   #kchAuthScreen::before { content:''; position:absolute; inset:48% 0 0; background:linear-gradient(25deg,#c9e5d266,transparent 55%); clip-path:polygon(0 0,100% 78%,100% 100%,0 100%); z-index:-1; }
   .kch-login-shell { width:100%; max-width:1240px; min-height:690px; display:grid; grid-template-columns:.95fr 1.05fr; padding:24px; background:#fff; border:1px solid #ffffffcc; border-radius:30px; box-shadow:0 24px 85px #0c1e3313; }
@@ -66,10 +66,11 @@
       <h1 id="kchLoginTitle">Selamat datang<br>kembali.</h1>
       <p class="kch-login-description">Pantau penjualan dan aktivitas tim dalam satu tempat.</p>
       <div class="kch-login-divider" aria-hidden="true"></div>
-      <p class="kch-login-account-hint">Tamu menggunakan username dan password. Login Google khusus Admin.</p>
+      <p class="kch-login-account-hint">Sales dan Tamu menggunakan username dan password. Admin menggunakan Google.</p>
       <button type="button" id="kchGuestLoginToggle" class="btn btn-primary" style="width:100%;min-height:48px;margin-bottom:12px" onclick="toggleKchGuestLogin()" aria-expanded="false" aria-controls="kchGuestLoginForm">Masuk sebagai Tamu</button>
+      <button type="button" id="kchSalesLoginToggle" class="btn btn-primary" style="width:100%;min-height:48px;margin-bottom:12px" onclick="toggleKchGuestLogin('SALES')" aria-expanded="false" aria-controls="kchGuestLoginForm">Masuk sebagai Sales</button>
       <form id="kchGuestLoginForm" hidden onsubmit="signInKchGuest(event)" style="margin-bottom:16px">
-        <label for="kchGuestUsername">Username Tamu</label>
+        <label id="kchPasswordUsernameLabel" for="kchGuestUsername">Username Tamu</label>
         <input id="kchGuestUsername" name="username" autocomplete="username" required maxlength="40" style="width:100%;margin:6px 0 12px;padding:12px;border:1px solid #cbd5e1;border-radius:8px">
         <label for="kchGuestPassword">Password</label>
         <input id="kchGuestPassword" name="password" type="password" autocomplete="current-password" required minlength="12" maxlength="128" style="width:100%;margin:6px 0 12px;padding:12px;border:1px solid #cbd5e1;border-radius:8px">
@@ -175,7 +176,7 @@
 <section data-kch-write id="kchAccessPanel" hidden aria-labelledby="kchAccessTitle">
   <button type="button" class="btn btn-secondary" onclick="document.getElementById('kchAccessPanel').hidden=true">Tutup</button>
   <h2 id="kchAccessTitle">Kelola akun</h2>
-  <p>Webapp hanya memiliki akun Admin dan akun Tamu. Profil sales dan histori tetap dipertahankan.</p>
+  <h3>Akun Tamu</h3>
   <form onsubmit="saveKchAccess(event)">
     <input id="kchAccessEmail" type="hidden">
     <label>Username Tamu <input id="kchAccessUsername" type="text" autocomplete="off" minlength="3" maxlength="40" required></label>
@@ -184,5 +185,20 @@
     <button type="submit" class="btn btn-primary" id="kchSaveAccess" disabled>Simpan akses</button>
   </form>
   <p id="kchAccessMessage" role="status"></p>
+  <h3>Akun Sales</h3>
+  <form onsubmit="saveKchTeamAccount(event, 'SALES')">
+    <label>Profil Sales <select id="kchTeamSales" required onchange="selectKchSalesAccount()"></select></label>
+    <label>Username <input id="kchTeamSalesUsername" autocomplete="off" minlength="3" maxlength="40" required></label>
+    <label>Password baru <input id="kchTeamSalesPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128"></label>
+    <label>Status <select id="kchTeamSalesStatus"><option value="ACTIVE">Aktif</option><option value="INACTIVE">Nonaktif</option></select></label>
+    <button type="submit" class="btn btn-primary" id="kchSaveTeamSales" disabled>Simpan akun Sales</button>
+  </form>
+  <h3>Admin cabang</h3>
+  <form onsubmit="saveKchTeamAccount(event, 'BRANCH_ADMIN')">
+    <label>Email Google <input id="kchTeamAdminEmail" type="email" autocomplete="off" maxlength="254" required></label>
+    <label>Status <select id="kchTeamAdminStatus"><option value="ACTIVE">Aktif</option><option value="INACTIVE">Nonaktif</option></select></label>
+    <button type="submit" class="btn btn-primary" id="kchSaveTeamAdmin" disabled>Simpan Admin cabang</button>
+  </form>
+  <p id="kchTeamAccountMessage" role="status"></p>
   <div style="overflow-x:auto"><table><thead><tr><th>Akun</th><th>Peran</th><th>Status</th></tr></thead><tbody id="kchAccessRows"></tbody></table></div>
 </section>

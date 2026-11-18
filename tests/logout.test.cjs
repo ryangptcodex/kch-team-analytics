@@ -103,7 +103,7 @@ test('same-page admin logout then guest login rebuilds UI without admin actions'
   c.kchRun = () => { const r = { withSuccessHandler(fn) { r.success = fn; return r; }, withFailureHandler() { return r; },
     getAuthProfile() { r.success({ user: profile }); } }; return r; };
   c.initKchAuthentication(); await new Promise(resolve => setImmediate(resolve));
-  profile = { role: 'ADMIN', email: 'admin@gmail.com' }; authListener({ uid: 'A' });
+  profile = { role: 'ADMIN', email: 'admin@gmail.com', canManageAccounts: true }; authListener({ uid: 'A' });
   assert.ok(e.get('userDropdownMenu').children.some(n => n.textContent === 'Kelola akun'));
   await c.signOutKch();
   profile = { role: 'GUEST', email: '' }; c.enterKchSession({user:profile});

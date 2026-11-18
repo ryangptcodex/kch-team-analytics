@@ -19,7 +19,7 @@ var KCH_PRODUCTION_FIREBASE_WEB_CONFIG_ = {
   "measurementId": "G-7Y6EY9Y07B"
 };
 var KCH_BOOTSTRAP_ADMIN_EMAIL_ = 'mhmdryyan7@gmail.com';
-// Only these two verified Google accounts may use the web app.
+// Reserved email for the legacy Guest row; Guest uses password authentication.
 var KCH_GUEST_EMAIL_ = 'juniortlkchlse@gmail.com';
 function getFirebaseWebConfig_() { return isKchProduction_() ? KCH_PRODUCTION_FIREBASE_WEB_CONFIG_ : KCH_FIREBASE_WEB_CONFIG_; }
 

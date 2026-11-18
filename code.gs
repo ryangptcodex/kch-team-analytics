@@ -694,7 +694,7 @@ function getInitialAppMetadata_() {
       kchNews: kchNews,
       weeklyMeetings: weeklyMeetings,
       canManageKchNews: isKchNewsManager_(),
-      canManageTodayPlan: isKchNewsManager_(),
+      canManageTodayPlan: canManageTodayPlan_(),
       canManageWeeklyMeetings: isWeeklyMeetingManager_(),
       sidebarLogoUrl: getSidebarLogoUrl_(),
       workDays: workDays
@@ -1177,7 +1177,7 @@ function getTodayPlans_(dateStr) {
     var targetDate = normalizeDateString_(dateStr);
     if (!targetDate) targetDate = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
     var planSheet = getKchSpreadsheet_().getSheetByName('TODAY_PLAN');
-    if (!planSheet && getCurrentUserInfo_().role !== 'GUEST') setupTodayPlanSheet_();
+    if (!planSheet && getCurrentUserInfo_().role === 'ADMIN') setupTodayPlanSheet_();
 
     var rows = getSheetData_('TODAY_PLAN').rows;
     var plans = rows.filter(function(row) {
@@ -1200,18 +1200,21 @@ function getTodayPlans_(dateStr) {
       if (!b.plannedTime) return -1;
       return a.plannedTime.localeCompare(b.plannedTime);
     });
-    return { success: true, date: targetDate, plans: plans, canManage: isKchNewsManager_() };
+    return { success: true, date: targetDate, plans: plans, canManage: canManageTodayPlan_() };
   } catch (err) {
     return { success: false, message: err.message || 'Gagal memuat Today’s Plan.' };
   }
 }
 
+function canManageTodayPlan_() { return getCurrentUserInfo_().role === 'SALES' || isKchNewsManager_(); }
+
 function saveTodayPlan_(payload) {
   try {
-    if (!isKchNewsManager_()) return { success: false, message: 'Akses input Today’s Plan hanya untuk admin/koordinator.' };
+    if (!canManageTodayPlan_()) return { success: false, message: 'Akses input Today’s Plan tidak tersedia.' };
     payload = payload || {};
     var planDate = normalizeDateString_(payload.date || '');
     var salesId = String(payload.salesId || '').trim();
+    assertOwnSales_(salesId);
     var destination = String(payload.destination || '').trim();
     var plannedTime = String(payload.plannedTime || '').trim();
     var notes = String(payload.notes || '').trim();
@@ -1240,10 +1243,14 @@ function saveTodayPlan_(payload) {
       var headerMap = {};
       TODAY_PLAN_HEADERS.forEach(function(header, i) { headerMap[header] = i; });
       var rowNumber = 0;
-      if (planId && sheet.getLastRow() > 1) {
-        var planRows = sheet.getRange(2, 1, sheet.getLastRow() - 1, TODAY_PLAN_HEADERS.length).getDisplayValues();
+      if (planId) {
+        var planRows = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, TODAY_PLAN_HEADERS.length).getDisplayValues() : [];
         for (var i = 0; i < planRows.length; i++) {
-          if (String(planRows[i][headerMap.plan_id] || '').trim() === planId) { rowNumber = i + 2; break; }
+          if (String(planRows[i][headerMap.plan_id] || '').trim() === planId) {
+            assertOwnSales_(planRows[i][headerMap.sales_id]);
+            if (typeof archiveAssertOpenDate_ === 'function') archiveAssertOpenDate_(normalizeDateString_(planRows[i][headerMap.plan_date]));
+            rowNumber = i + 2; break;
+          }
         }
         if (!rowNumber) return { success: false, message: 'Rencana yang akan diedit tidak ditemukan.' };
       }
@@ -1288,7 +1295,7 @@ function saveTodayPlan_(payload) {
 
 function archiveTodayPlan_(planId) {
   try {
-    if (!isKchNewsManager_()) return { success: false, message: 'Akses kelola Today’s Plan hanya untuk admin/koordinator.' };
+    if (!canManageTodayPlan_()) return { success: false, message: 'Akses kelola Today’s Plan tidak tersedia.' };
     planId = String(planId || '').trim();
     if (!planId) return { success: false, message: 'ID rencana tidak valid.' };
     var lock = LockService.getScriptLock();
@@ -1300,6 +1307,7 @@ function archiveTodayPlan_(planId) {
       var ids = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getDisplayValues();
       for (var i = 0; i < ids.length; i++) {
         if (String(ids[i][0] || '').trim() === planId) {
+          assertOwnSales_(sheet.getRange(i+2,TODAY_PLAN_HEADERS.indexOf('sales_id')+1).getValue());
           if (typeof archiveAssertOpenDate_ === 'function') archiveAssertOpenDate_(normalizeDateString_(sheet.getRange(i+2,2).getValue()));
           sheet.getRange(i + 2, 10).setValue('ARCHIVED');
           sheet.getRange(i + 2, 13).setValue(new Date()).setNumberFormat('dd/MM/yyyy HH:mm:ss');
@@ -1812,6 +1820,7 @@ function photoUploadPlan_(ctx, meta, payload, user, id, requestId) {
   if (!meta[name]) throw new Error('Sheet ' + name + ' tidak ditemukan. Jalankan Perbarui Seluruh Sheet.');
   var raw = txRead_(ctx, ['SALES',name].concat(meta.ACTIVITY_LOGS ? ['ACTIVITY_LOGS'] : []));
   var sales = txUnique_(txTable_('SALES',raw.SALES,['sales_id','full_name','team_name','status'],false).rows,function(row){return normalizeKey_(row.sales_id)===normalizeKey_(salesId);},'Sales');
+  assertOwnSales_(sales.sales_id);
   if (!txActive_(sales)) throw new Error('Profil sales tidak aktif.');
   var table = txTable_(name,raw[name],TABLE_SCHEMAS[name],true), requests = [];
   if (meta.ACTIVITY_LOGS) txTable_('ACTIVITY_LOGS',raw.ACTIVITY_LOGS,TABLE_SCHEMAS.ACTIVITY_LOGS,true);
@@ -2146,7 +2155,7 @@ function getMonthlyTeamReport_(reportMonth, salesId) {
       ];
     });
 
-    if (getCurrentUserInfo_().role !== 'GUEST' && !(typeof archiveEnabled_ === 'function' && archiveEnabled_() && reportMonth < archiveMonth_())) {
+    if (getCurrentUserInfo_().role === 'ADMIN' && !(typeof archiveEnabled_ === 'function' && archiveEnabled_() && reportMonth < archiveMonth_())) {
       var lock = LockService.getScriptLock();
       lock.waitLock(30000);
       try {

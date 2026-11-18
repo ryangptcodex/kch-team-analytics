@@ -164,23 +164,41 @@ function saveStockPickup_(payload) { if (getCurrentUserInfo_().role !== 'ADMIN')
 function getStockPickupData_(options) {
   options=options||{};var pickupPage=Number(options.pickupPage||1),depositPage=Number(options.depositPage||1),limit=25;if(!Number.isSafeInteger(pickupPage)||pickupPage<1||!Number.isSafeInteger(depositPage)||depositPage<1)throw new Error('Halaman tidak valid.');
   var user = getCurrentUserInfo_();
-  if (['ADMIN','GUEST'].indexOf(user.role) < 0) throw new Error('ACCESS_DENIED');
   var ctx = {id:getKchSpreadsheet_().getId(),token:ScriptApp.getOAuthToken()}, meta = txMetadata_(ctx);
   var names = ['SALES','PRODUCTS','DISTRIBUTORS','SALES_STOCK','STOCK_PICKUPS','SALES_CASH_DEPOSITS'].filter(function(n) { return !!meta[n]; });
   var raw = txRead_(ctx,names), tables = {};
   names.forEach(function(n) { tables[n] = txTable_(n,raw[n],KCH_STOCK_SCHEMAS_[n] || ['status'],false).rows; });
   var entries=typeof opsEntries_==='function'?opsEntries_(ctx,meta):[],pickups=typeof opsEffectiveRecordRows_==='function'?opsEffectiveRecordRows_('STOCK_PICKUPS',tables.STOCK_PICKUPS||[],entries):tables.STOCK_PICKUPS||[],deposits=typeof opsEffectiveRecordRows_==='function'?opsEffectiveRecordRows_('SALES_CASH_DEPOSITS',tables.SALES_CASH_DEPOSITS||[],entries):tables.SALES_CASH_DEPOSITS||[];
+  if (user.role === 'SALES') {
+    ['SALES','SALES_STOCK'].forEach(function(name) { tables[name] = filterAuthorizedRows_(name,tables[name] || []); });
+    pickups = filterAuthorizedRows_('STOCK_PICKUPS',pickups);
+    deposits = filterAuthorizedRows_('SALES_CASH_DEPOSITS',deposits);
+    ['SALES','PRODUCTS','DISTRIBUTORS','SALES_STOCK'].forEach(function(name) {
+      tables[name] = (tables[name] || []).map(salesStockView_);
+    });
+    pickups = pickups.map(salesStockView_);
+    deposits = deposits.map(salesStockView_);
+  }
   var groups=Object.create(null),ids=[];pickups.slice().reverse().forEach(function(row){if(!groups[row.pickup_id]){groups[row.pickup_id]=[];ids.push(row.pickup_id);}groups[row.pickup_id].push(row);});
   var pageRows=[];ids.slice((pickupPage-1)*limit,pickupPage*limit).forEach(function(id){pageRows=pageRows.concat(groups[id]);});
   return {success:true,sales:tables.SALES || [],products:tables.PRODUCTS || [],distributors:tables.DISTRIBUTORS || [],holdings:(tables.SALES_STOCK || []).map(function(row) { row.quantity = stockQty_(row.quantity); return row; }),pickups:pageRows,cashDeposits:deposits.slice().reverse().slice((depositPage-1)*limit,depositPage*limit),pickupPage:pickupPage,pickupTotal:ids.length,pickupPages:Math.max(1,Math.ceil(ids.length/limit)),depositPage:depositPage,depositTotal:deposits.length,depositPages:Math.max(1,Math.ceil(deposits.length/limit)),asOf:Utilities.formatDate(new Date(),TIMEZONE,'yyyy-MM-dd HH:mm:ss')};
 }
+function salesStockView_(row) {
+  var safe = {};
+  Object.keys(row).forEach(function(key) {
+    if (key === 'photo_file_id') safe[key] = !!row[key];
+    else if (key !== 'photo_url' && !kchGuestPrivateField_(key)) safe[key] = row[key];
+  });
+  return safe;
+}
 function stockFindEvidence_(name,id){
-  var user=getCurrentUserInfo_();if(['ADMIN','GUEST'].indexOf(user.role)<0)throw new Error('ACCESS_DENIED');
+  getCurrentUserInfo_();
   if(typeof id!=='string'||!id||id.length>128)throw new Error('Bukti foto tidak ditemukan.');
   var ctx={id:getKchSpreadsheet_().getId(),token:ScriptApp.getOAuthToken()},meta=txMetadata_(ctx),field=name==='STOCK_PICKUPS'?'pickup_id':'deposit_id';
   var rows=meta[name]?txTable_(name,txRead_(ctx,[name])[name],KCH_STOCK_SCHEMAS_[name],true).rows:[];
-  var row=rows.filter(function(r){return r[field]===id;})[0];
-  return row||(typeof archiveFindEvidence_==='function'?archiveFindEvidence_(name,id):null);
+  var row=rows.filter(function(r){return r[field]===id;})[0] || (typeof archiveFindEvidence_==='function'?archiveFindEvidence_(name,id):null);
+  if (row) assertOwnSales_(row.sales_id);
+  return row;
 }
 function getStockPickupEvidence_(id) {return stockEvidenceData_(stockFindEvidence_('STOCK_PICKUPS',id));}
 function stockEvidenceData_(row) {

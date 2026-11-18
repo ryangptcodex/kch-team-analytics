@@ -3,7 +3,6 @@ var KCH_TX_EDIT_SHEET_ = '_KCH_TX_EDITS';
 var KCH_TX_EDIT_HEADERS_ = ['edit_id', 'transaction_id', 'actor_email', 'actor_role', 'reason', 'before_json', 'after_json', 'stock_json', 'created_at'];
 
 function txEditSnapshot_(ctx, meta, transactionId, user) {
-  if(typeof opsAssertEditable_==='function')opsAssertEditable_(transactionId);
   if (typeof transactionId !== 'string' || !transactionId.trim() || transactionId.length > 128) throw new Error('ID faktur tidak valid.');
   if (!meta.SALES_TRANSACTIONS) throw new Error('Faktur tidak ditemukan atau tidak dapat diakses.');
   var names = ['SALES_TRANSACTIONS'];
@@ -12,6 +11,7 @@ function txEditSnapshot_(ctx, meta, transactionId, user) {
   var table = txTable_('SALES_TRANSACTIONS', raw.SALES_TRANSACTIONS, TABLE_SCHEMAS.SALES_TRANSACTIONS, true);
   var rows = table.rows.filter(function(row) { return String(row.transaction_id).trim() === transactionId.trim(); });
   if (!rows.length || rows.some(function(row) { return user.role !== 'ADMIN' && normalizeKey_(row.sales_id) !== normalizeKey_(user.salesId); })) throw new Error('Faktur tidak ditemukan atau tidak dapat diakses.');
+  if(typeof opsAssertEditable_==='function')opsAssertEditable_(transactionId);
   if (rows.length > 100) throw new Error('Faktur lebih dari 100 baris perlu diperiksa admin sebelum diedit.');
   var first = rows[0], items = Object.create(null), prices = Object.create(null), totalSales = 0, totalCost = 0;
   rows.forEach(function(row) {

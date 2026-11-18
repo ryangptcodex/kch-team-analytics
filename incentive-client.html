@@ -44,7 +44,8 @@
     kchRun().withSuccessHandler(function(res) {
       if (seq !== incentiveState().seq) return;
       try {
-        if (!res || !res.success || !res.monthly || !res.quarter || !Array.isArray(res.daily) || !Array.isArray(res.monthly.parameters) || !Array.isArray(res.quarter.months)) throw new Error('Respons Insentif tidak lengkap. Tekan Muat ulang.');
+        if (res && res.success === false && res.message) { incentiveStatus(res.message); return; }
+        if (!res || !res.success || !res.monthly || !res.quarter || !Array.isArray(res.daily) || !Array.isArray(res.monthly.parameters) || (!res.privateJunior && !Array.isArray(res.quarter.months))) throw new Error('Respons Insentif tidak lengkap. Tekan Muat ulang.');
         renderIncentiveReport(res); state.report = res;
       } catch (err) { incentiveStatus(err.message || 'Gagal menampilkan Insentif.'); }
     }).withFailureHandler(function(err) {
@@ -59,6 +60,19 @@
     incentiveText('incentiveMonthlyTotal', formatRupiah(m.total));
     incentiveText('incentiveMonthTotal', res.monthTotal == null ? 'Belum dapat dihitung' : formatRupiah(res.monthTotal));
     incentiveText('incentiveQuarterTotal',q.masterVerified===false?'Belum terverifikasi':formatRupiah(q.amount));
+    if (res.privateJunior) {
+      incentiveText('incentivePolicy','Insentif pribadi sesuai alokasi ' + incentivePercent(res.allocationFactor) + ' dari hasil pasangan.');
+      incentiveText('incentivePeriod',res.month + ' · ' + (res.monthlyClosed ? 'Periode bulanan selesai' : 'Estimasi bulan berjalan'));
+      incentiveText('incentiveQuarterStatus','TW' + q.number + ' ' + q.year + ' · ' + (q.closed ? 'Periode triwulan selesai' : 'Estimasi triwulan belum selesai'));
+      setHtml('incentiveMonthlyRows',m.parameters.map(function(p) {
+        return '<tr><td>' + escapeHtml(p.name) + '</td><td colspan="5">—</td><td>' + formatRupiah(p.amount) + '</td></tr>';
+      }).join(''));
+      setHtml('incentiveQuarterRows','<tr><td colspan="5">Bonus pribadi ditampilkan pada total triwulan.</td></tr>');
+      setHtml('incentiveDailyRows',res.daily.map(function(day) {
+        return '<tr><td>' + escapeHtml(day.date) + '</td><td colspan="4">—</td><td>' + (day.amount == null ? '—' : formatRupiah(day.amount)) + '</td></tr>';
+      }).join(''));
+      return;
+    }
     incentiveText('incentivePolicy', res.isJunior ? 'Tidak memiliki target sendiri. Mengikuti 70% hasil Senior ' + res.referenceSales.name + ' · ' + res.referenceSales.team + ', termasuk triwulan. Angka penjualan harian/triwulan di tabel adalah acuan Senior.' : res.policy === 'LOADING' ? 'MPR/Canvasser: hanya produk loading yang masuk target dan insentif. Target Fokus A Rp6,4 juta, Fokus B Rp8,2 juta, TV loading Rp80 juta, AA 400, Branding 300. TV, Fokus A dan Fokus B masing-masing harus ≥70% untuk pembayaran penuh.' : 'Motoris/MMTW: seluruh produk kecuali Promag Tablet. Target Fokus A Rp5 juta, Fokus B Rp5 juta, TV Rp27 juta dan AA 400. Pembayaran penuh jika TV ≥70%.');
     incentiveText('incentiveDailyPolicy', res.policy === 'LOADING' ? 'Rp70.000 satu kali per HK jika produk loading ≥Rp2,5 juta + Promag Tablet ≥Rp1 juta, ATAU produk loading ≥Rp3,5 juta. Produk lain tetap tercatat sebagai penjualan, tetapi tidak mengejar target insentif. ' + (res.isJunior ? 'Tarif/alokasi yang ditampilkan untuk Junior adalah 70% tarif Senior.' : 'Tarif kemudian mengikuti faktor pencapaian bulanan.') : 'Satu tarif per HK: <Rp800 ribu = Rp0; Rp800 ribu–<Rp1 juta = Rp10 ribu; Rp1 juta–<Rp1,2 juta = Rp20 ribu; Rp1,2 juta–Rp1,5 juta = Rp30 ribu; >Rp1,5 juta = Rp50 ribu. Tanpa plafon tetap 25 HK.');
     if(res.tvRecognition){

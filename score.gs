@@ -57,8 +57,8 @@ function scoreContext_(withTransactions, withPrices) {
     products: table('PRODUCTS', ['product_id', 'product_name']),
     events: meta[KCH_SCORE_EVENTS_] ? txTable_(KCH_SCORE_EVENTS_, raw[KCH_SCORE_EVENTS_], KCH_SCORE_HEADERS_, true).rows : [] };
 }
+// Internal lookup for score reports and the paired-incentive calculation. RPCs enforce ownership.
 function scoreSales_(data, salesId) {
-  assertOwnSales_(salesId);
   var sales = txUnique_(data.sales, function(s) { return normalizeKey_(s.sales_id) === normalizeKey_(salesId); }, 'Sales');
   if (!scoreEligible_(sales)) throw new Error('Skor hanya tersedia untuk Motoris, MMTW, MPR dan Canvasser.');
   return sales;

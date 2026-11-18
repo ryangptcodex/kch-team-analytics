@@ -59,8 +59,8 @@ test('guest may read all eligible sales while no sheet or account data is mutate
  const e=fixture();e.actor({role:'GUEST',email:'',salesId:''});const before=JSON.stringify(['SALES','PRODUCTS','SALES_TRANSACTIONS','INVENTORY','ACTIVITY_LOGS'].map(n=>e.rows(n))),calls=e.calls.length;
  const r=e.report('2026-10','S2');assert.equal(r.sales.team,'MMTW');assert.equal(e.calls.length-calls,2);assert.equal(e.context.kchApi('MOCK','getIncentiveSetup',[]).sales.length,2);assert.equal(JSON.stringify(['SALES','PRODUCTS','SALES_TRANSACTIONS','INVENTORY','ACTIVITY_LOGS'].map(n=>e.rows(n))),before);assert.equal(e.exists('SKOR_EVENTS'),false);
 });
-test('unsupported teams and legacy Sales logins cannot use the incentive engine',()=>{
- const e=fixture('SPG Kelontong');assert.equal(e.context.kchApi('MOCK','getIncentiveSetup',[]).sales.length,1);assert.throws(()=>e.report(),/Juklak insentif/);e.actor({role:'SALES',salesId:'S1'});assert.throws(()=>e.report(),/ACCESS_DENIED/);
+test('unsupported teams remain ineligible and Sales can only view their own incentive',()=>{
+ const e=fixture('SPG Kelontong');assert.equal(e.context.kchApi('MOCK','getIncentiveSetup',[]).sales.length,1);assert.throws(()=>e.report(),/Juklak insentif/);e.actor({role:'SALES',salesId:'S1'});assert.throws(()=>e.report('2026-10','S2'),/ACCESS_DENIED/);e.rows('SALES')[1][2]='Motoris';assert.equal(e.report().sales.salesId,'S1');
 });
 test('missing holidays disable daily estimates instead of assuming no holidays; invalid dates/data fail visibly',()=>{
  const e=fixture();e.tx('P1',2000000);e.remove('HOLIDAYS');let r=e.report();assert.equal(r.dailyTotal,null);assert.equal(r.monthTotal,null);assert.match(r.warnings[0],/HOLIDAYS/);

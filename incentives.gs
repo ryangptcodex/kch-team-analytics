@@ -2,12 +2,12 @@
 function incentiveEligible_(sales) { return ['MOTORIS', 'MMTW', 'MPR', 'CANVASSER', 'JUNIOR CANVASSER', 'ASISTEN MPR'].indexOf(txTeamKey_(sales.team_name)) >= 0; }
 function incentiveAccess_() {
   if (typeof incentiveJunior_ !== 'function') throw new Error('Pasang Script canvasser-incentives.gs terbaru untuk membuka Insentif.');
-  if (['ADMIN', 'GUEST'].indexOf(getCurrentUserInfo_().role) < 0) throw new Error('ACCESS_DENIED: Insentif hanya dapat dibaca Admin dan Tamu.');
+  getCurrentUserInfo_();
 }
 function getIncentiveSetup_(month) {
   incentiveAccess_();
   var data = scoreContext_(false);if(month){scoreMonth_(month);data=periodContext_(data,month);}
-  return { success: true, today: scoreToday_(), sales: data.sales.filter(incentiveEligible_).map(function(s) {
+  return { success: true, today: scoreToday_(), sales: filterAuthorizedRows_('SALES',data.sales).filter(incentiveEligible_).map(function(s) {
     return { salesId: String(s.sales_id), name: String(s.full_name), team: String(s.team_name), active: txActive_(s) };
   }).sort(function(a, b) { return a.name.localeCompare(b.name); }) };
 }
@@ -46,10 +46,17 @@ function getIncentiveReport_(month, salesId) {
   return incentiveBuildReport_(scoreContext_(true), month, salesId);
 }
 function incentiveBuildReport_(data, month, salesId, shared) {
-  if(typeof periodContext_==='function')data=periodContext_(data,month);
   assertOwnSales_(salesId);
+  return incentiveCalculateReport_(data,month,salesId,shared);
+}
+function incentiveCalculateReport_(data, month, salesId, shared) {
+  if(typeof periodContext_==='function')data=periodContext_(data,month);
   var sales = txUnique_(data.sales,function(s){return normalizeKey_(s.sales_id)===normalizeKey_(salesId);},'Sales');
-  if (incentiveJunior_(sales)) return incentiveJuniorReport_(data,month,sales,shared);
+  if (incentiveJunior_(sales)) {
+    if (getCurrentUserInfo_().role !== 'SALES') return incentiveJuniorReport_(data,month,sales,shared);
+    try { return privateJuniorIncentiveView_(incentiveJuniorReport_(data,month,sales,shared)); }
+    catch (err) { return {success:false,message:'Insentif pribadi belum dapat dihitung. Hubungi Admin.'}; }
+  }
   if (!incentiveEligible_(sales)) throw new Error('Juklak insentif tim ini belum ditetapkan.');
   var policy=periodTVPolicy_(periodPolicy_(data),month);var senior = incentiveSenior_(sales); if (senior) incentiveLoadingReady_(data);
   var mapping = shared&&!data._periodBase ? shared.mapping : scoreMapping_(data);
@@ -96,4 +103,14 @@ function incentiveBuildReport_(data, month, salesId, shared) {
       actual: quarterVerified?quarterActual / 100:null, target: quarterVerified?quarterTarget / 100:null, achievement: quarterVerified&&quarterTarget?quarterActual / quarterTarget:null, reachedMonths: reached, tier: quarterVerified?tier:null, amount: quarterAmount },
     warnings: (quarterVerified?[]:['Master atau aturan antarbulan belum sesuai; bonus triwulan belum dapat disahkan.']).concat(report.masterVerified===false?['Master periode belum diverifikasi.']:[]).concat(report.holidaySource ? [] : ['Sheet HOLIDAYS belum tersedia; insentif harian belum dapat dipastikan.'])
       .concat(['AA mengikuti input harian admin yang tersedia; hari belum diinput belum menambah aktual.', 'Insentif periode berjalan adalah estimasi. Triwulan ditampilkan terpisah agar tidak dihitung tiga kali.']) };
+}
+
+function privateJuniorIncentiveView_(report) {
+  var quarter = report.quarter;
+  return {success:true,privateJunior:true,isJunior:true,sales:report.sales,month:report.month,today:report.today,
+    monthlyClosed:report.monthlyClosed,allocationFactor:report.allocationFactor,dailyTotal:report.dailyTotal,monthTotal:report.monthTotal,
+    daily:report.daily.map(function(day) { return {date:day.date,amount:day.amount}; }),
+    monthly:{total:report.monthly.total,parameters:report.monthly.parameters.map(function(p) { return {name:p.name,amount:p.amount}; })},
+    quarter:{masterVerified:quarter.masterVerified,number:quarter.number,year:quarter.year,closed:quarter.closed,amount:quarter.amount}
+  };
 }

@@ -160,6 +160,8 @@ function readAdminAccess_(sheet,identity) {
   if(matches.length>1)throw new Error('ACCESS_DENIED: Email terdaftar ganda. Hubungi admin.');
   if(!matches.length)return null;
   var entry=matches[0],role=normalizeKey_(entry.row[3]);
+  var primary=identity.email===KCH_BOOTSTRAP_ADMIN_EMAIL_;
+  if (!primary && (!isBranchAdminRow_(sheet,entry.number,entry.row) || identity.email===KCH_GUEST_EMAIL_)) return null;
   if(normalizeKey_(entry.row[4])!=='ACTIVE')throw new Error('ACCESS_DENIED: Akses akun tidak aktif. Hubungi admin.');
   if(role!=='ADMIN')throw new Error('ACCESS_DENIED: Role akun tidak valid. Hubungi admin.');
   if(entry.row[1] && entry.row[1]!==identity.uid)throw new Error('ACCESS_DENIED: Identitas akun berubah. Hubungi admin.');
@@ -167,13 +169,14 @@ function readAdminAccess_(sheet,identity) {
   var name=column?String(sheet.getRange(entry.number,column).getDisplayValues()[0][0] || '').trim():'';
   name=name || identity.name || identity.email;
   return {entry:entry,user:{email:identity.email,username:identity.email,uid:identity.uid,role:role,
-    salesId:String(entry.row[2] || '').trim(),teamName:'',fullName:name,shortName:String(name).split(/\s+/)[0]}};
+    canManageAccounts:primary,salesId:String(entry.row[2] || '').trim(),teamName:'',fullName:name,shortName:String(name).split(/\s+/)[0]}};
 }
 function resolveAccessUser_(identity) {
   var email=String(identity.email || '').trim().toLowerCase();
-  if(email!==KCH_BOOTSTRAP_ADMIN_EMAIL_)throw new Error('ACCESS_DENIED: Login Google hanya tersedia untuk akun Admin yang ditentukan.');
+  var primary=email===KCH_BOOTSTRAP_ADMIN_EMAIL_;
   identity.email=email;
   var sheet=getAccessSheet_(false),access=readAdminAccess_(sheet,identity);
+  if (!primary && !access) throw new Error('ACCESS_DENIED: Login Google hanya tersedia untuk akun Admin yang ditentukan.');
   // Established Admin sessions only read ACCESS_USERS. They do not acquire the
   // shared stock/write lock or flush a spreadsheet with no pending writes.
   if(access && access.entry.row[1])return access.user;
@@ -182,7 +185,8 @@ function resolveAccessUser_(identity) {
   try {
     // Bootstrap/UID binding is a mutation. Reread under lock so a concurrent
     // first login cannot duplicate, re-enable, or overwrite another binding.
-    sheet=getAccessSheet_(true);access=readAdminAccess_(sheet,identity);
+    sheet=getAccessSheet_(primary);access=readAdminAccess_(sheet,identity);
+    if (!primary && !access) throw new Error('ACCESS_DENIED: Akun Admin cabang tidak tersedia.');
     if(!access){
       var now=new Date();sheet.appendRow([identity.email,identity.uid,'','ADMIN','ACTIVE',now,now]);
       SpreadsheetApp.flush();
@@ -220,7 +224,9 @@ function filterAuthorizedRows_(sheetName, rows) {
   if (!user || user.role === 'ADMIN') return rows;
   if (['USERS', 'ACCESS_USERS', 'SKOR_EVENTS', 'PEMBARUAN_SHEET'].indexOf(sheetName) >= 0 || sheetName.indexOf('_KCH_') === 0) return [];
   if (user.role === 'GUEST') return ['ACTIVITY_LOGS','FILES'].indexOf(sheetName)>=0 ? [] : rows;
-  if (['SALES', 'SALES_TRANSACTIONS', 'ATTENDANCE', 'VISIT_PHOTOS', 'TODAY_PLAN'].indexOf(sheetName) >= 0) {
+  if (['FILES','WEEKLY_MEETINGS','KCH_NEWS'].indexOf(sheetName)>=0) return [];
+  if (sheetName === 'PRICE_MASTER') return rows.filter(function(row) { return txTeamKey_(row.team_name) === txTeamKey_(user.teamName); });
+  if (['SALES', 'SALES_TRANSACTIONS', 'ATTENDANCE', 'VISIT_PHOTOS', 'TODAY_PLAN', 'SALES_STOCK', 'STOCK_PICKUPS', 'SALES_CASH_DEPOSITS'].indexOf(sheetName) >= 0) {
     return rows.filter(function(row) { return normalizeKey_(row.sales_id) === normalizeKey_(user.salesId); });
   }
   if (sheetName === 'ACTIVITY_LOGS') return rows.filter(function(row) { return String(row.username).toLowerCase() === user.email; });
@@ -235,20 +241,70 @@ function assertOwnSales_(salesId) {
 }
 
 function listAccessUsers_() {
-  if (getCurrentUserInfo_().role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin yang boleh mengelola akun.');
-  var rows = accessRows_(getAccessSheet_(false));
+  requirePrimaryAdmin_();
+  var sheet = getAccessSheet_(false), rows = accessRows_(sheet);
   var guests = rows.filter(function(r) { return String(r[0]).trim().toLowerCase() === KCH_GUEST_EMAIL_; });
   if (guests.length > 1) throw new Error('Email terdaftar ganda. Periksa ACCESS_USERS.');
   var credential = guestCredential_();
-  return { success: true, users: [
+  var users = [
     { email: KCH_BOOTSTRAP_ADMIN_EMAIL_, salesId: '', role: 'ADMIN', status: 'ACTIVE' },
     { email: KCH_GUEST_EMAIL_, username: credential ? credential.username : '', configured: !!(credential && credential.password_hash), passwordRecorded: !!(credential && credential.passwordRecorded), salesId: '', role: 'GUEST', status: guests.length ? normalizeKey_(guests[0][4]) : 'INACTIVE' }
-  ] };
+  ];
+  rows.forEach(function(row, index) {
+    if (isBranchAdminRow_(sheet,index+2,row)) users.push({email:row[0],role:'BRANCH_ADMIN',status:normalizeKey_(row[4])});
+  });
+  salesCredentials_(sheet).forEach(function(c) {
+    users.push({role:'SALES',salesId:c.salesId,username:c.username,status:c.status,configured:!!c.password_hash});
+  });
+  var sales = getActiveSheetData_('SALES').rows.filter(txActive_).map(function(row) {
+    return {salesId:String(row.sales_id),name:String(row.full_name || row.sales_id)};
+  });
+  return {success:true,users:users,sales:sales};
+}
+
+function requirePrimaryAdmin_() {
+  var user = getCurrentUserInfo_();
+  if (user.role !== 'ADMIN' || user.email !== KCH_BOOTSTRAP_ADMIN_EMAIL_) throw new Error('ACCESS_DENIED: Pengelolaan akun khusus Admin utama.');
+}
+
+function isBranchAdminRow_(sheet,number,row) {
+  if (normalizeKey_(row[3]) !== 'ADMIN') return false;
+  var email = String(row[0]).trim().toLowerCase();
+  if (!email || email === KCH_BOOTSTRAP_ADMIN_EMAIL_ || email === KCH_GUEST_EMAIL_) return false;
+  var col = guestAccessColumns_(sheet,false).auth_type;
+  return col && sheet.getRange(number,col).getDisplayValues()[0][0] === 'GOOGLE_BRANCH';
+}
+
+function saveBranchAdmin_(payload) {
+  requirePrimaryAdmin_();
+  payload = payload || {};
+  var email = String(payload.email || '').trim().toLowerCase(), status = normalizeKey_(payload.status);
+  if (!/^[a-z0-9][a-z0-9._%+\-]*@[a-z0-9.-]+\.[a-z]{2,}$/.test(email) || email.length > 254 || email === KCH_BOOTSTRAP_ADMIN_EMAIL_ || email === KCH_GUEST_EMAIL_) throw new Error('Isi email Google Admin cabang yang valid dan berbeda dari akun tetap.');
+  if (['ACTIVE','INACTIVE'].indexOf(status) < 0) throw new Error('Status tidak valid.');
+  var lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    var sheet = getAccessSheet_(true), matches = [];
+    accessRows_(sheet).forEach(function(row,i) { if (String(row[0]).trim().toLowerCase() === email) matches.push({row:row,number:i+2}); });
+    if (matches.length > 1 || (matches.length && !isBranchAdminRow_(sheet,matches[0].number,matches[0].row))) throw new Error('Email sudah digunakan dalam ACCESS_USERS. Hubungi Admin utama.');
+    var now = new Date();
+    if (matches.length) {
+      sheet.getRange(matches[0].number,7).setValue(now);
+      sheet.getRange(matches[0].number,5).setValue(status);
+    } else {
+      var col = guestAccessColumns_(sheet,true).auth_type;
+      var row = new Array(sheet.getLastColumn()).fill('');
+      [email,'','','ADMIN',status,now,now].forEach(function(value,i) { row[i]=value; });
+      row[col-1]='GOOGLE_BRANCH';
+      sheet.appendRow(row);
+    }
+    SpreadsheetApp.flush();
+    return {success:true,message:'Akun Admin cabang berhasil disimpan.'};
+  } finally { lock.releaseLock(); }
 }
 
 function saveAccessUser_(payload) {
   var user = getCurrentUserInfo_();
-  if (user.role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin yang boleh mengelola akun.');
+  requirePrimaryAdmin_();
   payload = payload || {};
   if (String(payload.email || '').trim().toLowerCase() !== KCH_GUEST_EMAIL_) throw new Error('Hanya status akun Tamu yang ditentukan dapat diubah. Akun lain tidak dapat ditambahkan.');
   var status = normalizeKey_(payload.status);
@@ -292,7 +348,7 @@ function kchApi(token, method, args) {
     getAuthProfile: function() { return { success: true, user: getCurrentUserInfo_() }; },
     saveMyProfile: saveMyProfile_,
     listAccessUsers: listAccessUsers_, saveAccessUser: saveAccessUser_,
-    saveGuestCredentials: saveGuestCredentials_,
+    saveGuestCredentials: saveGuestCredentials_, saveSalesCredentials: saveSalesCredentials_, saveBranchAdmin: saveBranchAdmin_,
     getInitialAppMetadata: getInitialAppMetadata_, getDashboardMetrics: getDashboardMetrics_,
     getAttendanceByDate: getAttendanceByDate_, getVisitPhotosByDate: getVisitPhotosByDate_,
     getTodayPlans: getTodayPlans_, saveTodayPlan: saveTodayPlan_, archiveTodayPlan: archiveTodayPlan_,
@@ -311,16 +367,33 @@ function kchApi(token, method, args) {
   try {
     if(typeof KCH_PERIOD_CACHE_!=='undefined')KCH_PERIOD_CACHE_=null;
     if(typeof KCH_OPERATION_CACHE_!=='undefined')KCH_OPERATION_CACHE_=null;
-    KCH_REQUEST_USER_ = typeof token === 'string' && token.indexOf('KCHG_') === 0 ? resolveGuestSession_(token) : resolveAccessUser_(verifyFirebaseIdentity_(token));
+    if (typeof token === 'string' && token.indexOf('KCHS_') === 0) KCH_REQUEST_USER_ = resolveSalesSession_(token);
+    else if (typeof token === 'string' && token.indexOf('KCHG_') === 0) KCH_REQUEST_USER_ = resolveGuestSession_(token);
+    else {
+      var identity = verifyFirebaseIdentity_(token);
+      try { KCH_REQUEST_USER_ = resolveAccessUser_(identity); }
+      catch (err) {
+        if (/^ACCESS_DENIED:/.test(err.message)) throw new Error('AUTH_REQUIRED: ' + err.message);
+        throw err;
+      }
+    }
     var user = getCurrentUserInfo_();
     var guestReads = ['getSyncStatus','getSalesPhotoEvidenceBatch','getOperationsSetup','getSalesPhotoEvidence','getMonthlyArchives','getMonthlyArchiveTable','getSalesCashDepositEvidence', 'getStockPickupData', 'getStockPickupEvidence', 'getAuthProfile', 'getInitialAppMetadata', 'getDashboardMetrics',
       'getAttendanceByDate', 'getVisitPhotosByDate', 'getTodayPlans', 'getWeeklyMeetings', 'getKchNews',
       'getTransactionsPaginated', 'getTransactionDetail', 'getAllTransactionsForExport', 'getMonthlyTeamReport',
       'getScoreSetup', 'getScoreReport', 'getScoreTeamSummary', 'getIncentiveSetup', 'getIncentiveReport'];
     if (user.role === 'GUEST' && guestReads.indexOf(method) < 0) throw new Error('ACCESS_DENIED: Akun Tamu hanya boleh melihat data.');
-    var adminOnly = ['getStockCountPreview','inspectOperationalRequest','getOperationalHealth','createOperationalBackup','prepareBackupRestore','saveBackupRestore','createRecoveryCopy','recoverAbandonedReservation','getHistoricalMasterSources','savePeriodVerification','getMasterEditor','saveMasterRecord','saveOperationalChange','getOperationsReference','saveSalesCashDeposit', 'saveStockPickup', 'saveScoreBranding', 'saveMyProfile', 'saveScoreAA', 'listAccessUsers', 'saveAccessUser', 'saveGuestCredentials', 'saveTodayPlan', 'archiveTodayPlan',
+    var salesMethods = ['getAuthProfile','getSyncStatus','getInitialAppMetadata','getDashboardMetrics','getAttendanceByDate','getVisitPhotosByDate',
+      'getTodayPlans','getSalesPhotoEvidence','getSalesPhotoEvidenceBatch','getStockPickupData','getStockPickupEvidence','getSalesCashDepositEvidence',
+      'getTransactionsPaginated','getTransactionDetail','getAllTransactionsForExport','getMonthlyTeamReport','getScoreSetup','getScoreReport',
+      'getMonthlyArchives','getMonthlyArchiveTable','saveTodayPlan','archiveTodayPlan','getIncentiveSetup','getIncentiveReport','saveSalesPhotoUpload','saveSalesTransaction','getSalesTransactionRequestStatus',
+      'getSalesTransactionForEdit','editSalesTransaction'];
+    var accountMethods = ['listAccessUsers','saveAccessUser','saveGuestCredentials','saveSalesCredentials','saveBranchAdmin'];
+    if (accountMethods.indexOf(method) >= 0) requirePrimaryAdmin_();
+    var adminOnly = ['getStockCountPreview','inspectOperationalRequest','getOperationalHealth','createOperationalBackup','prepareBackupRestore','saveBackupRestore','createRecoveryCopy','recoverAbandonedReservation','getHistoricalMasterSources','savePeriodVerification','getMasterEditor','saveMasterRecord','saveOperationalChange','getOperationsReference','saveSalesCashDeposit', 'saveStockPickup', 'saveScoreBranding', 'saveMyProfile', 'saveScoreAA', 'listAccessUsers', 'saveAccessUser', 'saveGuestCredentials',
       'saveWeeklyMeeting', 'archiveWeeklyMeeting', 'saveKchNewsArticle', 'archiveKchNewsArticle'];
     if (adminOnly.indexOf(method) >= 0 && user.role !== 'ADMIN') throw new Error('ACCESS_DENIED: Hanya admin yang boleh melakukan operasi ini.');
+    if (user.role === 'SALES' && salesMethods.indexOf(method) < 0) throw new Error('ACCESS_DENIED: Operasi tidak tersedia untuk Sales.');
     if (['saveSalesTransaction', 'saveSalesPhotoUpload'].indexOf(method) >= 0) {
       if (!args[0] || typeof args[0] !== 'object' || Array.isArray(args[0])) throw new Error('Payload tidak valid.');
       assertOwnSales_(args[0].salesId);
@@ -334,8 +407,8 @@ function kchApi(token, method, args) {
       args[0] = 'CLIENT_' + String(args[0] || '').slice(0, 100);
       args[3] = user.email;
     }
-    if (/^(save|edit|archive)/.test(method) && ['saveGuestCredentials','saveAccessUser','saveMyProfile'].indexOf(method)<0 && typeof productionRequireReady_==='function') productionRequireReady_();
-    if (/^(save|edit|archive)/.test(method) && typeof archivePendingGuard_ === 'function') archivePendingGuard_();
+    if (/^(save|edit|archive)/.test(method) && accountMethods.indexOf(method)<0 && method !== 'saveMyProfile' && typeof productionRequireReady_==='function') productionRequireReady_();
+    if (/^(save|edit|archive)/.test(method) && accountMethods.indexOf(method)<0 && typeof archivePendingGuard_ === 'function') archivePendingGuard_();
     var result = handlers[method].apply(null, args);
     if (method === 'saveSalesPhotoUpload' && result.success && result.operation !== 'PHOTO') {
       logActivity_(user.email, 'UPLOAD_' + String(args[1]).toUpperCase(), args[0].salesId,

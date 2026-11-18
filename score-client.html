@@ -89,6 +89,7 @@
     }).join(''));
   }
   function loadScoreTeamSummary(month) {
+    if (appState.user && appState.user.role === 'SALES') return;
     var state = scoreState();
     if (!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month || '')) {
       state.summarySeq = (state.summarySeq || 0) + 1; state.summaryMonth = '';

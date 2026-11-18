@@ -269,7 +269,7 @@ test('an invalid sales report is flagged without falsely scoring zero or blockin
 test('guest recap has full read access with identical scores and no sheet/stock/audit mutations, while unsupported roles are denied',()=>{
  const e=summaryFixture(),before=JSON.stringify(['SALES','PRODUCTS','PRICE_MASTER','SALES_TRANSACTIONS','INVENTORY','ACTIVITY_LOGS'].map(n=>e.rows(n))),admin=e.summary();
  e.actor({role:'GUEST',email:'juniortlkchlse@gmail.com',salesId:''});assert.deepEqual(copy(e.summary()),copy(admin));assert.equal(JSON.stringify(['SALES','PRODUCTS','PRICE_MASTER','SALES_TRANSACTIONS','INVENTORY','ACTIVITY_LOGS'].map(n=>e.rows(n))),before);assert.equal(e.exists('SKOR_EVENTS'),false);
- e.actor({role:'SALES',salesId:'S1'});assert.throws(()=>e.summary(),/Admin dan Tamu/);
+ e.actor({role:'SALES',salesId:'S1'});assert.throws(()=>e.summary(),/ACCESS_DENIED/);
 });
 test('summary invalid periods and incomplete product mapping never show made-up totals or product notes',()=>{
  const e=summaryFixture();assert.throws(()=>e.summary('2026-13'),/bulan/);e.rows('PRODUCTS').find(r=>r[0]==='LBMAV')[1]='Wrong master name';for(const row of e.summary().rows){assert.equal(row.total,null);assert.equal(row.guidance.length,0);assert.match(row.message,/master produk/);}

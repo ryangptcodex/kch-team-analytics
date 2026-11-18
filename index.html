@@ -74,11 +74,11 @@
           <i class="fa-solid fa-route nav-icon"></i>
           <span>Today’s Plan</span>
         </a>
-        <a href="javascript:void(0)" class="nav-item" id="nav-weekly-meeting" onclick="switchView('weekly-meeting')">
+        <a href="javascript:void(0)" class="nav-item" data-kch-hide-sales id="nav-weekly-meeting" onclick="switchView('weekly-meeting')">
           <i class="fa-solid fa-people-group nav-icon"></i>
           <span>Hasil Meeting Mingguan</span>
         </a>
-        <a href="javascript:void(0)" class="nav-item" id="nav-kch-news" onclick="switchView('kch-news')">
+        <a href="javascript:void(0)" class="nav-item" data-kch-hide-sales id="nav-kch-news" onclick="switchView('kch-news')">
           <i class="fa-regular fa-newspaper nav-icon"></i>
           <span>KCH News</span>
         </a>
@@ -88,7 +88,7 @@
           <i class="fa-solid fa-boxes-stacked nav-icon"></i>
           <span>Monitoring Stok</span>
         </a>
-        <a href="javascript:void(0)" class="nav-item" id="nav-operasional" onclick="switchView('operasional')"><i class="fa-solid fa-arrows-rotate nav-icon"></i><span>Stok Masuk &amp; Retur</span></a>
+        <a href="javascript:void(0)" class="nav-item" data-kch-hide-sales id="nav-operasional" onclick="switchView('operasional')"><i class="fa-solid fa-arrows-rotate nav-icon"></i><span>Stok Masuk &amp; Retur</span></a>
         <a href="javascript:void(0)" class="nav-item kch-admin-only" id="nav-master-admin" onclick="switchView('master-admin')"><i class="fa-solid fa-pen-to-square nav-icon"></i><span>Kelola Master</span></a>
         <a href="javascript:void(0)" class="nav-item kch-admin-only" id="nav-monitor-admin" onclick="switchView('monitor-admin')"><i class="fa-solid fa-heart-pulse nav-icon"></i><span>Monitor &amp; Pemulihan</span></a>
         <a href="javascript:void(0)" class="nav-item" id="nav-harga" onclick="switchView('harga')">
@@ -448,7 +448,7 @@
 
             <div class="dashboard-side-col">
               <!-- KCH News -->
-              <div class="chart-card kch-news-card">
+              <div class="chart-card kch-news-card" data-kch-hide-sales>
                 <div class="card-header-clean">
                   <div>
                     <div class="card-title"><i class="fa-regular fa-newspaper text-primary"></i> KCH News</div>
@@ -507,7 +507,7 @@
               </div>
 
               <!-- Hasil Meeting Mingguan -->
-              <div class="chart-card">
+              <div class="chart-card" data-kch-hide-sales>
                 <div class="card-header-clean">
                   <div>
                     <div class="card-title"><i class="fa-solid fa-people-group text-primary"></i> Hasil Meeting Mingguan</div>
@@ -869,7 +869,7 @@
           <div class="page-title-box"><div><h2 class="page-title">Pengambilan Barang</h2><div class="page-subtitle">Pindahkan stok distributor ke pegangan sales tanpa menambah penjualan.</div></div><button class="btn btn-outline btn-sm" onclick="loadStockPickupData()">Muat ulang</button></div>
           <p class="text-muted" id="pickupStatus" role="status">Sedang memuat data</p>
           <div id="pickupRequestStatus" style="display:none;padding:14px;border:1px solid #fed7aa;background:#fff7ed;border-radius:12px;margin-bottom:16px;"><p id="pickupRequestStatusText" role="status" aria-live="polite"></p><code id="pickupRequestCode" style="display:block;overflow-wrap:anywhere"></code><button class="btn btn-outline btn-sm" id="btnCheckPickupRequest" onclick="checkPendingSalesTransaction()">Periksa hasil</button><button class="btn btn-primary btn-sm" id="btnRetryPickupRequest" style="display:none" onclick="retryPendingSalesTransaction()">Coba simpan lagi</button></div>
-          <div class="form-container-card" data-kch-write style="margin-bottom:20px"><form onsubmit="submitStockPickup(event)"><fieldset id="pickupFormFields" style="border:0;padding:0;margin:0;min-width:0;">
+          <div class="form-container-card" data-kch-write data-kch-hide-sales style="margin-bottom:20px"><form onsubmit="submitStockPickup(event)"><fieldset id="pickupFormFields" style="border:0;padding:0;margin:0;min-width:0;">
             <div class="form-grid-3" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:16px"><div class="form-group"><label class="form-label" for="pickupDate">Tanggal</label><input class="form-control" type="date" id="pickupDate" required></div><div class="form-group"><label class="form-label" for="pickupDistributor">Distributor asal</label><select class="form-control" id="pickupDistributor" required></select></div><div class="form-group"><label class="form-label" for="pickupSales">Sales penerima</label><select class="form-control" id="pickupSales" required></select></div></div>
             <div class="table-responsive" style="margin-top:16px"><table class="app-table"><thead><tr><th>Produk</th><th>Jumlah</th><th>Aksi</th></tr></thead><tbody id="pickupItems"></tbody></table></div>
             <button type="button" class="btn btn-outline btn-sm" style="margin:12px 0" onclick="addPickupRow()">+ Tambah produk</button>
@@ -881,7 +881,7 @@
             <div class="card-header-clean"><div><div class="card-title">Setoran Pegangan Sales</div><div class="card-subtitle">Catatan uang hasil penjualan yang disetorkan. Tidak menambah pencapaian atau mengubah stok.</div></div></div>
             <div style="padding:0 20px 20px">
               <div id="depositRequestStatus" style="display:none;padding:12px;border:1px solid #fed7aa;background:#fff7ed;border-radius:10px;margin-bottom:14px"><p id="depositRequestStatusText" role="status" aria-live="polite"></p><code id="depositRequestCode" style="display:block;overflow-wrap:anywhere"></code><button type="button" class="btn btn-outline btn-sm" id="btnCheckDepositRequest" onclick="checkPendingSalesTransaction()">Periksa hasil</button><button type="button" class="btn btn-primary btn-sm" id="btnRetryDepositRequest" style="display:none" onclick="retryPendingSalesTransaction()">Coba simpan lagi</button></div>
-              <form data-kch-write onsubmit="submitCashDeposit(event)"><fieldset id="cashDepositFormFields" style="border:0;padding:0;margin:0;min-width:0">
+              <form data-kch-write data-kch-hide-sales onsubmit="submitCashDeposit(event)"><fieldset id="cashDepositFormFields" style="border:0;padding:0;margin:0;min-width:0">
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:16px">
                   <div class="form-group"><label class="form-label" for="depositDate">Tanggal setoran</label><input class="form-control" type="date" id="depositDate" required></div>
                   <div class="form-group"><label class="form-label" for="depositSales">Sales penyetor</label><select class="form-control" id="depositSales" required></select></div>
@@ -1126,7 +1126,7 @@
             <p class="page-subtitle">Skor tiap parameter dibatasi bobotnya. Total dan kategori memakai nilai asli tanpa pembulatan; angka tampilan dapat dibulatkan.</p>
           </div>
           <div class="table-card" style="margin-bottom:18px"><div class="table-responsive"><table class="app-table"><thead><tr><th>Parameter</th><th>Aktual</th><th>Target bulanan</th><th>Bobot</th><th>Pencapaian</th><th>Jumlah poin</th><th>Skor / maks.</th></tr></thead><tbody id="scoreRows"></tbody></table></div></div>
-          <div class="table-card" id="scoreTeamSummaryCard" style="padding:16px;margin-bottom:18px">
+          <div class="table-card" data-kch-hide-sales id="scoreTeamSummaryCard" style="padding:16px;margin-bottom:18px">
             <h3>Rekap Skor Seluruh Tim</h3>
             <p class="page-subtitle" id="scoreSummaryPeriod">Mengikuti bulan penilaian yang dipilih</p>
             <p class="page-subtitle">Motoris, MMTW, MPR, dan Canvasser. AA/branding mengikuti input harian admin; hari yang belum diinput belum dihitung.</p>

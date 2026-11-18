@@ -1,3 +1,5 @@
+> **Panduan historis.** Untuk akun Sales dan Admin cabang, gunakan [PANDUAN-AKUN-TIM.md](PANDUAN-AKUN-TIM.md).
+
 > **Pembaruan 29 Oktober 2026:** login Google Tamu pada panduan ini digantikan login username/password. Gunakan [PANDUAN-LOGIN-TAMU.md](PANDUAN-LOGIN-TAMU.md) untuk pemasangan terbaru. Google hanya untuk Admin.
 
 # Dua akun: Admin dan Tamu
