@@ -124,29 +124,25 @@ function kchSheetUpdateClick_(e) {
   return kchRunSheetUpdates_(e.source);
 }
 
-// Remove obsolete login rows only, never the SALES business master or its history.
+// USERS is the retired login table. ACCESS_USERS is the live account registry
+// and receives only the additive header updates from kchSheetUpdatePlan_.
 function kchLegacyLoginCleanupPlan_(ss, meta) {
-  var requests = [], changes = [];
-  ['ACCESS_USERS', 'USERS'].forEach(function(name) {
-    var sheet = ss.getSheetByName(name);
-    if (!sheet || sheet.getLastRow() < 2) return;
-    var width = sheet.getLastColumn(), values = sheet.getRange(1, 1, sheet.getLastRow(), width).getDisplayValues();
-    var headers = values[0], roleColumn = headers.indexOf('role'), emailColumn = headers.indexOf('email');
-    if (roleColumn < 0 || (name === 'ACCESS_USERS' && emailColumn < 0)) throw new Error(name + ': header akun lama tidak dikenali; pembersihan dibatalkan.');
-    var remove = [];
-    values.slice(1).forEach(function(row, index) {
-      if (row.every(function(v) { return v === ''; })) return;
-      var keep = name === 'ACCESS_USERS'
-        ? [KCH_BOOTSTRAP_ADMIN_EMAIL_, KCH_GUEST_EMAIL_].indexOf(String(row[emailColumn]).trim().toLowerCase()) >= 0
-        : ['ADMIN', 'GUEST'].indexOf(String(row[roleColumn]).trim().toUpperCase()) >= 0;
-      if (!keep) remove.push(index + 1);
-    });
-    remove.reverse().forEach(function(index) {
-      requests.push({ deleteDimension: { range: { sheetId: meta[name].sheetId, dimension: 'ROWS', startIndex: index, endIndex: index + 1 } } });
-    });
-    if (remove.length) changes.push(name + ': hapus ' + remove.length + ' akun login lama; profil/transaksi sales tetap.');
-  });
-  return { requests: requests, changes: changes };
+  var sheet = ss.getSheetByName('USERS');
+  if (!sheet || sheet.getLastRow() < 2) return { requests: [], changes: [] };
+  var values = sheet.getRange(1, 1, sheet.getLastRow(), sheet.getLastColumn()).getDisplayValues();
+  var roleColumn = values[0].indexOf('role');
+  if (roleColumn < 0) throw new Error('USERS: header akun lama tidak dikenali; pembersihan dibatalkan.');
+  var requests = [];
+  for (var index = values.length - 1; index >= 1; index--) {
+    var row = values[index];
+    if (row.every(function(v) { return v === ''; })) continue;
+    if (['ADMIN', 'GUEST'].indexOf(String(row[roleColumn]).trim().toUpperCase()) >= 0) continue;
+    requests.push({ deleteDimension: { range: { sheetId: meta.USERS.sheetId, dimension: 'ROWS', startIndex: index, endIndex: index + 1 } } });
+  }
+  return {
+    requests: requests,
+    changes: requests.length ? ['USERS: hapus ' + requests.length + ' akun login lama; akun webapp, profil dan transaksi sales tetap.'] : []
+  };
 }
 
 function kchRunSheetUpdates_(ss) {

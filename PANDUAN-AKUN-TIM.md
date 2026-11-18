@@ -24,6 +24,12 @@ Sales dapat menginput transaksi, absensi dengan foto, foto kunjungan, dan rencan
 - Pertahankan hak akses spreadsheet dan editor Apps Script sesuai kebutuhan pengelola file. Akun webapp tidak membutuhkan hak edit spreadsheet.
 - Berikan password Sales secara privat. Sales masuk dengan **Masuk sebagai Sales** dan memilih **Keluar akun** pada perangkat bersama.
 
+## Memulihkan akun setelah Pembaruan Sheet lama
+
+Versi lama Pembaruan Sheet pernah menghapus semua akun di `ACCESS_USERS` selain Admin utama dan Tamu. Ganti isi `sheet-updates.gs` dengan versi terbaru dan simpan di editor proyek yang terikat ke spreadsheet. Menu dan checkbox memakai kode tersimpan tanpa membuat versi deployment webapp baru.
+
+Untuk memulihkan akses, buka **Kelola akun**, pilih profil Sales yang sama, lalu daftarkan kembali username dengan password baru. Jika perlu mengecek username lama, gunakan salinan **BACKUP PEMBARUAN** yang dibuat sebelum pembaruan. Tautan cadangan ada di `PEMBARUAN_SHEET!B10` selama belum diganti oleh pembaruan berikutnya. Pemulihan akses cukup dilakukan pada akun yang hilang.
+
 ## Uji penerimaan
 
 - Masuk sebagai dua Sales yang berbeda. Bandingkan dashboard, transaksi, absensi, foto, arsip, stok pegangan dan laporan. Buat satu transaksi atau rencana uji per akun dan pastikan hanya muncul pada akun pemiliknya.

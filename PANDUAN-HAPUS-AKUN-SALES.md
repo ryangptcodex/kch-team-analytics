@@ -1,3 +1,5 @@
+> **Panduan historis.** Pembaruan Sheet sekarang mempertahankan seluruh baris `ACCESS_USERS`, termasuk akun Sales dan Admin cabang. Lihat [panduan akun tim](PANDUAN-AKUN-TIM.md).
+
 # Bersihkan akun login sales lama
 
 Revisi ini menghapus **akun login**, bukan profil sales atau histori bisnis.

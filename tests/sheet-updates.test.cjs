@@ -65,13 +65,42 @@ test('installing twice creates one action tab and one matching trigger without e
  e.c.ScriptApp.newTrigger=handler=>({forSpreadsheet:()=>({onEdit:()=>({create(){triggers.push({getHandlerFunction:()=>handler,getTriggerSourceId:()=>ss.getId()});}})})});
  e.c.setupKchSheetUpdates();cells.B8='Berhasil';e.c.installKchSheetUpdates_();assert.equal(triggers.length,1);assert.equal(calls.filter(c=>c==='insert').length,1);assert.equal(cells.B8,'Berhasil');assert.equal(calls.at(-1),25);
 });
-test('obsolete access accounts are removed bottom-up while admin/guest and full credential rows are preserved',()=>{
- const e=fixture(),c=e.c;
- const meta=e.meta;meta.ACCESS_USERS={sheetId:999};const rows=[['email','role','password'],[c.KCH_BOOTSTRAP_ADMIN_EMAIL_,'ADMIN',''],['old-sales@example.com','SALES','old'],[c.KCH_GUEST_EMAIL_,'GUEST','keep'],['third@example.com','ADMIN','old']];
- const original=e.ss.getSheetByName;e.ss.getSheetByName=n=>n==='ACCESS_USERS'?{getLastRow:()=>rows.length,getLastColumn:()=>3,getRange:()=>({getDisplayValues:()=>rows})}:original(n);
- const plan=c.kchLegacyLoginCleanupPlan_(e.ss,meta);assert.deepEqual(Array.from(plan.requests,r=>r.deleteDimension.range.startIndex),[4,2]);
- for(const r of plan.requests)rows.splice(r.deleteDimension.range.startIndex,1);
- assert.equal(rows.length,3);assert.equal(rows[2][2],'keep');assert.equal(c.kchLegacyLoginCleanupPlan_(e.ss,meta).requests.length,0);assert.equal(c.TABLE_SCHEMAS.USERS,undefined);assert.equal(c.kchSheetSchemas_().USERS,undefined);
+test('running the update checkbox twice preserves all live account rows and credentials', () => {
+ const e = fixture(), c = e.c, name = 'ACCESS_USERS', sheetId = 999;
+ const headers = Array.from(c.kchSheetSchemas_()[name]);
+ const rows = [
+  headers,
+  [c.KCH_BOOTSTRAP_ADMIN_EMAIL_, 'primary-uid', '', 'ADMIN', 'ACTIVE'],
+  [c.KCH_GUEST_EMAIL_, '', '', 'GUEST', 'ACTIVE', '', '', 'Tamu', 'PASSWORD', 'guest', 'guest-hash', 'guest-salt', '600000', 'guest-version'],
+  ['', '', 'S1', 'SALES', 'ACTIVE', '', '', '', 'PASSWORD', 'sales-one', 'sales-hash', 'sales-salt', '600000', 'sales-version'],
+  ['', '', 'S2', 'SALES', 'INACTIVE', '', '', '', 'PASSWORD', 'sales-two', 'second-hash', 'second-salt', '600000', 'second-version'],
+  ['supervisor@example.test', 'branch-uid', '', 'ADMIN', 'ACTIVE', '', '', '', 'GOOGLE_BRANCH'],
+  ['old-sales@example.test', '', 'S3', 'SALES', 'INACTIVE']
+ ];
+ e.meta[name] = {sheetId};
+ const original = e.ss.getSheetByName;
+ e.ss.getSheetByName = n => n === name ? {
+  getSheetId: () => sheetId,
+  getLastRow: () => rows.length,
+  getLastColumn: () => headers.length,
+  getRange: (r, col, height, width) => ({
+   getDisplayValues: () => rows.slice(r - 1, r - 1 + height).map(row => row.slice(col - 1, col - 1 + width))
+  })
+ } : original(n);
+ const before = JSON.stringify(rows);
+ c.txBatch_ = (_ctx, requests) => {
+  const accessRequests = requests.filter(r => Object.values(r).some(value =>
+   [value.range, value.start, value.properties, value].some(target => target?.sheetId === sheetId)));
+  assert.equal(accessRequests.length, 1);
+  assert.equal(accessRequests[0].repeatCell.range.endRowIndex, 1);
+ };
+ const event = {range:{getSheet:()=>e.control,getA1Notation:()=> 'A3'},value:'TRUE',source:e.ss,user:{getEmail:()=>c.KCH_BOOTSTRAP_ADMIN_EMAIL_}};
+ for (let i = 0; i < 2; i++) {
+  assert.equal(c.kchSheetUpdateClick_(event).success, true);
+  assert.equal(JSON.stringify(rows), before);
+ }
+ assert.equal(c.TABLE_SCHEMAS.USERS, undefined);
+ assert.equal(c.kchSheetSchemas_().USERS, undefined);
 });
 test('legacy USERS sales/coordinator accounts are removed without touching legacy admins or business sales master',()=>{
  const e=fixture(),before=JSON.stringify(e.rows('SALES')),rows=[['username','role'],['admin','ADMIN'],['sales','SALES'],['coordinator','SALES_COORDINATOR']];e.meta.USERS={sheetId:888};const original=e.ss.getSheetByName;e.ss.getSheetByName=n=>n==='USERS'?{getLastRow:()=>rows.length,getLastColumn:()=>2,getRange:()=>({getDisplayValues:()=>rows})}:original(n);
