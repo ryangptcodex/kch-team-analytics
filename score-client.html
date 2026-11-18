@@ -81,7 +81,8 @@
     scoreText('scoreSummaryPeriod', 'Periode penilaian: ' + res.month + ' · ' + res.rows.length + ' sales');
     if (!res.rows.length) { scoreSummaryStatus('Belum ada profil sales yang masuk penilaian.'); return; }
     setHtml('scoreSummaryRows', res.rows.map(function(row) {
-      var notes = row.message ? [row.message] : (row.guidance || []).map(scoreGuidanceText);
+      var notes = (row.guidance || []).map(scoreGuidanceText);
+      if (row.message) notes.push(row.message);
       function points(index) {
         var p = (row.parameters || [])[index];
         return !p || p.score===null ? '—' : (p.score===null?'—':p.score.toLocaleString('id-ID', { maximumFractionDigits: 2 })) + ' / ' + p.max;

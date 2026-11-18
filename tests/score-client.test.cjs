@@ -134,3 +134,14 @@ test('unknown evaluation and future periods are not displayed as final decisions
  const e=client();e.c.loadScoreReport();e.requests.at(-1).success({...e.report,category:null,evaluation:{phase:'FINAL',verified:false,message:'Riwayat belum terverifikasi.'}});assert.equal(e.node('scoreCategory').textContent,'Evaluasi belum dapat dipastikan');assert.match(e.node('scoreEvaluationStatus').textContent,/belum terverifikasi/);
  e.c.loadScoreReport();e.requests.at(-1).success({...e.report,category:'EVALUASI',evaluation:{phase:'BELUM_BERJALAN',verified:true,message:'Periode belum berjalan.'}});assert.equal(e.node('scoreCategory').textContent,'Periode belum berjalan');
 });
+
+test('November TV cap note is shown alongside Bejo and Komix quantities in team recap',()=>{
+ const e=client(), response=summaryResponse('2026-11');
+ response.rows[0].message='TV mengikuti batas kumulatif bulanan juklak November.';
+ e.loadSummary('2026-11');
+ e.requests[0].success(response);
+ const html=e.node('scoreSummaryRows').innerHTML;
+ assert.match(html,/30 Box Bejo Jahe Merah/);
+ assert.match(html,/30 Box Komix Herbal Sachet Original/);
+ assert.match(html,/batas kumulatif bulanan/);
+});
