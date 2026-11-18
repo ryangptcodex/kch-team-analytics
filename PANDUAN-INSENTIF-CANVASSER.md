@@ -1,3 +1,5 @@
+> **Aturan klaim harian mulai November 2026.** MPR/Canvasser mendapat tarif Rp70.000 per hari kerja saat Total Value produk loading yang diperhitungkan mencapai Rp2.500.000. Promag Tablet tercatat terpisah dengan batas Rp1.000.000 per hari dan tidak memiliki syarat minimum. Aturan pembayaran akhir bulan serta alokasi Asisten mengikuti ketentuan yang sudah berlaku.
+
 # Insentif MPR/Canvasser dan Junior/Asisten
 
 > Pembaruan mulai November 2026: TMXGF (Mixagrip Flu), TMXGE (Mixagrip Flu & Batuk), dan TMXTG (Mextril Batuk) masing-masing maksimal Rp4 juta TV per sales/bulan. Batas mengikuti tanggal bisnis dan berlaku pada TV harian, bulanan, Skor, dan triwulan. Baca [panduan juklak surat 300](PANDUAN-JUKLAK-300-NOVEMBER.md). Aturan Oktober tetap seperti sebelumnya.

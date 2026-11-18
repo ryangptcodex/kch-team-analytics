@@ -116,6 +116,7 @@ function officeIncentiveCells_(month,sales,mpr,codes) {
     cells.M58=report.monthly.scheduledTotal;cells.M59=report.monthSubtotal;cells.M60=report.monthTotal;
   }
   cells.B63 = 'Insentif dihitung oleh webapp. Kolom Transtrack diisi terpisah. Rp/unit kosong bila harga berbeda.';
+  if (report.seniorLoadingOnly) cells.B63 += ' TV Promag dibatasi Rp1 juta per hari; ambang harian Rp2,5 juta berasal dari produk loading.';
   if (report.cappedFieldDaily && report.dailyTotal != null) cells.B63 += ' Rekap harian setelah plafon: Rp'+report.dailyScheduledTotal+'; klaim harian setelah ambang TV: Rp'+report.dailyTotal+'.';
   if (Object.keys(missing).length) cells.B64 = 'SKU di luar kolom template (tetap masuk nilai transaksi dan perhitungan webapp): ' + Object.keys(missing).join(', ');
   return cells;

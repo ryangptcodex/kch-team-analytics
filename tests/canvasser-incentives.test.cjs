@@ -71,3 +71,26 @@ test('Sales Junior sees the same personal payouts without the paired Senior iden
   assert.equal(own.monthly.parameters[0].reference,undefined);
   assert.throws(()=>e.report('2026-10',senior),/ACCESS_DENIED/);
 });
+
+test('from November Canvasser and MPR earn the daily rate on loading alone and report tablet separately up to Rp1 million',()=>{
+ for (const [senior] of fixture().context.KCH_INCENTIVE_PAIRS_) {
+  const e=fixture();
+  e.tx('LBMAV',2500000,'2026-11-02',senior);
+  e.tx('LBMAV',2500000,'2026-11-03',senior);
+  e.tx('LPRGN',10000,'2026-11-03',senior);
+  e.tx('LBMAV',2499999.99,'2026-11-04',senior);
+  e.tx('LPRGN',1250000,'2026-11-04',senior);
+  e.tx('P1',4000000,'2026-11-04',senior);
+  const r=e.report('2026-11',senior);
+  const day=n=>r.daily.find(d=>d.date==='2026-11-0'+n);
+  assert.equal(day(2).scheduled,70000);
+  assert.equal(day(2).tabletValue,0);
+  assert.equal(day(3).scheduled,70000);
+  assert.equal(day(3).tabletValue,10000);
+  assert.equal(day(4).scheduled,0);
+  assert.equal(day(4).tabletValue,1000000);
+  assert.equal(r.dailyScheduledTotal,140000);
+  assert.equal(r.dailyTotal,70000);
+  assert.equal(r.monthly.actualValue,7499999.99);
+ }
+});

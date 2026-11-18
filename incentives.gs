@@ -72,11 +72,12 @@ function incentiveCalculateReport_(data, month, salesId, shared) {
     return scoreBuildReport_(monthlyData,m,salesId,monthlyPrepared);
   });
   var report=reports[quarter.months.indexOf(month)],today=scoreToday_(),recognized=scoreRecognizedDays_(rows,month,sales,mapping,policy,today,true);
+  var seniorLoadingOnly = senior && month >= '2026-11';
   var daily = report.dailyAA.map(function(day) {
     var future=day.date>today,recognizedDay=recognized[day.date]||{tv:0,rawValue:0,tablet:0,focusA:0,focusB:0},value=recognizedDay.tv,focusValue=recognizedDay.focusA+recognizedDay.focusB,focusEligible=senior||!policy.tvRecognition||focusValue>=policy.tvRecognition.dailyFocusMinimum;
     var sunday = new Date(day.date + 'T00:00:00Z').getUTCDay() === 0;
-    return { date: day.date, isWorkDay: day.isWorkDay, value:value/100,rawValue:recognizedDay.rawValue/100,excludedValue:(recognizedDay.rawValue-value)/100,focusValue:focusValue/100,focusEligible:focusEligible,tabletValue:recognizedDay.tablet/100,
-      amount: future ? null : (report.holidaySource && day.isWorkDay ? (senior ? incentiveCanvasserDailyRate_(value,recognizedDay.tablet,policy) : focusEligible?incentiveDailyRate_(value,policy):0) : 0),
+    return { date: day.date, isWorkDay: day.isWorkDay, value:value/100,rawValue:recognizedDay.rawValue/100,excludedValue:(recognizedDay.rawValue-value)/100,focusValue:focusValue/100,focusEligible:focusEligible,tabletValue:(seniorLoadingOnly ? Math.min(policy.dailySenior.tablet,Math.max(0,recognizedDay.tablet)) : recognizedDay.tablet)/100,
+      amount: future ? null : (report.holidaySource && day.isWorkDay ? (senior ? incentiveCanvasserDailyRate_(value,recognizedDay.tablet,policy,seniorLoadingOnly) : focusEligible?incentiveDailyRate_(value,policy):0) : 0),
       status: future ? 'Belum berjalan' : !day.isWorkDay ? (sunday ? 'Minggu' : 'Libur') : !report.holidaySource ? 'Kalender libur belum tersedia' : !focusEligible?'PF A + PF B belum mencapai Rp400.000':value ? 'Hari kerja · berdasarkan TV diperhitungkan' : 'Belum ada penjualan' };
   });
   var dailyTotal = report.holidaySource ? 0 : null;
@@ -115,7 +116,7 @@ function incentiveCalculateReport_(data, month, salesId, shared) {
     workDays: report.workDays, holidaySource: report.holidaySource,
     tvRecognition:policy.tvRecognition||null,daily: daily, dailyScheduledTotal: dailyScheduledTotal, dailyTotal: dailyTotal, paidDays: daily.filter(function(d) { return d.amount > 0; }).length,
     monthly: monthly, monthSubtotal: monthSubtotal, payoutFactor: monthly.payoutFactor,
-    cappedFieldDaily: cappedFieldDaily, dailyPayoutFactor: dailyPayoutFactor,
+    cappedFieldDaily: cappedFieldDaily, dailyPayoutFactor: dailyPayoutFactor, seniorLoadingOnly: seniorLoadingOnly,
     monthTotal: monthSubtotal === null ? null : dailyTotal + monthly.total,
     quarter: { masterVerified:quarterVerified, number: quarter.number, year: quarter.year, months: quarterMonths, end: quarter.end, closed: today > quarter.end,
       actual: quarterVerified?quarterActual / 100:null, target: quarterVerified?quarterTarget / 100:null, achievement: quarterVerified&&quarterTarget?quarterActual / quarterTarget:null, reachedMonths: reached, tier: quarterVerified?tier:null, amount: quarterAmount },

@@ -22,7 +22,11 @@ function incentiveLoadingReady_(data) {
   var missing = periodPolicy_(data).loading.filter(function(id) { return !available[id]; });
   if (missing.length) throw new Error('Periksa master PRODUCTS untuk produk loading: ' + missing.join(', '));
 }
-function incentiveCanvasserDailyRate_(loadingCents,tabletCents,policy){var rule=(policy||periodCurrentPolicy_()).dailySenior;return loadingCents>=rule.loading||(loadingCents>=rule.mixedLoading&&tabletCents>=rule.tablet)?rule.amount:0;}
+function incentiveCanvasserDailyRate_(loadingCents, tabletCents, policy, loadingOnly) {
+  var rule = (policy || periodCurrentPolicy_()).dailySenior;
+  if (loadingOnly) return loadingCents >= rule.mixedLoading ? rule.amount : 0;
+  return loadingCents >= rule.loading || (loadingCents >= rule.mixedLoading && tabletCents >= rule.tablet) ? rule.amount : 0;
+}
 function incentiveJuniorReport_(data, month, junior, shared) {
   var senior = incentiveSourceSales_(data, junior), base = incentiveCalculateReport_(data, month, senior.sales_id, shared);
   var r = JSON.parse(JSON.stringify(base));
