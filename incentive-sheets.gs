@@ -55,7 +55,7 @@ function kchIncentiveSheetRows_(data) {
       var identity = [month,r.sales.salesId,r.sales.name,r.sales.team], state = r.masterVerified===false?'BELUM TERVERIFIKASI':r.monthlyClosed ? 'SELESAI' : 'ESTIMASI';
       r.daily.forEach(function(d) {
         push('INSENTIF_HARIAN', [month,d.date,r.sales.salesId,r.sales.name,r.sales.team,d.isWorkDay,d.value,
-          r.dailyTotal === null || d.scheduled === null ? '' : d.scheduled,m.payoutFactor*100,
+          r.dailyTotal === null || d.scheduled === null ? '' : d.scheduled,(r.dailyPayoutFactor == null ? m.payoutFactor : r.dailyPayoutFactor)*100,
           r.dailyTotal === null || d.amount === null ? '' : d.amount,r.masterVerified===false?'Master periode belum diverifikasi':r.dailyTotal === null ? 'Kalender libur belum tersedia' : d.status,r.today,state,d.tabletValue,source.salesId,source.name,allocation,d.referenceValue,d.referenceTabletValue]);
       });
       var monthly = identity.slice();

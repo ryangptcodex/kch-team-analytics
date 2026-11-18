@@ -84,3 +84,39 @@ test('payout percentage is applied to combined gross daily plus monthly total wi
  const e=fixture();e.tx('LBMAV',5000000);e.tx('LPRGR',4500000);e.aa(400);let r=e.report();assert.equal(r.dailyScheduledTotal,50000);assert.equal(r.monthly.scheduledTotal,625000);assert.equal(r.monthSubtotal,675000);assert.equal(r.payoutFactor,.5);assert.equal(r.monthTotal,337500);assert.equal(r.dailyTotal,25000);assert.equal(r.monthly.total,312500);assert.equal(r.monthTotal,r.dailyTotal+r.monthly.total);
  e.tx('P1',9400000);r=e.report();assert.equal(r.monthly.actualValue,18900000);assert.equal(r.payoutFactor,1);assert.equal(r.monthTotal,r.monthSubtotal);
 });
+
+test('from November the Motoris and MMTW focus threshold uses the combined SKUs, and the monthly TV gate is all or nothing', () => {
+ const e=fixture('MMTW'), date='2026-11-02';
+ e.tx('LBMAV',200000,date); e.tx('LKXOD',150000,date); e.tx('LPRGR',49999.99,date);
+ e.tx('P1',500000,date);
+ const day=r=>r.daily.find(d=>d.date===date);
+ assert.equal(day(e.report('2026-11')).scheduled,0);
+ e.tx('LPRGR',.01,date);
+ e.tx('P1',17999999.99,'2026-11-03');
+ let result=e.report('2026-11');
+ assert.equal(day(result).focusValue,400000);
+ assert.equal(result.dailyScheduledTotal,10000);
+ assert.equal(result.dailyTotal,0);
+ assert.equal(result.monthTotal,result.monthly.total);
+ e.tx('P1',.01,'2026-11-03');
+ result=e.report('2026-11');
+ assert.equal(result.monthly.actualValue,18900000);
+ assert.equal(result.dailyTotal,10000);
+ assert.equal(result.monthTotal,result.monthly.total+10000);
+});
+
+test('from November Motoris caps each daily rate separately at 25 claims', () => {
+ for (const [tv,rate] of [[900000,10000],[1100000,20000],[1300000,30000],[1600000,50000]]) {
+  const e=fixture(), c=e.context;
+  const days=c.getWorkDateRangeInfo_('2026-12-01','2026-12-31',{}).dates.filter(d=>d.isWorkDay).slice(0,27);
+  assert.equal(days.length,27);
+  for (const day of days.slice(0,26)) { e.tx('LBMAV',400000,day.date);e.tx('P1',tv-400000,day.date); }
+  let result=e.report('2026-12');
+  assert.equal(result.dailyTotal,rate*25);
+  assert.match(result.daily.find(d=>d.date===days[25].date).status,/Plafon/);
+  e.tx('LBMAV',rate===50000?900000:1600000,days[26].date);
+  result=e.report('2026-12');
+  assert.equal(result.paidDays,26);
+  assert.equal(result.dailyTotal,rate*25+(rate===50000?10000:50000));
+ }
+});

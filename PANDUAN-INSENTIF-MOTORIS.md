@@ -1,3 +1,5 @@
+> **Klaim harian mulai November 2026.** PF A dan PF B dijumlahkan per hari dengan ambang Rp400.000. Plafon per tarif adalah 25 klaim, setara Rp250.000, Rp500.000, Rp750.000, dan Rp1.250.000. Hasil setelah plafon dibayar penuh ketika TV diperhitungkan mencapai minimal Rp18.900.000 dan Rp0 bila kurang. Aturan bonus bulanan dan triwulan tetap mengikuti kalkulasi sebelumnya.
+
 > **Pembaruan terbaru:** tombol Perbarui kini juga membuat dan mengisi tiga sheet hasil Insentif. Pasang paket pada [PANDUAN-SINKRON-INSENTIF.md](PANDUAN-SINKRON-INSENTIF.md); penjelasan lama bahwa Insentif hanya membaca/tidak mempunyai sheet digantikan untuk fungsi pembaruan spreadsheet. Halaman webapp tetap hanya membaca.
 
 > Pembaruan mulai November 2026: Entrostop Tablet TNTPK maksimal Rp5 juta TV per sales/bulan, dialokasikan berdasarkan tanggal bisnis; insentif harian juga wajib PF A+B minimal Rp400 ribu. Baca [panduan juklak surat 300](PANDUAN-JUKLAK-300-NOVEMBER.md) untuk paket terbaru. Aturan Oktober tetap seperti sebelumnya.

@@ -78,3 +78,14 @@ test('office export enforces sales ownership and excludes Guest before reading t
   assert.throws(()=>c.kchApi('MOCK','exportOfficeReport',[{}]),/ACCESS_DENIED/);
   assert.match(c.officeCellXml_(' r="C20" t="inlineStr"','=A1 & <literal>'),/inlineStr.*=A1 &amp; &lt;literal&gt;/);
 });
+
+test('Motoris Excel separates capped daily schedule from zero daily claim below the November TV gate',()=>{
+  const {c,sales}=fixture();
+  const previous=c.incentiveBuildReport_;
+  c.incentiveBuildReport_=()=>({...previous(),cappedFieldDaily:true,paidDays:0,dailyTotal:0,monthTotal:45500});
+  const cells=c.officeIncentiveCells_('2026-11',sales,false,['PEGAB']);
+  assert.equal(cells.G51,1);
+  assert.equal(cells.I51,10000);
+  assert.equal(cells.M60,45500);
+  assert.match(cells.B63,/klaim harian setelah ambang TV: Rp0/);
+});

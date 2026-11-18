@@ -79,7 +79,7 @@ function incentiveCalculateReport_(data, month, salesId, shared) {
       amount: future ? null : (report.holidaySource && day.isWorkDay ? (senior ? incentiveCanvasserDailyRate_(value,recognizedDay.tablet,policy) : focusEligible?incentiveDailyRate_(value,policy):0) : 0),
       status: future ? 'Belum berjalan' : !day.isWorkDay ? (sunday ? 'Minggu' : 'Libur') : !report.holidaySource ? 'Kalender libur belum tersedia' : !focusEligible?'PF A + PF B belum mencapai Rp400.000':value ? 'Hari kerja · berdasarkan TV diperhitungkan' : 'Belum ada penjualan' };
   });
-  var dailyTotal = report.holidaySource ? daily.reduce(function(sum, d) { return sum + (d.amount || 0); }, 0) : null;
+  var dailyTotal = report.holidaySource ? 0 : null;
   var quarterVerified=reports.every(function(r){return r.masterVerified!==false&&r.moneySignature===report.moneySignature;});
   var quarterMonths = reports.map(function(r) { var p = r.parameters[2]; return { month: r.month, masterVerified:r.masterVerified!==false, actual: p.actual, target: p.target, achievement: p.achievement, reached: r.masterVerified!==false && (typeof reportMoney_==='function'?reportMoney_:txMoney_)(p.actual, 'Total Value') >= txMoney_(p.target, 'Target') }; });
   var quarterActual = quarterMonths.reduce(function(sum, m) { return sum + (typeof reportMoney_==='function'?reportMoney_:txMoney_)(m.actual, 'Total Value'); }, 0);
@@ -90,15 +90,33 @@ function incentiveCalculateReport_(data, month, salesId, shared) {
   var quarterAmount = quarterVerified?(tier && reached ? payouts[reached][policy.quarterLevels.indexOf(tier)] : 0):null;
   var monthly = incentiveMonthly_(report), monthEnd = report.dailyAA[report.dailyAA.length - 1].date;
   if(report.masterVerified===false){daily.forEach(function(d){d.amount=null;});monthly.total=null;monthly.scheduledTotal=null;dailyTotal=null;monthly.parameters.forEach(function(p){p.amount=null;p.scheduled=null;});}
-  var dailyScheduledTotal = dailyTotal;
-  daily.forEach(function(d) { d.scheduled = d.amount; if (d.amount !== null) d.amount *= monthly.payoutFactor; });
-  if (dailyTotal !== null) dailyTotal *= monthly.payoutFactor;
+  var cappedFieldDaily = !senior && month >= '2026-11';
+  var dailyPayoutFactor = cappedFieldDaily ? (monthly.eligible ? 1 : 0) : monthly.payoutFactor;
+  var daysByRate = Object.create(null), dailyScheduledTotal = dailyTotal === null ? null : 0;
+  daily.forEach(function(d) {
+    d.scheduled = d.amount;
+    if (d.amount === null || dailyScheduledTotal === null) return;
+    if (cappedFieldDaily && d.scheduled > 0) {
+      var rate = d.scheduled;
+      daysByRate[rate] = (daysByRate[rate] || 0) + 1;
+      if (daysByRate[rate] > 25) {
+        d.scheduled = 0;
+        d.status = 'Plafon bulanan tarif ini sudah tercapai';
+      } else if (!dailyPayoutFactor) {
+        d.status = 'TV bulanan belum mencapai 70%';
+      }
+    }
+    dailyScheduledTotal += d.scheduled;
+    d.amount = d.scheduled * dailyPayoutFactor;
+  });
+  dailyTotal = dailyScheduledTotal === null ? null : dailyScheduledTotal * dailyPayoutFactor;
   var monthSubtotal = dailyScheduledTotal === null ? null : dailyScheduledTotal + monthly.scheduledTotal;
   return { success: true, masterVerified:report.masterVerified!==false, isJunior:false, allocationFactor:1, policy:senior?'LOADING':'ALL_NON_TABLET', month: month, today: today, sales: report.sales, monthlyClosed: today > monthEnd,
     workDays: report.workDays, holidaySource: report.holidaySource,
     tvRecognition:policy.tvRecognition||null,daily: daily, dailyScheduledTotal: dailyScheduledTotal, dailyTotal: dailyTotal, paidDays: daily.filter(function(d) { return d.amount > 0; }).length,
     monthly: monthly, monthSubtotal: monthSubtotal, payoutFactor: monthly.payoutFactor,
-    monthTotal: monthSubtotal === null ? null : monthSubtotal * monthly.payoutFactor,
+    cappedFieldDaily: cappedFieldDaily, dailyPayoutFactor: dailyPayoutFactor,
+    monthTotal: monthSubtotal === null ? null : dailyTotal + monthly.total,
     quarter: { masterVerified:quarterVerified, number: quarter.number, year: quarter.year, months: quarterMonths, end: quarter.end, closed: today > quarter.end,
       actual: quarterVerified?quarterActual / 100:null, target: quarterVerified?quarterTarget / 100:null, achievement: quarterVerified&&quarterTarget?quarterActual / quarterTarget:null, reachedMonths: reached, tier: quarterVerified?tier:null, amount: quarterAmount },
     warnings: (quarterVerified?[]:['Master atau aturan antarbulan belum sesuai; bonus triwulan belum dapat disahkan.']).concat(report.masterVerified===false?['Master periode belum diverifikasi.']:[]).concat(report.holidaySource ? [] : ['Sheet HOLIDAYS belum tersedia; insentif harian belum dapat dipastikan.'])
