@@ -820,8 +820,28 @@
     var labels = (trend || []).map(function(item) { return formatDateIndo(item.date); });
     var values = (trend || []).map(function(item) { return parseCleanNumber(item.amount); });
     var isToday = !appState.dashboardPeriod || appState.dashboardPeriod === 'TODAY';
+    var targetValues = (trend || []).map(function(item) {
+      return item.targetAmount === null || item.targetAmount === undefined ? null : parseCleanNumber(item.targetAmount);
+    });
+    var targetLabel = isToday ? 'Target Harian' : 'Target Periode';
     var achievedLabel = isToday ? 'Pencapaian Hari Ini' : 'Pencapaian Periode';
-    var datasets = [{
+    var datasets = [];
+
+    if (isToday) {
+      datasets.push({
+        label: targetLabel,
+        data: targetValues,
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        fill: false,
+        tension: 0,
+        borderDash: [6, 4],
+        borderColor: '#cbd5e1'
+      });
+    }
+
+    datasets.push({
       label: achievedLabel,
       data: values,
       borderWidth: 2,
@@ -831,7 +851,15 @@
       tension: 0.35,
       backgroundColor: 'rgba(22,115,66,0.08)',
       borderColor: '#167342'
-    }];
+    });
+
+    var salesTrendOptions = chartOptionsRupiah();
+    if (appState.dashboardPeriod === 'MONTH') {
+      var monthlyTargetScale = (appState.dashboardData && appState.dashboardData.salesPerformance ? appState.dashboardData.salesPerformance : []).reduce(function(maxTarget, sp) {
+        return Math.max(maxTarget, parseCleanNumber(sp.monthlyTarget || sp.target));
+      }, 0);
+      if (monthlyTargetScale > 0) salesTrendOptions.scales.y.suggestedMax = monthlyTargetScale;
+    }
 
     appState.charts.salesTrendChart = new Chart(canvas.getContext('2d'), {
       type: 'line',
@@ -839,7 +867,7 @@
         labels: labels,
         datasets: datasets
       },
-      options: chartOptionsRupiah()
+      options: salesTrendOptions
     });
   }
 
@@ -919,9 +947,13 @@
     var rows = (data || []).filter(function(sp) { return !isNonTargetTeam(sp.teamName); });
     var labels = rows.map(function(sp) { return sp.name || '-'; });
     var isToday = !appState.dashboardPeriod || appState.dashboardPeriod === 'TODAY';
+    var targets = rows.map(function(sp) {
+      return parseCleanNumber(isToday ? (sp.dailyRate || getSalesDailyTargetRate(sp.teamName)) : sp.periodTarget);
+    });
     var achieved = rows.map(function(sp) {
       return parseCleanNumber(isToday ? sp.todayAchieved : sp.achieved);
     });
+    var targetLabel = isToday ? 'Target Harian' : 'Target Periode';
     var achievedLabel = isToday ? 'Pencapaian Hari Ini' : 'Pencapaian Periode';
 
     appState.charts.salesDailyComparisonChart = new Chart(canvas.getContext('2d'), {
@@ -929,6 +961,7 @@
       data: {
         labels: labels,
         datasets: [
+          { label: targetLabel, data: targets, backgroundColor: '#cbd5e1', borderRadius: 5 },
           { label: achievedLabel, data: achieved, backgroundColor: '#167342', borderRadius: 5 }
         ]
       },
