@@ -3335,7 +3335,7 @@ function renderDriveFiles() {
       },
       scales: {
         x: { grid: { display: false }, ticks: { font: { size: 9.5 }, color: '#64748b' } },
-        y: { beginAtZero: true, grid: { color: '#eef2f7' }, ticks: { font: { size: 9.5 }, color: '#64748b', callback: function(value) { return formatCompactRupiah(value); } } }
+        y: { beginAtZero: true, grid: { display: false }, ticks: { font: { size: 9.5 }, color: '#64748b', callback: function(value) { return formatCompactRupiah(value); } } }
       }
     };
   }
