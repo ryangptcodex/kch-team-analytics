@@ -15,7 +15,7 @@ function exportOfficeReport_(input) {
   if (!mpr && ['MOTORIS','MMTW'].indexOf(team) < 0) throw new Error('Format kantor hanya tersedia untuk Motoris/MMTW dan MPR/Canvasser.');
   if (incentive && incentiveJunior_(sales)) throw new Error('Form Incentive pasangan diekspor dari profil Senior. Alokasi asisten tercantum di formulir tersebut.');
   var template = KCH_OFFICE_REPORT_TEMPLATES_[(incentive ? 'incentive' : 'rssh') + (mpr ? 'Mpr' : 'Motoris')];
-  var entries = incentive ? officeIncentiveCells_(input.period,sales,mpr,template.sku) : officeRsshCells_(input,sales,mpr);
+  var entries = incentive ? officeIncentiveCells_(input.period,sales,mpr,template.sku,template.referencePrices) : officeRsshCells_(input,sales,mpr,template.referenceProducts);
   var slug = String(sales.sales_id).replace(/[^a-zA-Z0-9_-]+/g,'-');
   return {success:true, name:(incentive ? 'Form-Incentive-' : 'RSSH-') + slug + '-' + input.period + '.xlsx', data:officeWorkbook_(template.data,entries)};
 }
@@ -33,7 +33,7 @@ function officeSkuKey_(id) {
   id=normalizeKey_(id);
   return scoreCanonicalProductId_(id === 'TPRGR' ? 'LPRGN' : id === 'PEBJE' ? 'PEBJF' : id);
 }
-function officeIncentiveCells_(month,sales,mpr,codes) {
+function officeIncentiveCells_(month,sales,mpr,codes,referencePrices) {
   var id = sales.sales_id, start = month+'-01';
   var data = scoreContext_(true);
   var report = incentiveBuildReport_(data,month,id);
@@ -66,9 +66,8 @@ function officeIncentiveCells_(month,sales,mpr,codes) {
     days[date].value += value;
     if (!col) { missing[String(row.product_id)] = true; return; }
     days[date].units[col] = (days[date].units[col] || 0) + quantity;
-    if (!totals[col]) totals[col] = {units:0,value:0,prices:Object.create(null)};
+    if (!totals[col]) totals[col] = {units:0,value:0};
     totals[col].units += quantity; totals[col].value += value;
-    totals[col].prices[String(row.selling_price)] = true;
   });
   var daily = Object.create(null);
   (report.daily || []).forEach(function(row) { daily[row.date] = row; });
@@ -86,13 +85,23 @@ function officeIncentiveCells_(month,sales,mpr,codes) {
       cells[col+r]=value;
       if (value!=null) dailyTotals[col]=(dailyTotals[col] || 0)+value;
     });
+    if (!mpr) {
+      cells['AG'+r]=line.focusAValue;
+      cells['AH'+r]=line.focusBValue;
+      ['AG','AH'].forEach(function(col) {
+        if (cells[col+r]!=null) dailyTotals[col]=(dailyTotals[col] || 0)+cells[col+r];
+      });
+      if (line.scheduled!=null && line.isWorkDay) cells['AI'+r]=line.scheduled>0 ? 'MEMENUHI SYARAT HARIAN' : line.status || 'TIDAK MEMENUHI';
+    }
     if (line.scheduled > 0) buckets[line.scheduled] = (buckets[line.scheduled] || 0)+1;
   }
   Object.keys(totals).forEach(function(col) {
-    var t = totals[col], prices = Object.keys(t.prices);
-    cells[col+(first-2)] = prices.length === 1 ? Number(prices[0]) : null;
+    var t = totals[col];
     cells[col+(last+1)] = t.units;
     cells[col+(last+2)] = t.value/100;
+  });
+  (referencePrices || []).forEach(function(price,index) {
+    if (typeof price==='number') cells[officeColumn_(6+index)+(first-2)]=price;
   });
   Object.keys(dailyTotals).forEach(function(col) { cells[col+(last+1)]=dailyTotals[col]; });
   var params = report.monthly.parameters;
@@ -115,14 +124,23 @@ function officeIncentiveCells_(month,sales,mpr,codes) {
     cells.I51=report.dailyScheduledTotal;
     cells.M58=report.monthly.scheduledTotal;cells.M59=report.monthSubtotal;cells.M60=report.monthTotal;
   }
-  cells.B63 = 'Insentif dihitung oleh webapp. Kolom Transtrack diisi terpisah. Rp/unit kosong bila harga berbeda.';
+  cells.B63 = 'Insentif dihitung oleh webapp. Harga per unit adalah acuan kantor. Nilai transaksi dan insentif mengikuti data webapp. Kolom Transtrack diisi terpisah.';
   if (report.seniorLoadingOnly) cells.B63 += ' TV Promag dibatasi Rp1 juta per hari; ambang harian Rp2,5 juta berasal dari produk loading.';
   if (report.cappedFieldDaily && report.dailyTotal != null) cells.B63 += ' Rekap harian setelah plafon: Rp'+report.dailyScheduledTotal+'; klaim harian setelah ambang TV: Rp'+report.dailyTotal+'.';
   if (Object.keys(missing).length) cells.B64 = 'SKU di luar kolom template (tetap masuk nilai transaksi dan perhitungan webapp): ' + Object.keys(missing).join(', ');
   return cells;
 }
 
-function officeRsshCells_(input,sales,mpr) {
+function officeRsshPrice_(product,references) {
+  var normalized=normalizeKey_(product.name).replace(/[^A-Z0-9]/g,'');
+  return (references || []).find(function(row) {
+    return row[0] && row[0].split('-').some(function(code) { return officeSkuKey_(code)===product.key; });
+  }) || (references || []).find(function(row) {
+    return normalizeKey_(row[1]).replace(/[^A-Z0-9]/g,'')===normalized;
+  });
+}
+
+function officeRsshCells_(input,sales,mpr,references) {
   var id = sales.sales_id, start = input.period, end = officeAddDate_(start,5);
   var distro = txUnique_(getSheetData_('DISTRIBUTORS').rows,function(row) {
     return normalizeKey_(row.distributor_id) === normalizeKey_(input.distributorId) && !!input.distributorId;
@@ -157,7 +175,7 @@ function officeRsshCells_(input,sales,mpr) {
   var deposits = opsEffectiveRecordRows_('SALES_CASH_DEPOSITS',reportRows('SALES_CASH_DEPOSITS'),entries);
   var pickups = opsEffectiveRecordRows_('STOCK_PICKUPS',reportRows('STOCK_PICKUPS'),entries);
   var panel = /PANEL/i.test(String(distro.distributor_type || '')+' '+distro.distributor_name);
-  var cells = {D4:sales.full_name,D6:distro.distributor_name,D7:sales.area,D8:start+' s.d. '+end,D19:panel?'PANEL':'GROSIR'};
+  var cells = {D4:sales.full_name,D6:distro.distributor_name,D7:sales.area,D8:start+' s.d. '+end,D19:panel?'BELI FAKTUR PANEL':'ACUAN BELI',E19:panel?'JUAL FAKTUR PANEL':'ACUAN JUAL'};
   var received = Object.create(null);
   deposits.forEach(function(row) {
     var date = normalizeDateString_(row.deposit_date);
@@ -180,14 +198,27 @@ function officeRsshCells_(input,sales,mpr) {
     var key=officeSkuKey_(row.product_id);
     if (date >= start || products[key]) product(row).movements.push(row);
   });
-  var list=Object.keys(products).sort().map(function(key) { return products[key]; });
-  if (list.length > (mpr?31:27)) throw new Error('Jumlah SKU melebihi baris format RSSH kantor.');
-  list.forEach(function(p,index) {
-    var r=index+20;
+  var catalog=references || [];
+  var list=Object.keys(products).map(function(key) {
+    var p=products[key];
+    return {product:p,reference:officeRsshPrice_(p,catalog)};
+  }).sort(function(a,b) {
+    var ai=a.reference ? catalog.indexOf(a.reference) : catalog.length;
+    var bi=b.reference ? catalog.indexOf(b.reference) : catalog.length;
+    return ai-bi || a.product.key.localeCompare(b.product.key);
+  });
+  if (list.length > (mpr?30:27)) throw new Error('Jumlah SKU melebihi baris format RSSH kantor.');
+  list.forEach(function(item,index) {
+    var p=item.product, r=index+20;
     cells['B'+r]=index+1;cells['C'+r]=p.name;cells['F'+r]=p.qty;cells['G'+r]=p.sell/100;cells['H'+r]=p.buy/100;
     var buys=Object.keys(p.buys), sells=Object.keys(p.sells);
-    if (buys.length===1) cells['D'+r]=Number(buys[0]);
-    if (sells.length===1) cells['E'+r]=Number(sells[0]);
+    var reference=panel ? null : item.reference;
+    if (reference) {
+      cells['D'+r]=reference[2];cells['E'+r]=reference[3];
+    } else if (panel) {
+      if (buys.length===1 && buys[0]!=='') cells['D'+r]=Number(buys[0]);
+      if (sells.length===1 && sells[0]!=='') cells['E'+r]=Number(sells[0]);
+    }
     p.movements.sort(function(a,b) { return normalizeDateString_(a.date).localeCompare(normalizeDateString_(b.date)); });
     var before=p.movements.filter(function(row) { return normalizeDateString_(row.date)<start; });
     var within=p.movements.filter(function(row) { return normalizeDateString_(row.date)>=start; });
@@ -197,14 +228,14 @@ function officeRsshCells_(input,sales,mpr) {
       return !prior || String(prior.stock_after)===String(row.stock_before);
     });
     if (consistent && (first || previous)) cells['J'+r]=first?first.stock_before:previous.stock_after;
-    if (consistent && final) cells[(mpr?'P':'Q')+r]=final.stock_after;
-    var slots=mpr?4:5, loading=Object.keys(p.pickups).sort();
+    if (consistent && final) cells['Q'+r]=final.stock_after;
+    var slots=5, loading=Object.keys(p.pickups).sort();
     for (var slot=0;slot<slots;slot++) {
       var selected=slot===slots-1 ? loading.slice(slot) : loading.slice(slot,slot+1);
       cells[officeColumn_(10+slot)+r]=selected.reduce(function(n,date){return n+p.pickups[date];},0);
     }
   });
-  cells.B63 = 'Saldo berasal dari riwayat stok pegangan. Harga unit kosong bila berbeda; nilai mengikuti faktur. Loading melebihi slot digabung di kolom terakhir.';
+  cells.B63 = 'Harga acuan Subdist dari template kantor; kosong bila produk tidak cocok. Panel memakai harga faktur jika seragam. Nilai penjualan, modal dan SHJ memakai faktur. Saldo memakai riwayat stok pegangan; loading tambahan digabung pada slot terakhir bila lebih dari lima.';
   return cells;
 }
 

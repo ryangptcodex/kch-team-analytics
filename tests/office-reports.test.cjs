@@ -50,7 +50,7 @@ test('RSSH uses invoice line distributor and recorded deposits, pickups and bala
   rows.SALES_STOCK_MOVEMENTS[1].stock_before=99;
   assert.equal(c.officeRsshCells_(input,sales,false).Q20,undefined);
   const panel=c.officeRsshCells_({...input,distributorId:'D2'},sales,false);
-  assert.equal(panel.D19,'PANEL');
+  assert.equal(panel.D19,'BELI FAKTUR PANEL');
   assert.equal(panel.F20,1);
   assert.equal(panel.D13,undefined);
   rows.SALES_TRANSACTIONS[0].stock_distributor_id='';
@@ -88,4 +88,33 @@ test('Motoris Excel separates capped daily schedule from zero daily claim below 
   assert.equal(cells.I51,10000);
   assert.equal(cells.M60,45500);
   assert.match(cells.B63,/klaim harian setelah ambang TV: Rp0/);
+});
+
+test('updated office prices are report reference only and keep historical invoice values',()=>{
+  const {c,sales}=fixture();
+  const templates=c.KCH_OFFICE_REPORT_TEMPLATES_;
+  const mpr=templates.rsshMpr;
+  const rssh=c.officeRsshCells_({period:'2026-11-09',distributorId:'D1'},sales,true,mpr.referenceProducts);
+  assert.equal(rssh.D20,5873.01);
+  assert.equal(rssh.E20,6055.05);
+  assert.equal(rssh.G20,200);
+  assert.equal(rssh.H20,120);
+  assert.equal(rssh.Q20,11);
+  const kalpanax=c.officeRsshPrice_({key:'OTHER',name:'Kalpanax Salep Box'},mpr.referenceProducts);
+  assert.equal(kalpanax[2],10169.265);
+  assert.equal(c.officeRsshPrice_({key:'OTHER',name:'Kalpanax Salep 6s'},mpr.referenceProducts),undefined);
+  const t=templates.incentiveMotoris;
+  const original=c.incentiveBuildReport_;
+  c.incentiveBuildReport_=()=> {
+    const report=original();
+    Object.assign(report.daily[0],{focusAValue:200000,focusBValue:200000,isWorkDay:true});
+    return report;
+  };
+  const incentive=c.officeIncentiveCells_('2026-11',sales,false,t.sku,t.referencePrices);
+  assert.equal(incentive.G10,6559);
+  assert.equal(incentive.AG20,200000);
+  assert.equal(incentive.AH20,200000);
+  assert.equal(incentive.AI20,'MEMENUHI SYARAT HARIAN');
+  assert.equal(incentive.AF20,300);
+  assert.equal(incentive.M60,50500);
 });
