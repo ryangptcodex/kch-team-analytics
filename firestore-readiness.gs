@@ -56,3 +56,58 @@ function siapkanMasterStagingFirestore() {
   console.log(JSON.stringify(result));
   return result;
 }
+
+// Run manually from the bound Production editor with the Datastore OAuth scope.
+function periksaAksesAppsScriptFirestore() {
+  firestoreMigrationSource_();
+  var project=getFirebaseWebConfig_().projectId;
+  if (project!=='kch-team-analytics-production') throw new Error('Project Firebase Production belum terkonfirmasi.');
+
+  var snapshot='4b36a3e9638ed4cbd9a80753f5b305c4de42034185fd37bc3c1579e05b1dba36';
+  var endpoint='https://firestore.googleapis.com/v1/projects/'+project+
+    '/databases/(default)/documents/_kchSheetImports/'+snapshot;
+  var token=ScriptApp.getOAuthToken();
+  var fields=firestoreReadStaging_(endpoint,token).fields || {};
+  if (!fields.snapshot_id || fields.snapshot_id.stringValue!==snapshot ||
+      !fields.source || fields.source.stringValue!=='production_master_staging_v1' ||
+      !fields.row_count || Number(fields.row_count.integerValue)!==227) {
+    throw new Error('Metadata snapshot Firestore tidak cocok.');
+  }
+
+  var expected={PRODUCTS:25,PRICE_MASTER:200,DISTRIBUTORS:2}, counts={};
+  Object.keys(expected).forEach(function(name) {
+    var count=0, pageToken='';
+    do {
+      var url=endpoint+'/'+name+'?pageSize=100';
+      if (pageToken) url+='&pageToken='+encodeURIComponent(pageToken);
+      var page=firestoreReadStaging_(url,token);
+      count+=(page.documents || []).length;
+      if (count>expected[name] || (page.nextPageToken && !((page.documents || []).length))) {
+        throw new Error('Jumlah data snapshot tidak cocok: '+name);
+      }
+      pageToken=page.nextPageToken;
+    } while (pageToken);
+    if (count!==expected[name]) throw new Error('Jumlah data snapshot tidak cocok: '+name);
+    counts[name]=count;
+  });
+  var result={status:'APPS_SCRIPT_FIRESTORE_READ_OK',project:project,counts:counts};
+  console.log(JSON.stringify(result));
+  return result;
+}
+
+function firestoreReadStaging_(url,token) {
+  var response=UrlFetchApp.fetch(url,{
+    method:'get',headers:{Authorization:'Bearer '+token},muteHttpExceptions:true,followRedirects:false
+  });
+  var status=response.getResponseCode();
+  if (status!==200) {
+    var error={};
+    try { error=JSON.parse(response.getContentText()).error || {}; } catch (ignored) {}
+    var info=(error.details || []).find(function(detail) {
+      return detail['@type']==='type.googleapis.com/google.rpc.ErrorInfo';
+    });
+    var reason=info && /^[A-Z_]+$/.test(info.reason) ? ' ('+info.reason+')' : '';
+    throw new Error('Firestore HTTP '+status+reason);
+  }
+  return JSON.parse(response.getContentText());
+}
