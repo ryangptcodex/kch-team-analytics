@@ -41,3 +41,25 @@ test('readiness denies other users, projects, or spreadsheets before reading API
    assert.deepEqual(logs,[]);
  }
 });
+
+test('master staging exports only the three allowed tables as a private file',()=>{
+ const {c,logs}=app();
+ const headers=['id','name'];
+ c.TABLE_SCHEMAS=Object.fromEntries(['PRODUCTS','PRICE_MASTER','DISTRIBUTORS'].map(name=>[name,headers]));
+ c.txRead_=(_ctx,names)=> {
+  assert.deepEqual(Array.from(names),['PRODUCTS','PRICE_MASTER','DISTRIBUTORS']);
+  return Object.fromEntries(names.map(name=>[name,[headers,['item','private-master-value']]]));
+ };
+ c.txTable_=(_name,values)=>({rows:[{id:values[1][0],name:values[1][1],unrelated:'excluded'}]});
+ c.Utilities={formatDate:()=> '20261124-210000',newBlob:content=>content};
+ c.TIMEZONE='Asia/Jakarta';
+ c.DriveApp={Access:{PRIVATE:'private'},createFile:content=>{
+  const payload=JSON.parse(content);
+  assert.deepEqual(Object.keys(payload.tables),['PRODUCTS','PRICE_MASTER','DISTRIBUTORS']);
+  assert.deepEqual(payload.tables.PRODUCTS,[{id:'item',name:'private-master-value'}]);
+  return {getSharingAccess:()=> 'private',getUrl:()=> 'https://drive.google.com/file/d/example'};
+ }};
+ assert.equal(c.siapkanMasterStagingFirestore().counts.PRICE_MASTER,1);
+ assert.doesNotMatch(logs.join(''),/private-master-value/);
+ assert.throws(()=>app({pending:true}).c.siapkanMasterStagingFirestore(),/ditahan/);
+});
